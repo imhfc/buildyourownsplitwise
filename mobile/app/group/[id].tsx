@@ -1,20 +1,23 @@
 import { useCallback, useState } from "react";
-import { View, StyleSheet, FlatList, RefreshControl } from "react-native";
-import {
-  FAB,
-  Card,
-  Text,
-  Chip,
-  Button,
-  Portal,
-  Modal,
-  TextInput,
-  SegmentedButtons,
-} from "react-native-paper";
+import { View, FlatList, RefreshControl, Modal, Pressable } from "react-native";
 import { useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
+import {
+  Receipt,
+  ArrowLeftRight,
+  X,
+  Plus,
+} from "lucide-react-native";
 import { expensesAPI, settlementsAPI } from "../../services/api";
 import { useAuthStore } from "../../stores/auth";
+import { Card, CardContent } from "~/components/ui/card";
+import { Text, H3, Muted } from "~/components/ui/text";
+import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
+import { Badge } from "~/components/ui/badge";
+import { FAB } from "~/components/ui/fab";
+import { EmptyState } from "~/components/ui/empty-state";
+import { SegmentedTabs } from "~/components/ui/tabs";
 
 type Tab = "expenses" | "settlements";
 
@@ -36,6 +39,8 @@ interface Suggestion {
   amount: string;
   currency: string;
 }
+
+const SPLIT_METHODS = ["equal", "ratio", "exact", "shares"] as const;
 
 export default function GroupDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -102,49 +107,60 @@ export default function GroupDetailScreen() {
   };
 
   const renderExpense = ({ item }: { item: ExpenseItem }) => (
-    <Card style={styles.card}>
-      <Card.Title
-        title={item.description}
-        subtitle={`${item.payer_display_name} ${t("paid_by")}`}
-        right={() => (
-          <View style={styles.amountContainer}>
-            <Text variant="titleMedium" style={styles.amount}>
-              {item.currency} {parseFloat(item.total_amount).toLocaleString()}
-            </Text>
-            <Chip compact style={styles.methodChip}>
-              {t(item.split_method)}
-            </Chip>
-          </View>
-        )}
-      />
+    <Card className="mb-3">
+      <CardContent className="flex-row items-center p-4 gap-3">
+        <View className="h-10 w-10 rounded-full bg-muted items-center justify-center">
+          <Receipt size={20} color="hsl(240 3.8% 46.1%)" />
+        </View>
+        <View className="flex-1">
+          <Text className="font-medium">{item.description}</Text>
+          <Muted>
+            {item.payer_display_name} {t("paid_by")}
+          </Muted>
+        </View>
+        <View className="items-end gap-1">
+          <Text className="text-lg font-bold text-primary">
+            {item.currency} {parseFloat(item.total_amount).toLocaleString()}
+          </Text>
+          <Badge variant="secondary">{t(item.split_method)}</Badge>
+        </View>
+      </CardContent>
     </Card>
   );
 
   const renderSuggestion = ({ item }: { item: Suggestion }) => (
-    <Card style={styles.card}>
-      <Card.Content style={styles.suggestionContent}>
-        <Text variant="bodyLarge">
-          <Text style={styles.debtorName}>{item.from_user_name}</Text>
-          {" "}{t("owes")}{" "}
-          <Text style={styles.creditorName}>{item.to_user_name}</Text>
-        </Text>
-        <Text variant="titleMedium" style={styles.suggestionAmount}>
+    <Card className="mb-3">
+      <CardContent className="flex-row items-center justify-between p-4">
+        <View className="flex-1">
+          <Text>
+            <Text className="font-bold text-destructive">
+              {item.from_user_name}
+            </Text>
+            {"  "}
+            {t("owes")}
+            {"  "}
+            <Text className="font-bold text-income">
+              {item.to_user_name}
+            </Text>
+          </Text>
+        </View>
+        <Text className="text-lg font-bold text-primary">
           {item.currency} {parseFloat(item.amount).toLocaleString()}
         </Text>
-      </Card.Content>
+      </CardContent>
     </Card>
   );
 
   return (
-    <View style={styles.container}>
-      <SegmentedButtons
-        value={tab}
-        onValueChange={(v) => setTab(v as Tab)}
-        buttons={[
+    <View className="flex-1 bg-background">
+      <SegmentedTabs
+        tabs={[
           { value: "expenses", label: t("expenses") },
           { value: "settlements", label: t("settlements") },
         ]}
-        style={styles.tabs}
+        value={tab}
+        onValueChange={(v) => setTab(v as Tab)}
+        className="mx-5 mt-4"
       />
 
       {tab === "expenses" ? (
@@ -152,12 +168,18 @@ export default function GroupDetailScreen() {
           data={expenses}
           keyExtractor={(item) => item.id}
           renderItem={renderExpense}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
           ListEmptyComponent={
-            <Text style={styles.empty}>{t("add_expense")}</Text>
+            <EmptyState
+              icon={Receipt}
+              title={t("add_expense")}
+              description="還沒有任何消費紀錄"
+              actionLabel={t("add_expense")}
+              onAction={() => setShowAdd(true)}
+            />
           }
         />
       ) : (
@@ -165,99 +187,82 @@ export default function GroupDetailScreen() {
           data={suggestions}
           keyExtractor={(_, i) => `s-${i}`}
           renderItem={renderSuggestion}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={{ padding: 20 }}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
           ListEmptyComponent={
-            <Text style={styles.empty}>{t("balanced")}</Text>
+            <EmptyState
+              icon={ArrowLeftRight}
+              title={t("balanced")}
+              description="所有帳務已平衡！"
+            />
           }
         />
       )}
 
-      {tab === "expenses" && (
-        <FAB
-          icon="plus"
-          style={styles.fab}
-          onPress={() => setShowAdd(true)}
-        />
-      )}
+      {tab === "expenses" && <FAB onPress={() => setShowAdd(true)} />}
 
-      <Portal>
-        <Modal
-          visible={showAdd}
-          onDismiss={() => setShowAdd(false)}
-          contentContainerStyle={styles.modal}
-        >
-          <Text variant="titleLarge" style={styles.modalTitle}>
-            {t("add_expense")}
-          </Text>
-          <TextInput
-            label={t("description")}
-            value={desc}
-            onChangeText={setDesc}
-            mode="outlined"
-            style={styles.input}
-          />
-          <TextInput
-            label={t("amount")}
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="numeric"
-            mode="outlined"
-            style={styles.input}
-          />
-          <Text variant="bodyMedium" style={styles.splitLabel}>
-            {t("split_method")}
-          </Text>
-          <SegmentedButtons
-            value={splitMethod}
-            onValueChange={setSplitMethod}
-            buttons={[
-              { value: "equal", label: t("equal") },
-              { value: "ratio", label: t("ratio") },
-              { value: "exact", label: t("exact") },
-              { value: "shares", label: t("shares") },
-            ]}
-            style={styles.splitButtons}
-          />
-          <Button
-            mode="contained"
-            onPress={handleAddExpense}
-            loading={adding}
-            disabled={adding || !desc || !amount}
-            style={styles.addBtn}
-          >
-            {t("save")}
-          </Button>
-        </Modal>
-      </Portal>
+      {/* Add Expense Bottom Sheet */}
+      <Modal
+        visible={showAdd}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAdd(false)}
+      >
+        <View className="flex-1 justify-end bg-black/50">
+          <View className="bg-background rounded-t-3xl px-5 pb-10 pt-4">
+            <View className="items-center mb-4">
+              <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+            </View>
+
+            <View className="flex-row items-center justify-between mb-6">
+              <H3>{t("add_expense")}</H3>
+              <Pressable onPress={() => setShowAdd(false)}>
+                <X size={24} color="hsl(240 3.8% 46.1%)" />
+              </Pressable>
+            </View>
+
+            <View className="gap-4">
+              <Input
+                label={t("description")}
+                value={desc}
+                onChangeText={setDesc}
+                placeholder={t("description")}
+              />
+              <Input
+                label={t("amount")}
+                value={amount}
+                onChangeText={setAmount}
+                keyboardType="numeric"
+                placeholder="0"
+              />
+
+              <View className="gap-2">
+                <Text className="text-sm font-medium">{t("split_method")}</Text>
+                <SegmentedTabs
+                  tabs={SPLIT_METHODS.map((m) => ({
+                    value: m,
+                    label: t(m),
+                  }))}
+                  value={splitMethod}
+                  onValueChange={setSplitMethod}
+                />
+              </View>
+
+              <Button
+                onPress={handleAddExpense}
+                loading={adding}
+                disabled={adding || !desc || !amount}
+                size="lg"
+                className="mt-2"
+              >
+                {t("save")}
+              </Button>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F5F5F5" },
-  tabs: { margin: 16 },
-  list: { paddingHorizontal: 16, paddingBottom: 80 },
-  card: { marginBottom: 10, backgroundColor: "#fff" },
-  amountContainer: { alignItems: "flex-end", marginRight: 16 },
-  amount: { fontWeight: "bold", color: "#2563EB" },
-  methodChip: { marginTop: 4 },
-  suggestionContent: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  debtorName: { fontWeight: "bold", color: "#EF4444" },
-  creditorName: { fontWeight: "bold", color: "#059669" },
-  suggestionAmount: { fontWeight: "bold", color: "#2563EB" },
-  empty: { textAlign: "center", color: "#999", marginTop: 40 },
-  fab: { position: "absolute", right: 16, bottom: 16, backgroundColor: "#2563EB" },
-  modal: { backgroundColor: "#fff", padding: 24, margin: 24, borderRadius: 12 },
-  modalTitle: { marginBottom: 16 },
-  input: { marginBottom: 12 },
-  splitLabel: { marginBottom: 8, color: "#666" },
-  splitButtons: { marginBottom: 16 },
-  addBtn: { marginTop: 8 },
-});

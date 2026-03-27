@@ -6,11 +6,33 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test": "./node_modules/.bin/jest"
+  },
+  "jest": {
+    "preset": "jest-expo",
+    "roots": [
+      "<rootDir>"
+    ],
+    "transformIgnorePatterns": [
+      "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg|nativewind|react-native-css-interop|lucide-react-native|clsx|tailwind-merge)"
+    ],
+    "setupFilesAfterSetup": [
+      "@testing-library/react-native/extend-expect"
+    ],
+    "moduleNameMapper": {
+      "^~/(.*)$": "<rootDir>/$1"
+    },
+    "modulePaths": [
+      "<rootDir>/node_modules"
+    ]
   },
   "dependencies": {
+    "@gorhom/bottom-sheet": "^5.2.8",
     "@react-native-async-storage/async-storage": "2.2.0",
     "axios": "^1.13.6",
+    "babel-preset-expo": "^55.0.12",
+    "clsx": "^2.1.1",
     "expo": "~55.0.8",
     "expo-camera": "~55.0.11",
     "expo-constants": "~55.0.9",
@@ -19,17 +41,28 @@
     "expo-router": "~55.0.7",
     "expo-status-bar": "~55.0.4",
     "i18next": "^25.10.10",
+    "lucide-react-native": "^1.7.0",
+    "nativewind": "^4.2.3",
     "react": "19.2.0",
     "react-i18next": "^16.6.6",
     "react-native": "0.83.2",
-    "react-native-paper": "^5.15.0",
+    "react-native-css-interop": "^0.2.3",
+    "react-native-gesture-handler": "^2.30.0",
+    "react-native-reanimated": "^4.2.1",
     "react-native-safe-area-context": "~5.6.2",
     "react-native-screens": "~4.23.0",
-    "react-native-vector-icons": "^10.3.0",
+    "react-native-svg": "^15.15.4",
+    "react-native-worklets": "^0.8.1",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^3.4.19",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@testing-library/react-native": "^13.3.3",
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.2.2",
+    "jest-expo": "~55.0",
+    "jscodeshift": "^17.3.0",
     "typescript": "~5.9.2"
   },
   "private": true

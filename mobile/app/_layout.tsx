@@ -1,28 +1,48 @@
-import { PaperProvider, MD3LightTheme } from "react-native-paper";
-import { Stack } from "expo-router";
+import "../global.css";
 import "../i18n";
+import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { ThemeProvider, useTheme } from "~/lib/theme";
 
-const theme = {
-  ...MD3LightTheme,
-  colors: {
-    ...MD3LightTheme.colors,
-    primary: "#2563EB",
-    secondary: "#7C3AED",
-    tertiary: "#059669",
-  },
-};
+function InnerLayout() {
+  const { isDark } = useTheme();
+
+  return (
+    <View className={isDark ? "dark flex-1" : "flex-1"}>
+      <View className="flex-1 bg-background">
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: "transparent" },
+          }}
+        >
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen
+            name="group/[id]"
+            options={{
+              headerShown: true,
+              title: "",
+              headerStyle: { backgroundColor: "transparent" },
+              headerTintColor: isDark ? "#FAFAFA" : "#09090B",
+              headerShadowVisible: false,
+            }}
+          />
+        </Stack>
+        <StatusBar style={isDark ? "light" : "dark"} />
+      </View>
+    </View>
+  );
+}
 
 export default function RootLayout() {
   return (
-    <PaperProvider theme={theme}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen
-          name="group/[id]"
-          options={{ headerShown: true, title: "" }}
-        />
-      </Stack>
-    </PaperProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <InnerLayout />
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }

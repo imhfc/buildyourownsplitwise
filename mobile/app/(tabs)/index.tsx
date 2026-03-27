@@ -1,9 +1,16 @@
 import { useCallback, useState } from "react";
-import { View, StyleSheet, FlatList, RefreshControl } from "react-native";
-import { FAB, Card, Text, Chip, Portal, Modal, TextInput, Button } from "react-native-paper";
+import { View, FlatList, RefreshControl, Modal, Pressable } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
+import { Users, X } from "lucide-react-native";
 import { groupsAPI } from "../../services/api";
+import { Card, CardContent } from "~/components/ui/card";
+import { Text, H3, Muted } from "~/components/ui/text";
+import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
+import { Badge } from "~/components/ui/badge";
+import { FAB } from "~/components/ui/fab";
+import { EmptyState } from "~/components/ui/empty-state";
 
 interface GroupItem {
   id: string;
@@ -67,100 +74,97 @@ export default function GroupsScreen() {
 
   const renderGroup = ({ item }: { item: GroupItem }) => (
     <Card
-      style={styles.card}
+      className="mb-3"
       onPress={() => router.push(`/group/${item.id}`)}
     >
-      <Card.Title
-        title={item.name}
-        subtitle={item.description}
-        right={() => (
-          <View style={styles.cardRight}>
-            <Chip compact>{item.default_currency}</Chip>
-            <Text variant="bodySmall" style={styles.memberCount}>
-              {item.member_count} {t("members")}
-            </Text>
-          </View>
-        )}
-      />
+      <CardContent className="flex-row items-center justify-between p-4">
+        <View className="flex-1 gap-1">
+          <H3>{item.name}</H3>
+          {item.description ? (
+            <Muted numberOfLines={1}>{item.description}</Muted>
+          ) : null}
+          <Muted>{item.member_count} {t("members")}</Muted>
+        </View>
+        <Badge>{item.default_currency}</Badge>
+      </CardContent>
     </Card>
   );
 
   return (
-    <View style={styles.container}>
+    <View className="flex-1 bg-background">
       <FlatList
         data={groups}
         keyExtractor={(item) => item.id}
         renderItem={renderGroup}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={{ padding: 20 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         ListEmptyComponent={
-          <Text style={styles.empty}>{t("create_group")}</Text>
+          <EmptyState
+            icon={Users}
+            title={t("create_group")}
+            description="建立一個群組開始分帳吧！"
+            actionLabel={t("create_group")}
+            onAction={() => setShowCreate(true)}
+          />
         }
       />
 
-      <FAB
-        icon="plus"
-        style={styles.fab}
-        onPress={() => setShowCreate(true)}
-      />
+      <FAB onPress={() => setShowCreate(true)} />
 
-      <Portal>
-        <Modal
-          visible={showCreate}
-          onDismiss={() => setShowCreate(false)}
-          contentContainerStyle={styles.modal}
-        >
-          <Text variant="titleLarge" style={styles.modalTitle}>
-            {t("create_group")}
-          </Text>
-          <TextInput
-            label={t("group_name")}
-            value={newName}
-            onChangeText={setNewName}
-            mode="outlined"
-            style={styles.input}
-          />
-          <TextInput
-            label={t("description")}
-            value={newDesc}
-            onChangeText={setNewDesc}
-            mode="outlined"
-            style={styles.input}
-          />
-          <TextInput
-            label={t("default_currency")}
-            value={newCurrency}
-            onChangeText={setNewCurrency}
-            mode="outlined"
-            style={styles.input}
-          />
-          <Button
-            mode="contained"
-            onPress={handleCreate}
-            loading={creating}
-            disabled={creating || !newName}
-            style={styles.createBtn}
-          >
-            {t("save")}
-          </Button>
-        </Modal>
-      </Portal>
+      <Modal
+        visible={showCreate}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCreate(false)}
+      >
+        <View className="flex-1 justify-end bg-black/50">
+          <View className="bg-background rounded-t-3xl px-5 pb-10 pt-4">
+            <View className="items-center mb-4">
+              <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+            </View>
+
+            <View className="flex-row items-center justify-between mb-6">
+              <H3>{t("create_group")}</H3>
+              <Pressable onPress={() => setShowCreate(false)}>
+                <X size={24} color="hsl(240 3.8% 46.1%)" />
+              </Pressable>
+            </View>
+
+            <View className="gap-4">
+              <Input
+                label={t("group_name")}
+                value={newName}
+                onChangeText={setNewName}
+                placeholder={t("group_name")}
+              />
+              <Input
+                label={t("description")}
+                value={newDesc}
+                onChangeText={setNewDesc}
+                placeholder={t("description")}
+              />
+              <Input
+                label={t("default_currency")}
+                value={newCurrency}
+                onChangeText={setNewCurrency}
+                placeholder="TWD"
+              />
+
+              <Button
+                onPress={handleCreate}
+                loading={creating}
+                disabled={creating || !newName}
+                size="lg"
+                className="mt-2"
+              >
+                {t("save")}
+              </Button>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F5F5F5" },
-  list: { padding: 16 },
-  card: { marginBottom: 12, backgroundColor: "#fff" },
-  cardRight: { alignItems: "flex-end", marginRight: 16 },
-  memberCount: { color: "#999", marginTop: 4 },
-  empty: { textAlign: "center", color: "#999", marginTop: 40 },
-  fab: { position: "absolute", right: 16, bottom: 16, backgroundColor: "#2563EB" },
-  modal: { backgroundColor: "#fff", padding: 24, margin: 24, borderRadius: 12 },
-  modalTitle: { marginBottom: 16 },
-  input: { marginBottom: 12 },
-  createBtn: { marginTop: 8 },
-});

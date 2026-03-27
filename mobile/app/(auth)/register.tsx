@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { View, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
-import { Button, Text, TextInput, HelperText } from "react-native-paper";
+import { View, KeyboardAvoidingView, Platform } from "react-native";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { authAPI } from "../../services/api";
 import { useAuthStore } from "../../stores/auth";
+import { H1, Muted } from "~/components/ui/text";
+import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
 
 export default function RegisterScreen() {
   const { t } = useTranslation();
@@ -36,58 +38,50 @@ export default function RegisterScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      className="flex-1 bg-background"
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <View style={styles.inner}>
-        <Text variant="headlineLarge" style={styles.title}>
-          {t("app_name")}
-        </Text>
-        <Text variant="bodyLarge" style={styles.subtitle}>
-          {t("register")}
-        </Text>
+      <View className="flex-1 justify-center px-6">
+        <H1 className="text-center text-primary mb-1">{t("app_name")}</H1>
+        <Muted className="text-center mb-8">{t("register")}</Muted>
 
-        <TextInput
-          label={t("display_name")}
-          value={displayName}
-          onChangeText={setDisplayName}
-          style={styles.input}
-          mode="outlined"
-        />
-        <TextInput
-          label={t("email")}
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          style={styles.input}
-          mode="outlined"
-        />
-        <TextInput
-          label={t("password")}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          style={styles.input}
-          mode="outlined"
-        />
-
-        {error ? <HelperText type="error">{error}</HelperText> : null}
+        <View className="gap-3">
+          <Input
+            label={t("display_name")}
+            value={displayName}
+            onChangeText={setDisplayName}
+            placeholder={t("display_name")}
+          />
+          <Input
+            label={t("email")}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            placeholder="you@example.com"
+          />
+          <Input
+            label={t("password")}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            placeholder="********"
+            error={error || undefined}
+          />
+        </View>
 
         <Button
-          mode="contained"
           onPress={handleRegister}
           loading={loading}
-          disabled={loading}
-          style={styles.button}
+          className="mt-6"
         >
           {t("register")}
         </Button>
 
         <Button
-          mode="text"
+          variant="ghost"
           onPress={() => router.back()}
-          style={styles.link}
+          className="mt-3"
         >
           {t("login")}
         </Button>
@@ -95,13 +89,3 @@ export default function RegisterScreen() {
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  inner: { flex: 1, justifyContent: "center", padding: 24 },
-  title: { textAlign: "center", fontWeight: "bold", color: "#2563EB", marginBottom: 4 },
-  subtitle: { textAlign: "center", color: "#666", marginBottom: 32 },
-  input: { marginBottom: 12 },
-  button: { marginTop: 8, paddingVertical: 4 },
-  link: { marginTop: 12 },
-});
