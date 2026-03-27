@@ -1,0 +1,45 @@
+{
+  "app_name": "SpliteWise",
+  "login": "Login",
+  "register": "Register",
+  "email": "Email",
+  "password": "Password",
+  "display_name": "Display Name",
+  "logout": "Logout",
+
+  "groups": "Groups",
+  "create_group": "Create Group",
+  "group_name": "Group Name",
+  "description": "Description",
+  "default_currency": "Default Currency",
+  "members": "Members",
+  "add_member": "Add Member",
+
+  "expenses": "Expenses",
+  "add_expense": "Add Expense",
+  "amount": "Amount",
+  "currency": "Currency",
+  "paid_by": "Paid by",
+  "split_method": "Split Method",
+  "equal": "Equal",
+  "ratio": "By Ratio",
+  "exact": "Exact Amount",
+  "shares": "By Shares",
+  "note": "Note",
+
+  "settlements": "Settlements",
+  "who_owes_whom": "Who Owes Whom",
+  "settle_up": "Settle Up",
+  "owes": "owes",
+  "balanced": "All settled up!",
+
+  "settings": "Settings",
+  "language": "Language",
+  "preferred_currency": "Preferred Currency",
+
+  "save": "Save",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "confirm": "Confirm",
+  "loading": "Loading..."
+}

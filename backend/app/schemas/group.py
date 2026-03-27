@@ -1,0 +1,53 @@
+import uuid
+from datetime import datetime
+
+from pydantic import BaseModel
+
+from app.schemas.user import UserResponse
+
+
+class GroupCreate(BaseModel):
+    name: str
+    description: str | None = None
+    default_currency: str = "TWD"
+
+
+class GroupUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    default_currency: str | None = None
+
+
+class GroupMemberResponse(BaseModel):
+    user: UserResponse
+    role: str
+    joined_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class GroupResponse(BaseModel):
+    id: uuid.UUID
+    name: str
+    description: str | None
+    default_currency: str
+    created_by: uuid.UUID
+    created_at: datetime
+    members: list[GroupMemberResponse] = []
+
+    model_config = {"from_attributes": True}
+
+
+class GroupListResponse(BaseModel):
+    id: uuid.UUID
+    name: str
+    description: str | None
+    default_currency: str
+    member_count: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class AddMemberRequest(BaseModel):
+    user_id: uuid.UUID

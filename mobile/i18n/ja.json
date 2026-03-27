@@ -1,0 +1,45 @@
+{
+  "app_name": "SpliteWise",
+  "login": "ログイン",
+  "register": "新規登録",
+  "email": "メールアドレス",
+  "password": "パスワード",
+  "display_name": "表示名",
+  "logout": "ログアウト",
+
+  "groups": "グループ",
+  "create_group": "グループ作成",
+  "group_name": "グループ名",
+  "description": "説明",
+  "default_currency": "デフォルト通貨",
+  "members": "メンバー",
+  "add_member": "メンバー追加",
+
+  "expenses": "支出記録",
+  "add_expense": "支出追加",
+  "amount": "金額",
+  "currency": "通貨",
+  "paid_by": "支払い者",
+  "split_method": "割り勘方法",
+  "equal": "均等割り",
+  "ratio": "比率",
+  "exact": "金額指定",
+  "shares": "人数割り",
+  "note": "メモ",
+
+  "settlements": "精算",
+  "who_owes_whom": "誰が誰に",
+  "settle_up": "精算する",
+  "owes": "に支払う",
+  "balanced": "精算済み",
+
+  "settings": "設定",
+  "language": "言語",
+  "preferred_currency": "通貨設定",
+
+  "save": "保存",
+  "cancel": "キャンセル",
+  "delete": "削除",
+  "confirm": "確認",
+  "loading": "読み込み中..."
+}
