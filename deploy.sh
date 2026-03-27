@@ -1,5 +1,5 @@
 #!/bin/bash
-# Auto-deploy script for buildyourownsplitewise
+# Auto-deploy script for buildyourownsplitwise
 # Pulls from git every minute, rebuilds if changes detected
 # On build failure, keeps old version running
 
