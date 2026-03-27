@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "SpliteWise",
-    "slug": "splitewise",
+    "name": "BYOSW",
+    "slug": "byosw",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -11,13 +11,13 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "scheme": "splitewise",
+    "scheme": "byosw",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.splitewise.app"
+      "bundleIdentifier": "com.byosw.app"
     },
     "android": {
-      "package": "com.splitewise.app",
+      "package": "com.byosw.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",

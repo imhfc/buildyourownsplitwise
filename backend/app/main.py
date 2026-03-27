@@ -1,10 +1,20 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, expenses, groups, settlements
+from app.api import auth, exchange_rates, expenses, groups, settlements
 from app.core.config import settings
+from app.core.redis import close_redis
 
-app = FastAPI(title=settings.APP_NAME, debug=settings.DEBUG)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    await close_redis()
+
+
+app = FastAPI(title=settings.APP_NAME, debug=settings.DEBUG, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -18,6 +28,7 @@ app.include_router(auth.router, prefix="/api/v1")
 app.include_router(groups.router, prefix="/api/v1")
 app.include_router(expenses.router, prefix="/api/v1")
 app.include_router(settlements.router, prefix="/api/v1")
+app.include_router(exchange_rates.router, prefix="/api/v1")
 
 
 @app.get("/health")

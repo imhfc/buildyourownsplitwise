@@ -3,7 +3,7 @@ import { useAuthStore } from "../stores/auth";
 
 // Change this to your backend URL
 const API_BASE_URL = __DEV__
-  ? "http://localhost:8000/api/v1"
+  ? "http://localhost:8001/api/v1"
   : "https://your-production-url.com/api/v1";
 
 const api = axios.create({

@@ -1,4 +1,4 @@
-# SpliteWise UI 設計規範
+# BYOSW UI 設計規範
 
 ## 技術選型
 
@@ -378,7 +378,7 @@ BottomSheet
 ```
 ┌─ Safe Area ──────────────────────────────┐
 │                                          │
-│  SpliteWise                    [Avatar]  │  ← Header
+│  BYOSW                         [Avatar]  │  ← Header
 │                                          │
 │  ┌─ 總覽卡片 ─────────────────────────┐  │
 │  │  你的淨餘額                        │  │

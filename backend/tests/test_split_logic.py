@@ -2,12 +2,12 @@
 
 import uuid
 from decimal import Decimal
-from unittest.mock import MagicMock
 
 import pytest
 
-from app.api.expenses import _calculate_splits
-from app.api.settlements import _simplify_debts
+from app.core.exceptions import ValidationError
+from app.services.expense_service import calculate_splits
+from app.services.settlement_service import simplify_debts
 from app.schemas.expense import ExpenseCreate, ExpenseSplitInput
 
 
@@ -28,7 +28,7 @@ class TestCalculateSplitsEqual:
                 ExpenseSplitInput(user_id=uid_b),
             ],
         )
-        result = _calculate_splits(data, [uid_a, uid_b])
+        result = calculate_splits(data, [uid_a, uid_b])
         assert len(result) == 2
         total = sum(r["amount"] for r in result)
         assert total == Decimal("300")
@@ -42,7 +42,7 @@ class TestCalculateSplitsEqual:
             split_method="equal",
             splits=[ExpenseSplitInput(user_id=u) for u in uids],
         )
-        result = _calculate_splits(data, uids)
+        result = calculate_splits(data, uids)
         total = sum(r["amount"] for r in result)
         assert total == Decimal("100")
         # First person gets the remainder
@@ -57,7 +57,7 @@ class TestCalculateSplitsEqual:
             split_method="equal",
             splits=[],  # no splits specified
         )
-        result = _calculate_splits(data, uids)
+        result = calculate_splits(data, uids)
         assert len(result) == 4
         assert all(r["amount"] == Decimal("100") for r in result)
 
@@ -75,7 +75,7 @@ class TestCalculateSplitsExact:
                 ExpenseSplitInput(user_id=uid_b, amount=Decimal("300")),
             ],
         )
-        result = _calculate_splits(data, [uid_a, uid_b])
+        result = calculate_splits(data, [uid_a, uid_b])
         assert result[0]["amount"] == Decimal("200")
         assert result[1]["amount"] == Decimal("300")
 
@@ -91,10 +91,9 @@ class TestCalculateSplitsExact:
                 ExpenseSplitInput(user_id=uid_b, amount=Decimal("100")),
             ],
         )
-        from fastapi import HTTPException
-        with pytest.raises(HTTPException) as exc_info:
-            _calculate_splits(data, [uid_a, uid_b])
-        assert exc_info.value.status_code == 400
+        with pytest.raises(ValidationError) as exc_info:
+            calculate_splits(data, [uid_a, uid_b])
+        assert "don't add up" in exc_info.value.message
 
     def test_exact_no_splits_raises(self):
         uid_a = _make_uid()
@@ -105,9 +104,8 @@ class TestCalculateSplitsExact:
             split_method="exact",
             splits=[],
         )
-        from fastapi import HTTPException
-        with pytest.raises(HTTPException):
-            _calculate_splits(data, [uid_a])
+        with pytest.raises(ValidationError):
+            calculate_splits(data, [uid_a])
 
 
 class TestCalculateSplitsShares:
@@ -124,7 +122,7 @@ class TestCalculateSplitsShares:
                 ExpenseSplitInput(user_id=uid_c, shares=Decimal("3")),
             ],
         )
-        result = _calculate_splits(data, [uid_a, uid_b, uid_c])
+        result = calculate_splits(data, [uid_a, uid_b, uid_c])
         total = sum(r["amount"] for r in result)
         assert total == Decimal("900")
         # 1:2:3 = 150:300:450
@@ -141,16 +139,15 @@ class TestCalculateSplitsShares:
             split_method="shares",
             splits=[],
         )
-        from fastapi import HTTPException
-        with pytest.raises(HTTPException):
-            _calculate_splits(data, [uid_a])
+        with pytest.raises(ValidationError):
+            calculate_splits(data, [uid_a])
 
 
 class TestSimplifyDebts:
     def test_simple_two_users(self):
         uid_a, uid_b = _make_uid(), _make_uid()
         balances = {uid_a: Decimal("100"), uid_b: Decimal("-100")}
-        result = _simplify_debts(balances)
+        result = simplify_debts(balances)
         assert len(result) == 1
         assert result[0]["from"] == uid_b
         assert result[0]["to"] == uid_a
@@ -164,7 +161,7 @@ class TestSimplifyDebts:
             uid_b: Decimal("-60"),
             uid_c: Decimal("-40"),
         }
-        result = _simplify_debts(balances)
+        result = simplify_debts(balances)
         assert len(result) == 2
         total_paid = sum(t["amount"] for t in result)
         assert total_paid == Decimal("100")
@@ -172,8 +169,7 @@ class TestSimplifyDebts:
     def test_all_zero_no_transactions(self):
         uid_a, uid_b = _make_uid(), _make_uid()
         balances = {uid_a: Decimal("0"), uid_b: Decimal("0")}
-        # _simplify_debts should handle near-zero; our input has exact zero
-        result = _simplify_debts(balances)
+        result = simplify_debts(balances)
         assert result == []
 
     def test_complex_four_users(self):
@@ -186,7 +182,7 @@ class TestSimplifyDebts:
             uid_c: Decimal("-60"),
             uid_d: Decimal("-70"),
         }
-        result = _simplify_debts(balances)
+        result = simplify_debts(balances)
         # Total credits = 130, total debts = 130
         total_paid = sum(t["amount"] for t in result)
         assert total_paid == Decimal("130")

@@ -18,7 +18,7 @@ const ThemeCtx = createContext<ThemeContext>({
   toggleTheme: () => {},
 });
 
-const THEME_KEY = "splitewise-theme";
+const THEME_KEY = "byosw-theme";
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useRNColorScheme();
