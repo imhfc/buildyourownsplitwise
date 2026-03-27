@@ -48,6 +48,20 @@ log "CHANGE DETECTED: $BEFORE -> $AFTER"
 log "$(git log --oneline ${BEFORE}..${AFTER})"
 log "=========================================="
 
+# --- Stop conflicting containers on our ports ---
+for PORT in 8000 5432 6379; do
+    CONTAINER_ID=$(sudo docker ps --format '{{.ID}}' --filter "publish=$PORT" | head -1)
+    if [ -n "$CONTAINER_ID" ]; then
+        CONTAINER_NAME=$(sudo docker inspect --format '{{.Name}}' "$CONTAINER_ID" | sed 's/\///')
+        # Only kill containers NOT managed by our compose project
+        if ! echo "$CONTAINER_NAME" | grep -q "buildyourownsplitwise"; then
+            log "CLEANUP: Stopping conflicting container $CONTAINER_NAME on port $PORT"
+            sudo docker stop "$CONTAINER_ID" >> "$LOG" 2>&1
+            sudo docker rm "$CONTAINER_ID" >> "$LOG" 2>&1
+        fi
+    fi
+done
+
 # --- Docker Compose rebuild ---
 log "DEPLOY: Rebuilding and restarting containers..."
 
