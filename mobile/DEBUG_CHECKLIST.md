@@ -39,6 +39,7 @@
 | 空白頁，套件剛更新 | Metro cache 沒清 | `npx expo start --web --clear` |
 | 空白頁，JS crash | React render error，無 ErrorBoundary | DevTools console 看 error，或加 ErrorBoundary |
 | `Cannot use 'import.meta' outside a module` | Expo 55 預設 `unstable_enablePackageExports: true`，導致 Metro 解析 Zustand ESM（.mjs）版本，其中包含 `import.meta.env` | `metro.config.js` 加 `config.resolver.unstable_enablePackageExports = false`，`--clear` 重啟 |
+| Console 無錯誤但 App 一直轉圈圈（spinner 在 index.tsx） | (1) Zustand 5 `onRehydrateStorage` 在 `create()` 完成前同步執行，`useAuthStore` 尚為 undefined → 靜默失敗；(2) `_layout.tsx` redirect 邏輯沒有處理「已登入但在 root index」情境 | (1) 移除 `onRehydrateStorage`，改用 `useAuthStore.persist.onFinishHydration()` + `persist.hasHydrated()` 補同步情境；(2) 在 `_layout.tsx` 加 `inTabsGroup` 判斷，確保已登入用戶一律導向 `/(tabs)` |
 
 ---
 

@@ -86,3 +86,19 @@ async def update_me(
 ):
     user = await auth_service.update_user(db, current_user, data)
     return UserResponse.model_validate(user)
+
+
+@router.get("/lookup", response_model=UserResponse)
+async def lookup_user_by_email(
+    email: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """以 email 查詢使用者（新增群組成員時使用）。"""
+    from sqlalchemy import select as sa_select
+
+    result = await db.execute(sa_select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return UserResponse.model_validate(user)

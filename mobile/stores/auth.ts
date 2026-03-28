@@ -60,9 +60,16 @@ export const useAuthStore = create<AuthState>()(
         user: state.user,
         isAuthenticated: state.isAuthenticated,
       }),
-      onRehydrateStorage: () => () => {
-        useAuthStore.setState({ hasHydrated: true });
-      },
     }
   )
 );
+
+// Zustand 5 的 toThenable 對 localStorage 是同步執行，onRehydrateStorage 在 create() 完成前
+// 就被呼叫，此時 useAuthStore 還是 undefined，setState 會靜默失敗。
+// 正確做法：store 建立後再註冊，並補上同步情境的檢查。
+useAuthStore.persist.onFinishHydration(() => {
+  useAuthStore.setState({ hasHydrated: true });
+});
+if (useAuthStore.persist.hasHydrated()) {
+  useAuthStore.setState({ hasHydrated: true });
+}

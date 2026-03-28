@@ -2,7 +2,7 @@ import uuid
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import aliased, selectinload
 
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from app.models.group import Group, GroupMember
@@ -55,6 +55,7 @@ async def create_group(
 
 
 async def list_user_groups(db: AsyncSession, user_id: uuid.UUID) -> list[dict]:
+    my_membership = aliased(GroupMember)
     result = await db.execute(
         select(
             Group.id,
@@ -62,15 +63,13 @@ async def list_user_groups(db: AsyncSession, user_id: uuid.UUID) -> list[dict]:
             Group.description,
             Group.default_currency,
             Group.created_at,
+            Group.created_by,
             func.count(GroupMember.id).label("member_count"),
+            my_membership.role.label("my_role"),
         )
         .join(GroupMember, Group.id == GroupMember.group_id)
-        .where(
-            Group.id.in_(
-                select(GroupMember.group_id).where(GroupMember.user_id == user_id)
-            )
-        )
-        .group_by(Group.id)
+        .join(my_membership, (Group.id == my_membership.group_id) & (my_membership.user_id == user_id))
+        .group_by(Group.id, my_membership.role)
         .order_by(Group.created_at.desc())
     )
     return result.all()

@@ -49,6 +49,8 @@ async def list_my_groups(
             default_currency=r.default_currency,
             member_count=r.member_count,
             created_at=r.created_at,
+            created_by=r.created_by,
+            my_role=r.my_role,
         )
         for r in rows
     ]

@@ -45,6 +45,8 @@ class GroupListResponse(BaseModel):
     default_currency: str
     member_count: int
     created_at: datetime
+    created_by: uuid.UUID
+    my_role: str
 
     model_config = {"from_attributes": True}
 

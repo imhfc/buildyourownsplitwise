@@ -80,6 +80,8 @@ export const authAPI = {
     api.post("/auth/google", { access_token: accessToken }),
   getMe: () => api.get("/auth/me"),
   updateMe: (data: Record<string, string>) => api.patch("/auth/me", data),
+  lookupByEmail: (email: string) =>
+    api.get("/auth/lookup", { params: { email } }),
 };
 
 // Groups

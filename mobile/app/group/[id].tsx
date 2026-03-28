@@ -1,15 +1,15 @@
 import { useCallback, useState } from "react";
 import { View, FlatList, RefreshControl, Modal, Pressable, KeyboardAvoidingView, Platform, Alert } from "react-native";
-import { useLocalSearchParams, useFocusEffect, Stack, router } from "expo-router";
+import { useLocalSearchParams, useFocusEffect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
   Receipt,
   ArrowLeftRight,
   X,
-  Plus,
-  Trash2,
+  Users,
+  UserMinus,
 } from "lucide-react-native";
-import { expensesAPI, settlementsAPI, groupsAPI } from "../../services/api";
+import { expensesAPI, settlementsAPI, groupsAPI, authAPI } from "../../services/api";
 import { useAuthStore } from "../../stores/auth";
 import { Card, CardContent } from "~/components/ui/card";
 import { Text, H3, Muted } from "~/components/ui/text";
@@ -20,7 +20,7 @@ import { FAB } from "~/components/ui/fab";
 import { EmptyState } from "~/components/ui/empty-state";
 import { SegmentedTabs } from "~/components/ui/tabs";
 
-type Tab = "expenses" | "settlements";
+type Tab = "expenses" | "settlements" | "members";
 
 interface ExpenseItem {
   id: string;
@@ -41,6 +41,12 @@ interface Suggestion {
   currency: string;
 }
 
+interface Member {
+  user: { id: string; display_name: string; email: string };
+  role: string;
+  joined_at: string;
+}
+
 const SPLIT_METHODS = ["equal", "ratio", "exact", "shares"] as const;
 
 export default function GroupDetailScreen() {
@@ -51,6 +57,7 @@ export default function GroupDetailScreen() {
   const [tab, setTab] = useState<Tab>("expenses");
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   // Add expense modal
@@ -60,15 +67,27 @@ export default function GroupDetailScreen() {
   const [splitMethod, setSplitMethod] = useState("equal");
   const [adding, setAdding] = useState(false);
 
+  // Add member modal
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [memberEmail, setMemberEmail] = useState("");
+  const [foundUser, setFoundUser] = useState<{ id: string; display_name: string; email: string } | null>(null);
+  const [lookingUp, setLookingUp] = useState(false);
+  const [addingMember, setAddingMember] = useState(false);
+  const [lookupError, setLookupError] = useState("");
+
+  const isAdmin = members.find((m) => m.user.id === user?.id)?.role === "admin";
+
   const fetchData = useCallback(async () => {
     if (!id) return;
     try {
-      const [expRes, sugRes] = await Promise.all([
+      const [expRes, sugRes, groupRes] = await Promise.all([
         expensesAPI.list(id),
         settlementsAPI.suggestions(id),
+        groupsAPI.get(id),
       ]);
       setExpenses(expRes.data);
       setSuggestions(sugRes.data);
+      setMembers(groupRes.data.members ?? []);
     } catch (e) {
       console.error("Failed to fetch group data", e);
     }
@@ -84,25 +103,6 @@ export default function GroupDetailScreen() {
     setRefreshing(true);
     await fetchData();
     setRefreshing(false);
-  };
-
-  const handleDeleteGroup = () => {
-    Alert.alert(t("delete_group"), t("delete_group_confirm"), [
-      { text: t("cancel"), style: "cancel" },
-      {
-        text: t("delete"),
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await groupsAPI.delete(id!);
-            router.replace("/(tabs)");
-          } catch (e: any) {
-            const msg = e.response?.data?.detail || e.message || "Unknown error";
-            Alert.alert(t("error"), msg);
-          }
-        },
-      },
-    ]);
   };
 
   const handleAddExpense = async () => {
@@ -125,6 +125,67 @@ export default function GroupDetailScreen() {
     } finally {
       setAdding(false);
     }
+  };
+
+  const handleLookupUser = async () => {
+    if (!memberEmail.trim()) return;
+    setLookingUp(true);
+    setFoundUser(null);
+    setLookupError("");
+    try {
+      const res = await authAPI.lookupByEmail(memberEmail.trim());
+      setFoundUser(res.data);
+    } catch (e: any) {
+      setLookupError(t("user_not_found"));
+    } finally {
+      setLookingUp(false);
+    }
+  };
+
+  const handleAddMember = async () => {
+    if (!foundUser || !id) return;
+    setAddingMember(true);
+    try {
+      await groupsAPI.addMember(id, foundUser.id);
+      setShowAddMember(false);
+      setMemberEmail("");
+      setFoundUser(null);
+      await fetchData();
+    } catch (e: any) {
+      const msg = e.response?.data?.detail || e.message || "Unknown error";
+      Alert.alert(t("error"), msg);
+    } finally {
+      setAddingMember(false);
+    }
+  };
+
+  const handleRemoveMember = (member: Member) => {
+    const isSelf = member.user.id === user?.id;
+    const title = isSelf ? t("leave_group") : t("remove_member");
+    const message = isSelf
+      ? t("leave_group_confirm")
+      : t("remove_member_confirm", { name: member.user.display_name });
+
+    Alert.alert(title, message, [
+      { text: t("cancel"), style: "cancel" },
+      {
+        text: isSelf ? t("leave_group") : t("delete"),
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await groupsAPI.removeMember(id!, member.user.id);
+            if (isSelf) {
+              router.replace("/(tabs)");
+            } else {
+              await fetchData();
+            }
+          } catch (e: any) {
+            const msg = e.response?.data?.detail || e.message || "Unknown error";
+            Alert.alert(t("error"), msg);
+          }
+        },
+      },
+    ]);
   };
 
   const renderExpense = ({ item }: { item: ExpenseItem }) => (
@@ -172,21 +233,45 @@ export default function GroupDetailScreen() {
     </Card>
   );
 
+  const renderMember = ({ item }: { item: Member }) => {
+    const isSelf = item.user.id === user?.id;
+    const canRemove = isAdmin || isSelf;
+
+    return (
+      <Card className="mb-3">
+        <CardContent className="flex-row items-center p-4 gap-3">
+          <View className="h-10 w-10 rounded-full bg-muted items-center justify-center">
+            <Users size={20} color="hsl(240 3.8% 46.1%)" />
+          </View>
+          <View className="flex-1">
+            <Text className="font-medium">
+              {item.user.display_name}
+              {isSelf ? "  （你）" : ""}
+            </Text>
+            <Muted>{item.user.email}</Muted>
+          </View>
+          <View className="flex-row items-center gap-2">
+            <Badge variant={item.role === "admin" ? "default" : "secondary"}>
+              {t(item.role === "admin" ? "role_admin" : "role_member")}
+            </Badge>
+            {canRemove && (
+              <Pressable onPress={() => handleRemoveMember(item)} className="p-1">
+                <UserMinus size={18} color="hsl(0 84.2% 60.2%)" />
+              </Pressable>
+            )}
+          </View>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <View className="flex-1 bg-background">
-      <Stack.Screen
-        options={{
-          headerRight: () => (
-            <Pressable onPress={handleDeleteGroup} className="pr-2">
-              <Trash2 size={20} color="hsl(0 84.2% 60.2%)" />
-            </Pressable>
-          ),
-        }}
-      />
       <SegmentedTabs
         tabs={[
           { value: "expenses", label: t("expenses") },
           { value: "settlements", label: t("settlements") },
+          { value: "members", label: t("members") },
         ]}
         value={tab}
         onValueChange={(v) => setTab(v as Tab)}
@@ -212,7 +297,7 @@ export default function GroupDetailScreen() {
             />
           }
         />
-      ) : (
+      ) : tab === "settlements" ? (
         <FlatList
           data={suggestions}
           keyExtractor={(item) => `${item.from_user_id}-${item.to_user_id}`}
@@ -229,9 +314,29 @@ export default function GroupDetailScreen() {
             />
           }
         />
+      ) : (
+        <FlatList
+          data={members}
+          keyExtractor={(item) => item.user.id}
+          renderItem={renderMember}
+          contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          ListEmptyComponent={
+            <EmptyState
+              icon={Users}
+              title={t("members")}
+              description={t("no_members_hint")}
+            />
+          }
+        />
       )}
 
       {tab === "expenses" && <FAB onPress={() => setShowAdd(true)} />}
+      {tab === "members" && (
+        <FAB onPress={() => { setShowAddMember(true); setMemberEmail(""); setFoundUser(null); setLookupError(""); }} />
+      )}
 
       {/* Add Expense Bottom Sheet */}
       <Modal
@@ -296,6 +401,90 @@ export default function GroupDetailScreen() {
                   className="mt-2"
                 >
                   {t("save")}
+                </Button>
+              </View>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Add Member Bottom Sheet */}
+      <Modal
+        visible={showAddMember}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAddMember(false)}
+      >
+        <KeyboardAvoidingView
+          className="flex-1 justify-end"
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <View className="flex-1 justify-end bg-black/50">
+            <View className="bg-background rounded-t-3xl px-5 pb-10 pt-4">
+              <View className="items-center mb-4">
+                <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+              </View>
+
+              <View className="flex-row items-center justify-between mb-6">
+                <H3>{t("add_member_by_email")}</H3>
+                <Pressable onPress={() => setShowAddMember(false)}>
+                  <X size={24} color="hsl(240 3.8% 46.1%)" />
+                </Pressable>
+              </View>
+
+              <View className="gap-4">
+                <View className="flex-row gap-2 items-end">
+                  <View className="flex-1">
+                    <Input
+                      label={t("email")}
+                      value={memberEmail}
+                      onChangeText={(text) => {
+                        setMemberEmail(text);
+                        setFoundUser(null);
+                        setLookupError("");
+                      }}
+                      placeholder={t("enter_email_to_add")}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                    />
+                  </View>
+                  <Button
+                    onPress={handleLookupUser}
+                    loading={lookingUp}
+                    disabled={lookingUp || !memberEmail.trim()}
+                    variant="outline"
+                    className="mb-0.5"
+                  >
+                    {t("lookup")}
+                  </Button>
+                </View>
+
+                {lookupError ? (
+                  <Text className="text-destructive text-sm">{lookupError}</Text>
+                ) : null}
+
+                {foundUser && (
+                  <Card>
+                    <CardContent className="flex-row items-center p-4 gap-3">
+                      <View className="h-10 w-10 rounded-full bg-muted items-center justify-center">
+                        <Users size={20} color="hsl(240 3.8% 46.1%)" />
+                      </View>
+                      <View className="flex-1">
+                        <Text className="font-medium">{foundUser.display_name}</Text>
+                        <Muted>{foundUser.email}</Muted>
+                      </View>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <Button
+                  onPress={handleAddMember}
+                  loading={addingMember}
+                  disabled={addingMember || !foundUser}
+                  size="lg"
+                  className="mt-2"
+                >
+                  {t("add_member")}
                 </Button>
               </View>
             </View>

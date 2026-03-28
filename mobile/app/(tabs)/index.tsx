@@ -1,9 +1,11 @@
-import { useCallback, useState } from "react";
-import { View, FlatList, RefreshControl, Modal, Pressable, Alert, KeyboardAvoidingView, Platform } from "react-native";
+import { useCallback, useRef, useState } from "react";
+import { View, FlatList, RefreshControl, Modal, Pressable, Alert, KeyboardAvoidingView, Platform, Animated } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Users, X } from "lucide-react-native";
+import { Users, X, Trash2, LogOut } from "lucide-react-native";
+import { Swipeable } from "react-native-gesture-handler";
 import { groupsAPI } from "../../services/api";
+import { useAuthStore } from "../../stores/auth";
 import { Card, CardContent } from "~/components/ui/card";
 import { Text, H3, Muted } from "~/components/ui/text";
 import { Button } from "~/components/ui/button";
@@ -20,10 +22,13 @@ interface GroupItem {
   default_currency: string;
   member_count: number;
   created_at: string;
+  created_by: string;
+  my_role: string;
 }
 
 export default function GroupsScreen() {
   const { t } = useTranslation();
+  const user = useAuthStore((s) => s.user);
   const [groups, setGroups] = useState<GroupItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -31,6 +36,7 @@ export default function GroupsScreen() {
   const [newDesc, setNewDesc] = useState("");
   const [newCurrency, setNewCurrency] = useState("TWD");
   const [creating, setCreating] = useState(false);
+  const swipeableRefs = useRef<Map<string, Swipeable>>(new Map());
 
   const fetchGroups = useCallback(async () => {
     try {
@@ -74,22 +80,100 @@ export default function GroupsScreen() {
     }
   };
 
+  const closeSwipeable = (id: string) => {
+    swipeableRefs.current.get(id)?.close();
+  };
+
+  const handleDeleteGroup = (item: GroupItem) => {
+    closeSwipeable(item.id);
+    Alert.alert(t("delete_group"), t("delete_group_confirm"), [
+      { text: t("cancel"), style: "cancel" },
+      {
+        text: t("delete"),
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await groupsAPI.delete(item.id);
+            await fetchGroups();
+          } catch (e: any) {
+            const msg = e.response?.data?.detail || e.message || "Unknown error";
+            Alert.alert(t("error"), msg);
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleLeaveGroup = (item: GroupItem) => {
+    closeSwipeable(item.id);
+    Alert.alert(t("leave_group"), t("leave_group_confirm"), [
+      { text: t("cancel"), style: "cancel" },
+      {
+        text: t("leave_group"),
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await groupsAPI.removeMember(item.id, user!.id);
+            await fetchGroups();
+          } catch (e: any) {
+            const msg = e.response?.data?.detail || e.message || "Unknown error";
+            Alert.alert(t("error"), msg);
+          }
+        },
+      },
+    ]);
+  };
+
+  const renderRightActions = (item: GroupItem, dragX: Animated.AnimatedInterpolation<number>) => {
+    const isAdmin = item.my_role === "admin";
+    const scale = dragX.interpolate({
+      inputRange: [-100, 0],
+      outputRange: [1, 0.8],
+      extrapolate: "clamp",
+    });
+    return (
+      <Animated.View style={{ transform: [{ scale }] }} className="justify-center mb-3">
+        <Pressable
+          className={`h-full justify-center items-center px-6 rounded-r-xl ${isAdmin ? "bg-destructive" : "bg-orange-500"}`}
+          onPress={() => isAdmin ? handleDeleteGroup(item) : handleLeaveGroup(item)}
+        >
+          {isAdmin
+            ? <Trash2 size={22} color="white" />
+            : <LogOut size={22} color="white" />}
+          <Text className="text-white text-xs mt-1 font-medium">
+            {isAdmin ? t("delete") : t("leave_group")}
+          </Text>
+        </Pressable>
+      </Animated.View>
+    );
+  };
+
   const renderGroup = ({ item }: { item: GroupItem }) => (
-    <Card
-      className="mb-3"
-      onPress={() => router.push(`/group/${item.id}`)}
+    <Swipeable
+      ref={(ref) => {
+        if (ref) swipeableRefs.current.set(item.id, ref);
+        else swipeableRefs.current.delete(item.id);
+      }}
+      renderRightActions={(_, dragX) => renderRightActions(item, dragX)}
+      rightThreshold={40}
+      overshootRight={false}
     >
-      <CardContent className="flex-row items-center justify-between p-4">
-        <View className="flex-1 gap-1">
-          <H3>{item.name}</H3>
-          {item.description ? (
-            <Muted numberOfLines={1}>{item.description}</Muted>
-          ) : null}
-          <Muted>{item.member_count} {t("members")}</Muted>
-        </View>
-        <Badge>{item.default_currency}</Badge>
-      </CardContent>
-    </Card>
+      <Card
+        className="mb-3"
+        onPress={() => router.push(`/group/${item.id}`)}
+      >
+        <CardContent className="flex-row items-center justify-between p-4">
+          <View className="flex-1 gap-1">
+            <H3>{item.name}</H3>
+            {item.description ? (
+              <Muted numberOfLines={1}>{item.description}</Muted>
+            ) : null}
+            <Muted>{item.member_count} {t("members")}</Muted>
+          </View>
+          <Badge>{item.default_currency}</Badge>
+        </CardContent>
+      </Card>
+    </Swipeable>
   );
 
   return (

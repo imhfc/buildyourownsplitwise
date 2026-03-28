@@ -68,6 +68,20 @@ else
   green "C-7  package.json expo-crypto 版本正常：$EXPO_CRYPTO_VER"
 fi
 
+# ── C-8：stores/auth.ts 禁止使用 onRehydrateStorage ─────────────────────────
+if grep -q 'onRehydrateStorage' "$MOBILE_DIR/stores/auth.ts" 2>/dev/null; then
+  red   "C-8  stores/auth.ts 含 onRehydrateStorage（Zustand 5 同步 toThenable 下 useAuthStore 尚未初始化，setState 靜默失敗 → hasHydrated 永遠 false → App 轉圈圈）。改用 useAuthStore.persist.onFinishHydration()"
+else
+  green "C-8  stores/auth.ts 未使用 onRehydrateStorage（Zustand 5 相容）"
+fi
+
+# ── C-9：_layout.tsx redirect 必須涵蓋已登入在 root index 的情境 ─────────────
+if grep -q 'inTabsGroup' "$MOBILE_DIR/app/_layout.tsx" 2>/dev/null; then
+  green "C-9  _layout.tsx redirect 邏輯涵蓋 inTabsGroup 情境"
+else
+  red   "C-9  _layout.tsx redirect 邏輯缺少 inTabsGroup 判斷（已登入用戶在 root index 時兩個 if 都不成立 → spinner 永遠不跳轉）"
+fi
+
 # ── 結果 ──────────────────────────────────────────────────────────────────────
 echo ""
 echo "=== 結果：PASS=$PASS  FAIL=$FAIL ==="
