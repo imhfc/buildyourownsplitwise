@@ -1,3 +1,5 @@
+name: byosw
+
 services:
   db:
     image: postgres:16-alpine
@@ -6,19 +8,19 @@ services:
       POSTGRES_PASSWORD: splitewise
       POSTGRES_DB: splitewise
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
 
   backend:
     build: ./backend
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://splitewise:splitewise@db:5432/splitewise
       REDIS_URL: redis://redis:6379/0
@@ -35,8 +37,8 @@ services:
       context: ./mobile
       dockerfile: Dockerfile.web
     ports:
-      - "80:80"
-      - "443:443"
+      - "${CADDY_HTTP_PORT:-80}:80"
+      - "${CADDY_HTTPS_PORT:-443}:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
