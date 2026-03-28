@@ -3,17 +3,23 @@ import { useColorScheme as useRNColorScheme } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type Theme = "light" | "dark" | "system";
-export type ColorScheme = "blue" | "green" | "purple" | "warm";
+export type ColorScheme = "blue" | "green" | "purple" | "warm" | "red" | "orange" | "rose" | "teal" | "amber" | "slate";
 
 export const COLOR_SCHEMES: {
   id: ColorScheme;
   labelKey: string;
   preview: { light: string; dark: string };
 }[] = [
-  { id: "blue", labelKey: "scheme_blue", preview: { light: "#3B82F6", dark: "#60A5FA" } },
-  { id: "green", labelKey: "scheme_green", preview: { light: "#5BC5A7", dark: "#4DB899" } },
+  { id: "blue",   labelKey: "scheme_blue",   preview: { light: "#3B82F6", dark: "#60A5FA" } },
+  { id: "green",  labelKey: "scheme_green",  preview: { light: "#5BC5A7", dark: "#4DB899" } },
   { id: "purple", labelKey: "scheme_purple", preview: { light: "#6E4CE5", dark: "#8B6CF7" } },
-  { id: "warm", labelKey: "scheme_warm", preview: { light: "#1B4D3E", dark: "#3D8B74" } },
+  { id: "warm",   labelKey: "scheme_warm",   preview: { light: "#1B4D3E", dark: "#3D8B74" } },
+  { id: "red",    labelKey: "scheme_red",    preview: { light: "#EF4444", dark: "#F87171" } },
+  { id: "orange", labelKey: "scheme_orange", preview: { light: "#F97316", dark: "#FB923C" } },
+  { id: "rose",   labelKey: "scheme_rose",   preview: { light: "#F43F5E", dark: "#FB7185" } },
+  { id: "teal",   labelKey: "scheme_teal",   preview: { light: "#0D9488", dark: "#2DD4BF" } },
+  { id: "amber",  labelKey: "scheme_amber",  preview: { light: "#F59E0B", dark: "#FCD34D" } },
+  { id: "slate",  labelKey: "scheme_slate",  preview: { light: "#64748B", dark: "#94A3B8" } },
 ];
 
 interface ThemeContext {
@@ -50,8 +56,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       if (savedTheme === "light" || savedTheme === "dark" || savedTheme === "system") {
         setThemeState(savedTheme);
       }
-      if (savedScheme === "blue" || savedScheme === "green" || savedScheme === "purple" || savedScheme === "warm") {
-        setColorSchemeState(savedScheme);
+      if (COLOR_SCHEMES.some((s) => s.id === savedScheme)) {
+        setColorSchemeState(savedScheme as ColorScheme);
       }
     });
   }, []);

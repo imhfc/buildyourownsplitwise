@@ -74,16 +74,16 @@ function ColorSchemeOption({
 
   return (
     <Pressable
-      className={`flex-1 items-center p-3 rounded-xl border-2 ${
+      className={`flex-1 items-center p-2 rounded-xl border-2 ${
         isSelected ? "border-primary bg-primary/10" : "border-border bg-card"
       }`}
       onPress={onPress}
     >
       <View
-        style={{ backgroundColor: previewColor, width: 40, height: 40, borderRadius: 20 }}
-        className="mb-2 items-center justify-center"
+        style={{ backgroundColor: previewColor, width: 28, height: 28, borderRadius: 14 }}
+        className="mb-1 items-center justify-center"
       >
-        {isSelected && <Check size={20} color="#fff" />}
+        {isSelected && <Check size={14} color="#fff" />}
       </View>
       <Text className={`text-xs font-medium ${isSelected ? "text-primary" : ""}`}>
         {label}
@@ -134,17 +134,31 @@ export default function SettingsScreen() {
               </View>
               <Text className="text-base font-medium">{t("color_scheme")}</Text>
             </View>
-            <View className="flex-row gap-2">
-              {COLOR_SCHEMES.map((scheme) => (
-                <ColorSchemeOption
-                  key={scheme.id}
-                  scheme={scheme}
-                  isSelected={colorScheme === scheme.id}
-                  onPress={() => setColorScheme(scheme.id as ColorScheme)}
-                  isDark={isDark}
-                  label={t(scheme.labelKey)}
-                />
-              ))}
+            <View className="gap-2">
+              <View className="flex-row gap-2">
+                {COLOR_SCHEMES.slice(0, 5).map((scheme) => (
+                  <ColorSchemeOption
+                    key={scheme.id}
+                    scheme={scheme}
+                    isSelected={colorScheme === scheme.id}
+                    onPress={() => setColorScheme(scheme.id as ColorScheme)}
+                    isDark={isDark}
+                    label={t(scheme.labelKey)}
+                  />
+                ))}
+              </View>
+              <View className="flex-row gap-2">
+                {COLOR_SCHEMES.slice(5, 10).map((scheme) => (
+                  <ColorSchemeOption
+                    key={scheme.id}
+                    scheme={scheme}
+                    isSelected={colorScheme === scheme.id}
+                    onPress={() => setColorScheme(scheme.id as ColorScheme)}
+                    isDark={isDark}
+                    label={t(scheme.labelKey)}
+                  />
+                ))}
+              </View>
             </View>
           </CardContent>
         </Card>

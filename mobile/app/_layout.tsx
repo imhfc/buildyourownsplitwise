@@ -14,6 +14,12 @@ const SCHEME_CLASS: Record<string, string> = {
   green: "scheme-green",
   purple: "scheme-purple",
   warm: "scheme-warm",
+  red: "scheme-red",
+  orange: "scheme-orange",
+  rose: "scheme-rose",
+  teal: "scheme-teal",
+  amber: "scheme-amber",
+  slate: "scheme-slate",
 };
 
 function InnerLayout() {
@@ -27,10 +33,13 @@ function InnerLayout() {
     if (!hasHydrated) return;
 
     const inAuthGroup = segments[0] === "(auth)";
+    const inTabsGroup = segments[0] === "(tabs)";
+    const inGroupPage = segments[0] === "group";
 
     if (!isAuthenticated && !inAuthGroup) {
       router.replace("/(auth)/login");
-    } else if (isAuthenticated && inAuthGroup) {
+    } else if (isAuthenticated && !inTabsGroup && !inGroupPage) {
+      // 涵蓋 index.tsx（spinner）和 auth 頁面，都導向 tabs
       router.replace("/(tabs)");
     }
   }, [isAuthenticated, hasHydrated, segments]);

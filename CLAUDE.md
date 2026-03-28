@@ -254,19 +254,38 @@ test: 新增結算 API 的整合測試
 
 ### 9.1 快速啟動
 
+#### 前端開發（Hot Reload，最常用）⚠️ 預設打本機後端
+
+**DB 在 Neon（雲端），不需要本機 DB 或 Docker。**
+`mobile/.env` 預設指向本機 backend（`http://localhost:8000/api/v1`）。
+啟動前必須先把本機後端跑起來，否則 API 會 connection refused：
+
 ```bash
-# 啟動開發基礎設施
-docker compose up -d db redis
-
-# 本地執行後端
+# 步驟 1：啟動本機 FastAPI（直接連 Neon DB）
 cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
-# 或用 Docker 啟動全部
-docker compose up
+# 步驟 2：啟動前端 dev server（另開一個 terminal）
+cd mobile
+npx expo start --web
+```
 
-# ── 跑測試（使用獨立 PostgreSQL，不影響 dev DB）──
+開啟 http://localhost:8081，改任何 `.tsx` 檔案 → 瀏覽器立即更新。
+
+> ✅ Neon DB 是共用的，但不經過 VM，VM 死掉也沒關係。
+
+#### 需要打 Prod API（緊急驗證 prod 行為）
+
+```bash
+cd mobile
+EXPO_PUBLIC_API_URL=https://byosw.duckdns.org/api/v1 npx expo start --web
+```
+
+> ⚠️ 注意：API 打的是 prod VM，VM 如果掛掉就無法使用。不要常用。
+
+#### 跑測試（使用獨立 PostgreSQL，不影響 dev DB）
+
+```bash
 docker compose -f docker-compose.test.yml up -d db-test
 cd backend && pytest tests/
 ```
@@ -305,7 +324,18 @@ cd backend && pytest tests/
 - 避免在 `useEffect` 中直接呼叫 API，改用 `useCallback` + `useFocusEffect` 確保畫面聚焦時才刷新資料
 - 非同步操作（API 呼叫）需要有 loading 狀態，防止重複送出
 
-### 11.3 常見錯誤清單（禁止再犯）
+### 11.3 主題配色規範
+
+- **所有互動按鈕必須使用 `bg-primary` 色系**：儲存、確認、送出等 CTA 按鈕，一律使用 `variant="default"`（即 `bg-primary text-primary-foreground`），禁止寫死顏色（例如 `bg-blue-500`），才能在使用者切換色系時自動更新。
+- **`<Button>` 元件預設即為 `variant="default"`**：新增消費、建立群組、登入等按鈕只需 `<Button>` 不帶 `variant` 即可正確跟隨色系。
+- **危險操作使用 `variant="destructive"`**：刪除、退出等操作使用 destructive variant，此 variant 固定為紅色（語義色），不隨色系改變。
+- **色系變數定義在 `global.css`，新色系必須同步更新 5 個地方**：
+  1. `mobile/lib/theme.tsx` — `ColorScheme` 型別 + `COLOR_SCHEMES` 陣列
+  2. `mobile/global.css` — light/dark CSS 變數
+  3. `mobile/app/_layout.tsx` — `SCHEME_CLASS` 映射
+  4. `mobile/i18n/*.json`（zh-TW、en、ja）— 顯示名稱翻譯
+
+### 11.4 常見錯誤清單（禁止再犯）
 
 | 錯誤 | 正確做法 |
 | --- | --- |
@@ -317,3 +347,4 @@ cd backend && pytest tests/
 | 密碼欄位未設 `secureTextEntry` | 密碼輸入必須加上 `secureTextEntry` |
 | Modal/BottomSheet 未處理鍵盤遮擋 | 使用 `KeyboardAvoidingView` 包裹表單內容 |
 | 直接在 JSX 中寫複雜邏輯 | 抽成獨立函式或自訂 hook |
+| 按鈕寫死顏色（如 `bg-blue-500`） | 一律使用 `<Button>` 的 `variant`，跟隨 `bg-primary` 色系 |
