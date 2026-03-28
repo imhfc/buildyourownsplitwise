@@ -1,7 +1,7 @@
 # CI/CD 自動部署指南（GitHub Actions + Self-Hosted Runner）
 
 > 此方案使用 GitHub Actions 搭配 self-hosted runner，push 到 main 時自動部署，支援 health check 和自動 rollback。
-> Cron 輪詢方案請參閱 [CICD.md](./CICD.md)。
+> 預計部署在新的 VM 上，與現有 Cron 方案（CICD.md）的舊 VM 獨立運作。
 
 ## 架構概覽
 
@@ -11,17 +11,6 @@
     health check pass → 清理 :bak
     health check fail → alembic downgrade → 還原 :bak → 重啟
 ```
-
-## 與 Cron 方案的差異
-
-| 比較項目 | Cron (CICD.md) | GitHub Actions (本文) |
-|----------|----------------|----------------------|
-| 觸發方式 | 每分鐘輪詢 git pull | push to main 即觸發 |
-| 環境設定 | 手動編輯 VM 上的 `.env` | 從 GitHub Variables 自動寫入 |
-| DB migration | 手動 SSH 跑 alembic | 自動執行 alembic upgrade |
-| Rollback | 無（build 失敗保留舊容器） | 自動 rollback image + schema |
-| Health check | 無 | 自動檢查 `/health` endpoint |
-| 舊 image 清理 | 無 | 自動清理 :bak + dangling images |
 
 ## 部署流程詳解
 
@@ -120,16 +109,6 @@ sudo usermod -aG docker $USER
 docker compose version
 curl --version
 ```
-
-## 與 Cron 方案共存
-
-兩套方案可以共存，但建議**擇一使用**，避免同時部署造成衝突：
-
-- **使用 GitHub Actions 時：** 移除 cron 排程
-  ```bash
-  crontab -r   # 或 crontab -e 手動刪除那行
-  ```
-- **保留 Cron 作為 fallback：** 若 GitHub Actions runner 掛了，cron 仍然能自動部署，但不會有 rollback 和 health check。
 
 ## 注意事項
 
