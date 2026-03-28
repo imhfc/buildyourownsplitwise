@@ -1,4 +1,4 @@
-import { View, Pressable } from "react-native";
+import { View, Pressable, ScrollView } from "react-native";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
@@ -9,10 +9,12 @@ import {
   LogOut,
   Moon,
   Sun,
+  Palette,
   ChevronRight,
+  Check,
 } from "lucide-react-native";
 import { useAuthStore } from "../../stores/auth";
-import { useTheme } from "~/lib/theme";
+import { useTheme, COLOR_SCHEMES, type ColorScheme } from "~/lib/theme";
 import i18n from "../../i18n";
 import { Text, Muted } from "~/components/ui/text";
 import { Button } from "~/components/ui/button";
@@ -55,10 +57,45 @@ function SettingItem({ icon, title, value, onPress, rightElement }: SettingItemP
   );
 }
 
+function ColorSchemeOption({
+  scheme,
+  isSelected,
+  onPress,
+  isDark,
+  label,
+}: {
+  scheme: (typeof COLOR_SCHEMES)[number];
+  isSelected: boolean;
+  onPress: () => void;
+  isDark: boolean;
+  label: string;
+}) {
+  const previewColor = isDark ? scheme.preview.dark : scheme.preview.light;
+
+  return (
+    <Pressable
+      className={`flex-1 items-center p-3 rounded-xl border-2 ${
+        isSelected ? "border-primary bg-primary/10" : "border-border bg-card"
+      }`}
+      onPress={onPress}
+    >
+      <View
+        style={{ backgroundColor: previewColor, width: 40, height: 40, borderRadius: 20 }}
+        className="mb-2 items-center justify-center"
+      >
+        {isSelected && <Check size={20} color="#fff" />}
+      </View>
+      <Text className={`text-xs font-medium ${isSelected ? "text-primary" : ""}`}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 export default function SettingsScreen() {
   const { t } = useTranslation();
   const { user, logout } = useAuthStore();
-  const { isDark, toggleTheme } = useTheme();
+  const { isDark, toggleTheme, colorScheme, setColorScheme } = useTheme();
 
   const handleLogout = () => {
     logout();
@@ -77,7 +114,7 @@ export default function SettingsScreen() {
   const iconColor = isDark ? "#A1A1AA" : "#71717A";
 
   return (
-    <View className="flex-1 bg-background">
+    <ScrollView className="flex-1 bg-background">
       {/* Profile Section */}
       <View className="items-center pt-8 pb-6">
         <Avatar name={user?.display_name || "?"} size="xl" index={0} />
@@ -85,6 +122,32 @@ export default function SettingsScreen() {
           {user?.display_name}
         </Text>
         <Muted>{user?.email}</Muted>
+      </View>
+
+      {/* Color Scheme Picker */}
+      <View className="px-5 mb-4">
+        <Card>
+          <CardContent className="p-4">
+            <View className="flex-row items-center mb-3">
+              <View className="h-9 w-9 items-center justify-center rounded-lg bg-muted mr-3">
+                <Palette size={18} color={iconColor} />
+              </View>
+              <Text className="text-base font-medium">{t("color_scheme")}</Text>
+            </View>
+            <View className="flex-row gap-2">
+              {COLOR_SCHEMES.map((scheme) => (
+                <ColorSchemeOption
+                  key={scheme.id}
+                  scheme={scheme}
+                  isSelected={colorScheme === scheme.id}
+                  onPress={() => setColorScheme(scheme.id as ColorScheme)}
+                  isDark={isDark}
+                  label={t(scheme.labelKey)}
+                />
+              ))}
+            </View>
+          </CardContent>
+        </Card>
       </View>
 
       {/* Settings Card */}
@@ -121,7 +184,7 @@ export default function SettingsScreen() {
                 ? <Moon size={18} color={iconColor} />
                 : <Sun size={18} color={iconColor} />
               }
-              title={isDark ? "深色模式" : "淺色模式"}
+              title={isDark ? t("dark_mode") : t("light_mode")}
               onPress={toggleTheme}
             />
           </CardContent>
@@ -130,11 +193,11 @@ export default function SettingsScreen() {
         <Button
           variant="destructive"
           onPress={handleLogout}
-          className="mt-6"
+          className="mt-6 mb-8"
         >
           {t("logout")}
         </Button>
       </View>
-    </View>
+    </ScrollView>
   );
 }

@@ -3,12 +3,26 @@ import { useColorScheme as useRNColorScheme } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type Theme = "light" | "dark" | "system";
+export type ColorScheme = "blue" | "green" | "purple" | "warm";
+
+export const COLOR_SCHEMES: {
+  id: ColorScheme;
+  labelKey: string;
+  preview: { light: string; dark: string };
+}[] = [
+  { id: "blue", labelKey: "scheme_blue", preview: { light: "#3B82F6", dark: "#60A5FA" } },
+  { id: "green", labelKey: "scheme_green", preview: { light: "#5BC5A7", dark: "#4DB899" } },
+  { id: "purple", labelKey: "scheme_purple", preview: { light: "#6E4CE5", dark: "#8B6CF7" } },
+  { id: "warm", labelKey: "scheme_warm", preview: { light: "#1B4D3E", dark: "#3D8B74" } },
+];
 
 interface ThemeContext {
   theme: Theme;
   isDark: boolean;
   setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
+  colorScheme: ColorScheme;
+  setColorScheme: (scheme: ColorScheme) => void;
 }
 
 const ThemeCtx = createContext<ThemeContext>({
@@ -16,18 +30,28 @@ const ThemeCtx = createContext<ThemeContext>({
   isDark: false,
   setTheme: () => {},
   toggleTheme: () => {},
+  colorScheme: "blue",
+  setColorScheme: () => {},
 });
 
 const THEME_KEY = "byosw-theme";
+const COLOR_SCHEME_KEY = "byosw-color-scheme";
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useRNColorScheme();
   const [theme, setThemeState] = useState<Theme>("system");
+  const [colorScheme, setColorSchemeState] = useState<ColorScheme>("blue");
 
   useEffect(() => {
-    AsyncStorage.getItem(THEME_KEY).then((saved) => {
-      if (saved === "light" || saved === "dark" || saved === "system") {
-        setThemeState(saved);
+    Promise.all([
+      AsyncStorage.getItem(THEME_KEY),
+      AsyncStorage.getItem(COLOR_SCHEME_KEY),
+    ]).then(([savedTheme, savedScheme]) => {
+      if (savedTheme === "light" || savedTheme === "dark" || savedTheme === "system") {
+        setThemeState(savedTheme);
+      }
+      if (savedScheme === "blue" || savedScheme === "green" || savedScheme === "purple" || savedScheme === "warm") {
+        setColorSchemeState(savedScheme);
       }
     });
   }, []);
@@ -35,6 +59,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const setTheme = (t: Theme) => {
     setThemeState(t);
     AsyncStorage.setItem(THEME_KEY, t);
+  };
+
+  const setColorScheme = (s: ColorScheme) => {
+    setColorSchemeState(s);
+    AsyncStorage.setItem(COLOR_SCHEME_KEY, s);
   };
 
   const isDark =
@@ -45,7 +74,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <ThemeCtx.Provider value={{ theme, isDark, setTheme, toggleTheme }}>
+    <ThemeCtx.Provider value={{ theme, isDark, setTheme, toggleTheme, colorScheme, setColorScheme }}>
       {children}
     </ThemeCtx.Provider>
   );

@@ -9,8 +9,15 @@ import { ThemeProvider as NavThemeProvider, DarkTheme, DefaultTheme } from "@rea
 import { ThemeProvider, useTheme } from "~/lib/theme";
 import { useAuthStore } from "../stores/auth";
 
+const SCHEME_CLASS: Record<string, string> = {
+  blue: "",
+  green: "scheme-green",
+  purple: "scheme-purple",
+  warm: "scheme-warm",
+};
+
 function InnerLayout() {
-  const { isDark } = useTheme();
+  const { isDark, colorScheme } = useTheme();
   const router = useRouter();
   const segments = useSegments();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -30,7 +37,7 @@ function InnerLayout() {
 
   return (
     <NavThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
-      <View className={isDark ? "dark flex-1" : "flex-1"}>
+      <View className={`${isDark ? "dark" : ""} ${SCHEME_CLASS[colorScheme] || ""} flex-1`.trim()}>
         <View className="flex-1 bg-background">
           <Stack
             screenOptions={{

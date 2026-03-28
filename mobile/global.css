@@ -3,6 +3,9 @@
 @tailwind utilities;
 
 @layer base {
+  /* ===========================
+     Default: 經典信任藍 (blue)
+     =========================== */
   :root {
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
@@ -51,6 +54,159 @@
     --ring: 213 94% 68%;
     --income: 160 60% 45%;
     --expense: 0 72% 51%;
+    --settled: 220 9% 46%;
+    --warning: 38 80% 50%;
+  }
+
+  /* ===========================
+     方案二：活力綠意 (green)
+     =========================== */
+  .scheme-green {
+    --primary: 160 41% 56%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 160 41% 56%;
+    --background: 150 33% 97%;
+    --foreground: 120 100% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 120 100% 10%;
+    --secondary: 150 20% 93%;
+    --secondary-foreground: 120 100% 10%;
+    --muted: 150 20% 93%;
+    --muted-foreground: 150 10% 40%;
+    --accent: 150 20% 93%;
+    --accent-foreground: 120 100% 10%;
+    --border: 150 15% 88%;
+    --input: 150 15% 88%;
+    --income: 160 84% 39%;
+    --expense: 0 84% 60%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --settled: 220 9% 46%;
+    --warning: 38 92% 50%;
+  }
+
+  .dark.scheme-green {
+    --primary: 160 50% 50%;
+    --primary-foreground: 120 100% 5%;
+    --ring: 160 50% 50%;
+    --background: 150 15% 6%;
+    --foreground: 150 10% 95%;
+    --card: 150 15% 8%;
+    --card-foreground: 150 10% 95%;
+    --secondary: 150 10% 14%;
+    --secondary-foreground: 150 10% 95%;
+    --muted: 150 10% 14%;
+    --muted-foreground: 150 10% 60%;
+    --accent: 150 10% 14%;
+    --accent-foreground: 150 10% 95%;
+    --border: 150 10% 14%;
+    --input: 150 10% 14%;
+    --income: 160 60% 45%;
+    --expense: 0 72% 51%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --settled: 220 9% 46%;
+    --warning: 38 80% 50%;
+  }
+
+  /* ===========================
+     方案三：科技紫夜 (purple)
+     =========================== */
+  .scheme-purple {
+    --primary: 258 60% 60%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 258 60% 60%;
+    --background: 250 20% 97%;
+    --foreground: 250 30% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 250 30% 10%;
+    --secondary: 250 15% 93%;
+    --secondary-foreground: 250 30% 10%;
+    --muted: 250 15% 93%;
+    --muted-foreground: 250 10% 46%;
+    --accent: 250 15% 93%;
+    --accent-foreground: 250 30% 10%;
+    --border: 250 12% 89%;
+    --input: 250 12% 89%;
+    --income: 210 80% 65%;
+    --expense: 0 70% 68%;
+    --destructive: 0 70% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --settled: 220 9% 46%;
+    --warning: 38 92% 50%;
+  }
+
+  .dark.scheme-purple {
+    --primary: 258 70% 65%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 258 70% 65%;
+    --background: 250 40% 5%;
+    --foreground: 0 0% 90%;
+    --card: 250 30% 10%;
+    --card-foreground: 0 0% 90%;
+    --secondary: 250 20% 14%;
+    --secondary-foreground: 0 0% 90%;
+    --muted: 250 20% 14%;
+    --muted-foreground: 250 10% 55%;
+    --accent: 250 20% 14%;
+    --accent-foreground: 0 0% 90%;
+    --border: 250 20% 14%;
+    --input: 250 20% 14%;
+    --income: 210 80% 65%;
+    --expense: 0 60% 65%;
+    --destructive: 0 60% 55%;
+    --destructive-foreground: 0 0% 98%;
+    --settled: 220 9% 46%;
+    --warning: 38 80% 50%;
+  }
+
+  /* ===========================
+     方案四：極簡暖調 (warm)
+     =========================== */
+  .scheme-warm {
+    --primary: 165 40% 22%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 40 55% 58%;
+    --background: 35 50% 96%;
+    --foreground: 0 0% 17%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 17%;
+    --secondary: 35 25% 91%;
+    --secondary-foreground: 0 0% 17%;
+    --muted: 35 25% 91%;
+    --muted-foreground: 0 0% 48%;
+    --accent: 40 55% 58%;
+    --accent-foreground: 0 0% 100%;
+    --border: 35 20% 87%;
+    --input: 35 20% 87%;
+    --income: 120 40% 45%;
+    --expense: 10 75% 42%;
+    --destructive: 10 75% 42%;
+    --destructive-foreground: 0 0% 100%;
+    --settled: 220 9% 46%;
+    --warning: 38 92% 50%;
+  }
+
+  .dark.scheme-warm {
+    --primary: 165 35% 35%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 40 50% 50%;
+    --background: 30 15% 6%;
+    --foreground: 35 15% 90%;
+    --card: 30 12% 10%;
+    --card-foreground: 35 15% 90%;
+    --secondary: 30 10% 15%;
+    --secondary-foreground: 35 15% 90%;
+    --muted: 30 10% 15%;
+    --muted-foreground: 30 10% 55%;
+    --accent: 40 50% 50%;
+    --accent-foreground: 0 0% 100%;
+    --border: 30 10% 15%;
+    --input: 30 10% 15%;
+    --income: 120 40% 45%;
+    --expense: 10 65% 50%;
+    --destructive: 10 65% 50%;
+    --destructive-foreground: 0 0% 98%;
     --settled: 220 9% 46%;
     --warning: 38 80% 50%;
   }

@@ -37,6 +37,13 @@
   "settings": "設定",
   "language": "言語",
   "preferred_currency": "通貨設定",
+  "color_scheme": "カラーテーマ",
+  "scheme_blue": "ブルー",
+  "scheme_green": "グリーン",
+  "scheme_purple": "パープル",
+  "scheme_warm": "ウォーム",
+  "dark_mode": "ダークモード",
+  "light_mode": "ライトモード",
 
   "save": "保存",
   "cancel": "キャンセル",

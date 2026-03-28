@@ -37,6 +37,13 @@
   "settings": "設定",
   "language": "語言",
   "preferred_currency": "偏好幣別",
+  "color_scheme": "主題配色",
+  "scheme_blue": "信任藍",
+  "scheme_green": "活力綠",
+  "scheme_purple": "科技紫",
+  "scheme_warm": "暖調金",
+  "dark_mode": "深色模式",
+  "light_mode": "淺色模式",
 
   "select_currency": "選擇幣別",
   "search_currency": "搜尋幣別（代碼或名稱）",
