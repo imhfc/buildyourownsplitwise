@@ -12,6 +12,7 @@ from app.models.group import Group
 from app.models.settlement import Settlement
 from app.models.user import User
 from app.schemas.expense import SettlementCreate, SettlementResponse, SettlementSuggestion
+from app.services.exchange_rate_service import get_rate
 from app.services.group_service import check_membership
 
 
@@ -19,10 +20,28 @@ async def calculate_balances(
     db: AsyncSession, group_id: uuid.UUID
 ) -> dict[uuid.UUID, Decimal]:
     """
-    Calculate net balance for each user.
+    Calculate net balance for each user, converted to the group's base currency.
     Positive = others owe them. Negative = they owe others.
     """
+    # 取得群組預設幣別
+    group_result = await db.execute(select(Group).where(Group.id == group_id))
+    group = group_result.scalar_one()
+    base_currency = group.default_currency
+
     balances: dict[uuid.UUID, Decimal] = defaultdict(Decimal)
+
+    # 快取匯率，避免重複查詢同一幣別
+    rate_cache: dict[str, Decimal] = {}
+
+    async def to_base(amount: Decimal, currency: str) -> Decimal:
+        """將金額轉換成群組 base currency"""
+        currency = currency.upper()
+        if currency == base_currency.upper():
+            return amount
+        if currency not in rate_cache:
+            rate, _ = await get_rate(db, currency, base_currency)
+            rate_cache[currency] = rate
+        return round(amount * rate_cache[currency], 2)
 
     result = await db.execute(
         select(Expense)
@@ -32,9 +51,11 @@ async def calculate_balances(
     expenses = result.scalars().all()
 
     for expense in expenses:
-        balances[expense.paid_by] += expense.total_amount
+        converted_total = await to_base(expense.total_amount, expense.currency)
+        balances[expense.paid_by] += converted_total
         for split in expense.splits:
-            balances[split.user_id] -= split.amount
+            converted_split = await to_base(split.amount, expense.currency)
+            balances[split.user_id] -= converted_split
 
     settlement_result = await db.execute(
         select(Settlement).where(Settlement.group_id == group_id)
@@ -42,8 +63,9 @@ async def calculate_balances(
     settlements = settlement_result.scalars().all()
 
     for s in settlements:
-        balances[s.from_user] += s.amount
-        balances[s.to_user] -= s.amount
+        converted_amount = await to_base(s.amount, s.currency)
+        balances[s.from_user] += converted_amount
+        balances[s.to_user] -= converted_amount
 
     return {uid: bal for uid, bal in balances.items() if abs(bal) > Decimal("0.01")}
 

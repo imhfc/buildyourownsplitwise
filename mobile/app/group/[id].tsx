@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { View, FlatList, RefreshControl, Modal, Pressable } from "react-native";
+import { View, FlatList, RefreshControl, Modal, Pressable, KeyboardAvoidingView, Platform } from "react-native";
 import { useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
@@ -86,7 +86,7 @@ export default function GroupDetailScreen() {
   };
 
   const handleAddExpense = async () => {
-    if (!desc || !amount || !id || !user) return;
+    if (!desc || !amount || Number(amount) <= 0 || !id || !user) return;
     setAdding(true);
     try {
       await expensesAPI.create(id, {
@@ -210,58 +210,67 @@ export default function GroupDetailScreen() {
         animationType="slide"
         onRequestClose={() => setShowAdd(false)}
       >
-        <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-background rounded-t-3xl px-5 pb-10 pt-4">
-            <View className="items-center mb-4">
-              <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
-            </View>
-
-            <View className="flex-row items-center justify-between mb-6">
-              <H3>{t("add_expense")}</H3>
-              <Pressable onPress={() => setShowAdd(false)}>
-                <X size={24} color="hsl(240 3.8% 46.1%)" />
-              </Pressable>
-            </View>
-
-            <View className="gap-4">
-              <Input
-                label={t("description")}
-                value={desc}
-                onChangeText={setDesc}
-                placeholder={t("description")}
-              />
-              <Input
-                label={t("amount")}
-                value={amount}
-                onChangeText={setAmount}
-                keyboardType="numeric"
-                placeholder="0"
-              />
-
-              <View className="gap-2">
-                <Text className="text-sm font-medium">{t("split_method")}</Text>
-                <SegmentedTabs
-                  tabs={SPLIT_METHODS.map((m) => ({
-                    value: m,
-                    label: t(m),
-                  }))}
-                  value={splitMethod}
-                  onValueChange={setSplitMethod}
-                />
+        <KeyboardAvoidingView
+          className="flex-1 justify-end"
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <View className="flex-1 justify-end bg-black/50">
+            <View className="bg-background rounded-t-3xl px-5 pb-10 pt-4">
+              <View className="items-center mb-4">
+                <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
               </View>
 
-              <Button
-                onPress={handleAddExpense}
-                loading={adding}
-                disabled={adding || !desc || !amount}
-                size="lg"
-                className="mt-2"
-              >
-                {t("save")}
-              </Button>
+              <View className="flex-row items-center justify-between mb-6">
+                <H3>{t("add_expense")}</H3>
+                <Pressable onPress={() => setShowAdd(false)}>
+                  <X size={24} color="hsl(240 3.8% 46.1%)" />
+                </Pressable>
+              </View>
+
+              <View className="gap-4">
+                <Input
+                  label={t("description")}
+                  value={desc}
+                  onChangeText={setDesc}
+                  placeholder={t("description")}
+                />
+                <Input
+                  label={t("amount")}
+                  value={amount}
+                  onChangeText={(text) => {
+                    if (text === "" || /^\d*\.?\d{0,2}$/.test(text)) {
+                      setAmount(text);
+                    }
+                  }}
+                  keyboardType="decimal-pad"
+                  placeholder="0"
+                />
+
+                <View className="gap-2">
+                  <Text className="text-sm font-medium">{t("split_method")}</Text>
+                  <SegmentedTabs
+                    tabs={SPLIT_METHODS.map((m) => ({
+                      value: m,
+                      label: t(m),
+                    }))}
+                    value={splitMethod}
+                    onValueChange={setSplitMethod}
+                  />
+                </View>
+
+                <Button
+                  onPress={handleAddExpense}
+                  loading={adding}
+                  disabled={adding || !desc || !amount || Number(amount) <= 0}
+                  size="lg"
+                  className="mt-2"
+                >
+                  {t("save")}
+                </Button>
+              </View>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

@@ -7,7 +7,9 @@ from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import ForbiddenError, NotFoundError, ValidationError
 from app.models.expense import Expense, ExpenseSplit
+from app.models.group import Group
 from app.schemas.expense import ExpenseCreate, ExpenseResponse, ExpenseSplitResponse
+from app.services.exchange_rate_service import get_rate
 from app.services.group_service import check_membership, get_group_member_ids
 
 
@@ -66,11 +68,23 @@ async def create_expense(
     if data.paid_by not in member_ids:
         raise ValidationError("Payer is not a group member")
 
+    # 取得群組預設幣別作為 base_currency，並查即時匯率作為快照參考
+    group_result = await db.execute(select(Group).where(Group.id == group_id))
+    group = group_result.scalar_one()
+    base_currency = group.default_currency
+
+    if data.currency.upper() != base_currency.upper():
+        rate, _ = await get_rate(db, data.currency, base_currency)
+    else:
+        rate = Decimal("1")
+
     expense = Expense(
         group_id=group_id,
         description=data.description,
         total_amount=data.total_amount,
         currency=data.currency,
+        base_currency=base_currency,
+        exchange_rate_to_base=rate,
         paid_by=data.paid_by,
         split_method=data.split_method,
         note=data.note,
@@ -139,6 +153,7 @@ async def get_expense_detail(db: AsyncSession, expense_id: uuid.UUID) -> Expense
 
 
 def format_expense(e: Expense) -> ExpenseResponse:
+    base_amount = round(e.total_amount * e.exchange_rate_to_base, 2)
     return ExpenseResponse(
         id=e.id,
         group_id=e.group_id,
@@ -147,6 +162,7 @@ def format_expense(e: Expense) -> ExpenseResponse:
         currency=e.currency,
         exchange_rate_to_base=e.exchange_rate_to_base,
         base_currency=e.base_currency,
+        base_amount=base_amount,
         paid_by=e.paid_by,
         payer_display_name=e.payer.display_name,
         split_method=e.split_method,

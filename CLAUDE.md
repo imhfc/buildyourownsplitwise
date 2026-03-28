@@ -270,3 +270,33 @@ docker compose up
 - **結算演算法**：使用淨餘額圖搭配貪婪匹配（max-heap）以最小化交易次數
 - 所有金額計算必須使用 `Decimal`，禁止使用 `float`
 - 四捨五入的差異歸付款人承擔
+
+---
+
+## 11. Mobile 開發規範（React Native / Expo）
+
+### 11.1 表單輸入驗證
+
+- **數字欄位必須限制輸入**：金額等數字輸入不能只靠 `keyboardType`，必須在 `onChangeText` 中用正規表達式過濾非法字元（例如 `/^\d*\.?\d{0,2}$/`），因為使用者可以透過貼上或第三方鍵盤輸入任意文字
+- **金額欄位使用 `decimal-pad`**：不要用 `numeric`，改用 `decimal-pad` 以支援小數點輸入
+- **送出前二次驗證**：按鈕的 `disabled` 條件和提交函式中都要檢查數值有效性（非空、大於零）
+- **空字串特殊處理**：驗證正規表達式時要允許空字串，否則使用者無法清空輸入欄位
+
+### 11.2 狀態管理
+
+- 表單狀態使用 `useState`，全域狀態使用 Zustand store
+- 避免在 `useEffect` 中直接呼叫 API，改用 `useCallback` + `useFocusEffect` 確保畫面聚焦時才刷新資料
+- 非同步操作（API 呼叫）需要有 loading 狀態，防止重複送出
+
+### 11.3 常見錯誤清單（禁止再犯）
+
+| 錯誤 | 正確做法 |
+| --- | --- |
+| 只用 `keyboardType` 限制輸入 | 必須搭配 `onChangeText` 正規表達式過濾 |
+| 金額用 `parseFloat` 但未檢查 `NaN` | 送出前用 `Number(value) > 0` 驗證 |
+| 未處理 API 錯誤 | 所有 API 呼叫需 `try/catch`，並顯示錯誤訊息給使用者 |
+| 列表未加 `keyExtractor` | FlatList 必須指定唯一的 `keyExtractor` |
+| 硬編碼文字 | 所有使用者可見文字必須透過 `i18n` 的 `t()` 函式 |
+| 密碼欄位未設 `secureTextEntry` | 密碼輸入必須加上 `secureTextEntry` |
+| Modal/BottomSheet 未處理鍵盤遮擋 | 使用 `KeyboardAvoidingView` 包裹表單內容 |
+| 直接在 JSX 中寫複雜邏輯 | 抽成獨立函式或自訂 hook |

@@ -27,7 +27,7 @@ export default function RegisterScreen() {
         password,
         display_name: displayName,
       });
-      setAuth(res.data.access_token, res.data.user);
+      setAuth(res.data.access_token, res.data.refresh_token, res.data.user);
       router.replace("/(tabs)");
     } catch (e: any) {
       setError(e.response?.data?.detail || "Registration failed");

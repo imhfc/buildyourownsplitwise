@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { View, FlatList, RefreshControl, Modal, Pressable } from "react-native";
+import { View, FlatList, RefreshControl, Modal, Pressable, Alert, KeyboardAvoidingView, Platform } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Users, X } from "lucide-react-native";
@@ -11,6 +11,7 @@ import { Input } from "~/components/ui/input";
 import { Badge } from "~/components/ui/badge";
 import { FAB } from "~/components/ui/fab";
 import { EmptyState } from "~/components/ui/empty-state";
+import { CurrencyPicker } from "~/components/ui/currency-picker";
 
 interface GroupItem {
   id: string;
@@ -65,8 +66,9 @@ export default function GroupsScreen() {
       setNewName("");
       setNewDesc("");
       await fetchGroups();
-    } catch (e) {
-      console.error("Failed to create group", e);
+    } catch (e: any) {
+      const msg = e.response?.data?.detail || e.message || "Unknown error";
+      Alert.alert(t("error"), msg);
     } finally {
       setCreating(false);
     }
@@ -119,51 +121,55 @@ export default function GroupsScreen() {
         animationType="slide"
         onRequestClose={() => setShowCreate(false)}
       >
-        <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-background rounded-t-3xl px-5 pb-10 pt-4">
-            <View className="items-center mb-4">
-              <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
-            </View>
+        <KeyboardAvoidingView
+          className="flex-1 justify-end"
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <View className="flex-1 justify-end bg-black/50">
+            <View className="bg-background rounded-t-3xl px-5 pb-10 pt-4">
+              <View className="items-center mb-4">
+                <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+              </View>
 
-            <View className="flex-row items-center justify-between mb-6">
-              <H3>{t("create_group")}</H3>
-              <Pressable onPress={() => setShowCreate(false)}>
-                <X size={24} color="hsl(240 3.8% 46.1%)" />
-              </Pressable>
-            </View>
+              <View className="flex-row items-center justify-between mb-6">
+                <H3>{t("create_group")}</H3>
+                <Pressable onPress={() => setShowCreate(false)}>
+                  <X size={24} color="hsl(240 3.8% 46.1%)" />
+                </Pressable>
+              </View>
 
-            <View className="gap-4">
-              <Input
-                label={t("group_name")}
-                value={newName}
-                onChangeText={setNewName}
-                placeholder={t("group_name")}
-              />
-              <Input
-                label={t("description")}
-                value={newDesc}
-                onChangeText={setNewDesc}
-                placeholder={t("description")}
-              />
-              <Input
-                label={t("default_currency")}
-                value={newCurrency}
-                onChangeText={setNewCurrency}
-                placeholder="TWD"
-              />
+              <View className="gap-4">
+                <Input
+                  label={t("group_name")}
+                  value={newName}
+                  onChangeText={setNewName}
+                  placeholder={t("group_name")}
+                />
+                <Input
+                  label={t("description")}
+                  value={newDesc}
+                  onChangeText={setNewDesc}
+                  placeholder={t("description")}
+                />
+                <CurrencyPicker
+                  label={t("default_currency")}
+                  value={newCurrency}
+                  onSelect={setNewCurrency}
+                />
 
-              <Button
-                onPress={handleCreate}
-                loading={creating}
-                disabled={creating || !newName}
-                size="lg"
-                className="mt-2"
-              >
-                {t("save")}
-              </Button>
+                <Button
+                  onPress={handleCreate}
+                  loading={creating}
+                  disabled={creating || !newName}
+                  size="lg"
+                  className="mt-2"
+                >
+                  {t("save")}
+                </Button>
+              </View>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

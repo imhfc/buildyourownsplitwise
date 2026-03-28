@@ -1,7 +1,10 @@
-import { Redirect } from "expo-router";
-import { useAuthStore } from "../stores/auth";
+import { ActivityIndicator, View } from "react-native";
 
 export default function Index() {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  return <Redirect href={isAuthenticated ? "/(tabs)" : "/(auth)/login"} />;
+  // Auth redirect is handled by _layout.tsx useEffect
+  return (
+    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+      <ActivityIndicator size="large" />
+    </View>
+  );
 }

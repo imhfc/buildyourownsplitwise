@@ -38,6 +38,10 @@
   "language": "語言",
   "preferred_currency": "偏好幣別",
 
+  "select_currency": "選擇幣別",
+  "search_currency": "搜尋幣別（代碼或名稱）",
+  "no_results": "找不到符合的幣別",
+
   "save": "儲存",
   "cancel": "取消",
   "delete": "刪除",

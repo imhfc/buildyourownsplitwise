@@ -90,6 +90,22 @@ class TestExchangeRateService:
         assert "JPY" in currencies
 
 
+    async def test_get_available_currencies(self):
+        currencies = await exchange_rate_service.get_available_currencies()
+        assert len(currencies) > 0
+        codes = [c["code"] for c in currencies]
+        assert "TWD" in codes
+        assert "USD" in codes
+        assert "JPY" in codes
+        # 確認按 code 排序
+        assert codes == sorted(codes)
+        # 確認每個幣別都有中英文名稱
+        for c in currencies:
+            assert c["code"]
+            assert c["name_zh"]
+            assert c["name_en"]
+
+
 class TestExchangeRateAPI:
     async def test_list_rates_empty(self, client: AsyncClient, db, user_a: User):
         resp = await client.get(
@@ -174,6 +190,27 @@ class TestExchangeRateAPI:
         assert resp.status_code == 200
         data = resp.json()
         assert Decimal(data["converted_amount"]) == Decimal("3200")
+
+    async def test_list_currencies(self, client: AsyncClient, db, user_a: User):
+        resp = await client.get(
+            "/api/v1/exchange-rates/currencies",
+            headers=auth_header(user_a),
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) > 0
+        codes = [c["code"] for c in data]
+        assert "TWD" in codes
+        assert "USD" in codes
+        # 確認結構正確
+        first = data[0]
+        assert "code" in first
+        assert "name_zh" in first
+        assert "name_en" in first
+
+    async def test_list_currencies_no_auth(self, client: AsyncClient):
+        resp = await client.get("/api/v1/exchange-rates/currencies")
+        assert resp.status_code == 403
 
     async def test_no_auth_returns_403(self, client: AsyncClient):
         resp = await client.get("/api/v1/exchange-rates")

@@ -1,10 +1,12 @@
 import uuid
+from datetime import datetime, timezone
 from decimal import Decimal
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.exchange_rate import ExchangeRate
 from app.models.group import Group
 from app.models.user import User
 from tests.conftest import auth_header, create_test_user
@@ -234,3 +236,109 @@ class TestDeleteExpense:
             headers=auth_header(user_b),
         )
         assert resp.status_code == 403
+
+
+class TestMultiCurrencyExpense:
+    """測試多幣別消費功能：建立不同幣別的費用，驗證匯率快照和 base_amount。"""
+
+    async def test_create_expense_with_foreign_currency(
+        self, client: AsyncClient, db: AsyncSession,
+        user_a: User, user_b: User, group_with_members: Group,
+    ):
+        """建立日圓消費，應自動查匯率並回傳 base_amount（約當台幣）。"""
+        er = ExchangeRate(
+            source_currency="JPY",
+            target_currency="TWD",
+            rate=Decimal("0.22"),
+            source="taiwan_bank",
+            fetched_at=datetime.now(timezone.utc),
+        )
+        db.add(er)
+        await db.flush()
+
+        resp = await client.post(
+            f"/api/v1/groups/{group_with_members.id}/expenses",
+            headers=auth_header(user_a),
+            json={
+                "description": "Tokyo Ramen",
+                "total_amount": "1000",
+                "currency": "JPY",
+                "paid_by": str(user_a.id),
+                "split_method": "equal",
+                "splits": [
+                    {"user_id": str(user_a.id)},
+                    {"user_id": str(user_b.id)},
+                ],
+            },
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["currency"] == "JPY"
+        assert data["base_currency"] == "TWD"
+        assert Decimal(data["exchange_rate_to_base"]) == Decimal("0.22")
+        # base_amount = 1000 * 0.22 = 220
+        assert Decimal(data["base_amount"]) == Decimal("220")
+
+    async def test_create_expense_same_as_group_currency(
+        self, client: AsyncClient, db: AsyncSession,
+        user_a: User, user_b: User, group_with_members: Group,
+    ):
+        """群組預設幣別的消費，exchange_rate_to_base 應為 1，base_amount = total_amount。"""
+        resp = await client.post(
+            f"/api/v1/groups/{group_with_members.id}/expenses",
+            headers=auth_header(user_a),
+            json={
+                "description": "Local lunch",
+                "total_amount": "500",
+                "currency": "TWD",
+                "paid_by": str(user_a.id),
+                "split_method": "equal",
+                "splits": [
+                    {"user_id": str(user_a.id)},
+                    {"user_id": str(user_b.id)},
+                ],
+            },
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["currency"] == "TWD"
+        assert data["base_currency"] == "TWD"
+        assert Decimal(data["exchange_rate_to_base"]) == Decimal("1")
+        assert Decimal(data["base_amount"]) == Decimal("500")
+
+    async def test_create_expense_usd_in_twd_group(
+        self, client: AsyncClient, db: AsyncSession,
+        user_a: User, user_b: User, group_with_members: Group,
+    ):
+        """建立美金消費，驗證匯率正確轉換。"""
+        er = ExchangeRate(
+            source_currency="USD",
+            target_currency="TWD",
+            rate=Decimal("32.5"),
+            source="taiwan_bank",
+            fetched_at=datetime.now(timezone.utc),
+        )
+        db.add(er)
+        await db.flush()
+
+        resp = await client.post(
+            f"/api/v1/groups/{group_with_members.id}/expenses",
+            headers=auth_header(user_a),
+            json={
+                "description": "US dinner",
+                "total_amount": "100",
+                "currency": "USD",
+                "paid_by": str(user_a.id),
+                "split_method": "equal",
+                "splits": [
+                    {"user_id": str(user_a.id)},
+                    {"user_id": str(user_b.id)},
+                ],
+            },
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["currency"] == "USD"
+        assert Decimal(data["exchange_rate_to_base"]) == Decimal("32.5")
+        # base_amount = 100 * 32.5 = 3250
+        assert Decimal(data["base_amount"]) == Decimal("3250")

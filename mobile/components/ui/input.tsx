@@ -14,6 +14,8 @@ export function Input({
   label,
   error,
   helper,
+  value,
+  onChangeText,
   ...props
 }: InputProps) {
   return (
@@ -29,6 +31,8 @@ export function Input({
           className
         )}
         placeholderTextColor="hsl(240 3.8% 46.1%)"
+        value={value}
+        onChangeText={onChangeText}
         {...props}
       />
       {error ? (

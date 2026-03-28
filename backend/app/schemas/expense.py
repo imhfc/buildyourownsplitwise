@@ -38,6 +38,7 @@ class ExpenseResponse(BaseModel):
     currency: str
     exchange_rate_to_base: Decimal
     base_currency: str
+    base_amount: Decimal  # 約當預設幣別金額（= total_amount * exchange_rate_to_base）
     paid_by: uuid.UUID
     payer_display_name: str
     split_method: str

@@ -27,3 +27,9 @@ class ExchangeRateConvertResponse(BaseModel):
     converted_amount: Decimal
     rate: Decimal
     fetched_at: datetime
+
+
+class CurrencyInfo(BaseModel):
+    code: str
+    name_zh: str
+    name_en: str

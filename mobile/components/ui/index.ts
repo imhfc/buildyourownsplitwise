@@ -9,3 +9,4 @@ export { Skeleton, CardSkeleton } from "./skeleton";
 export { EmptyState } from "./empty-state";
 export { FAB } from "./fab";
 export { SegmentedTabs } from "./tabs";
+export { CurrencyPicker } from "./currency-picker";

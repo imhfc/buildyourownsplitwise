@@ -4,7 +4,7 @@ import { useAuthStore } from "../stores/auth";
 // Change this to your backend URL
 const API_BASE_URL = __DEV__
   ? "http://localhost:8001/api/v1"
-  : "https://your-production-url.com/api/v1";
+  : "http://35.206.96.99:8000/api/v1";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -20,6 +20,56 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Auto-refresh token on 401/403
+let refreshPromise: Promise<string> | null = null;
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    const status = error.response?.status;
+
+    // Only retry once, skip auth endpoints
+    if (
+      (status === 401 || status === 403) &&
+      !originalRequest._retry &&
+      !originalRequest.url?.includes("/auth/")
+    ) {
+      originalRequest._retry = true;
+      const { refreshToken, logout, setTokens } = useAuthStore.getState();
+
+      if (!refreshToken) {
+        logout();
+        return Promise.reject(error);
+      }
+
+      try {
+        // Deduplicate concurrent refresh calls
+        if (!refreshPromise) {
+          refreshPromise = axios
+            .post(`${API_BASE_URL}/auth/refresh`, { refresh_token: refreshToken })
+            .then((res) => {
+              setTokens(res.data.access_token, res.data.refresh_token);
+              return res.data.access_token as string;
+            })
+            .finally(() => {
+              refreshPromise = null;
+            });
+        }
+
+        const newToken = await refreshPromise;
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return api(originalRequest);
+      } catch {
+        logout();
+        return Promise.reject(error);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
 
 // Auth
 export const authAPI = {
@@ -64,6 +114,14 @@ export const settlementsAPI = {
   list: (groupId: string) => api.get(`/groups/${groupId}/settlements`),
   create: (groupId: string, data: any) =>
     api.post(`/groups/${groupId}/settlements`, data),
+};
+
+// Exchange Rates
+export const exchangeRatesAPI = {
+  currencies: () => api.get("/exchange-rates/currencies"),
+  list: () => api.get("/exchange-rates"),
+  convert: (data: { from_currency: string; to_currency: string; amount: number }) =>
+    api.post("/exchange-rates/convert", data),
 };
 
 export default api;

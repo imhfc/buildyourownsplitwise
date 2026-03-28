@@ -38,6 +38,10 @@
   "language": "Language",
   "preferred_currency": "Preferred Currency",
 
+  "select_currency": "Select Currency",
+  "search_currency": "Search currency (code or name)",
+  "no_results": "No matching currencies",
+
   "save": "Save",
   "cancel": "Cancel",
   "delete": "Delete",

@@ -22,7 +22,7 @@ export default function LoginScreen() {
     setError("");
     try {
       const res = await authAPI.login({ email, password });
-      setAuth(res.data.access_token, res.data.user);
+      setAuth(res.data.access_token, res.data.refresh_token, res.data.user);
       router.replace("/(tabs)");
     } catch (e: any) {
       setError(e.response?.data?.detail || "Login failed");

@@ -18,6 +18,31 @@ logger = logging.getLogger(__name__)
 
 CACHE_KEY = "exchange_rates:latest"
 
+# 台銀 API 可查到的幣別對照表（code → 中文名, 英文名）
+CURRENCY_MAP: dict[str, tuple[str, str]] = {
+    "TWD": ("新台幣", "New Taiwan Dollar"),
+    "USD": ("美元", "US Dollar"),
+    "EUR": ("歐元", "Euro"),
+    "JPY": ("日圓", "Japanese Yen"),
+    "GBP": ("英鎊", "British Pound"),
+    "AUD": ("澳幣", "Australian Dollar"),
+    "CAD": ("加拿大幣", "Canadian Dollar"),
+    "CHF": ("瑞士法郎", "Swiss Franc"),
+    "CNY": ("人民幣", "Chinese Yuan"),
+    "HKD": ("港幣", "Hong Kong Dollar"),
+    "KRW": ("韓元", "South Korean Won"),
+    "SGD": ("新加坡幣", "Singapore Dollar"),
+    "THB": ("泰銖", "Thai Baht"),
+    "NZD": ("紐西蘭幣", "New Zealand Dollar"),
+    "SEK": ("瑞典克朗", "Swedish Krona"),
+    "ZAR": ("南非幣", "South African Rand"),
+    "MYR": ("馬來幣", "Malaysian Ringgit"),
+    "PHP": ("菲律賓披索", "Philippine Peso"),
+    "IDR": ("印尼盾", "Indonesian Rupiah"),
+    "VND": ("越南盾", "Vietnamese Dong"),
+    "INR": ("印度盧比", "Indian Rupee"),
+}
+
 
 async def fetch_rates_from_api() -> dict[str, Decimal]:
     """
@@ -179,6 +204,14 @@ async def convert_amount(
     rate, fetched_at = await get_rate(db, from_currency, to_currency)
     converted = round(amount * rate, 2)
     return converted, rate, fetched_at
+
+
+async def get_available_currencies() -> list[dict[str, str]]:
+    """Return all currencies that have exchange rate data available."""
+    return [
+        {"code": code, "name_zh": name_zh, "name_en": name_en}
+        for code, (name_zh, name_en) in sorted(CURRENCY_MAP.items())
+    ]
 
 
 async def get_all_latest_rates(db: AsyncSession) -> list[ExchangeRate]:
