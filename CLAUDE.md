@@ -6,6 +6,9 @@
 2. **開發完必測試** — 每完成一個開發任務後，執行 `pytest backend/tests/` 確保沒有東西壞掉。
 3. **新功能 = 新測案** — 每次新增功能或端點，必須同時撰寫對應的測試案例，否則任務不算完成。
 4. **每次對話都要讀這份文件** — 此 CLAUDE.md 是專案開發標準的唯一真相來源。
+5. **Mobile 提交前必跑品質關卡** — 任何 mobile 相關改動提交前執行 `bash mobile/scripts/quality-gate.sh`，任一 FAIL 禁止提交。
+6. **Mobile 套件異動後必跑安裝後關卡** — 任何 `npm install` 後執行 `npx expo-doctor` + `quality-gate.sh`。
+7. **品質事件必須更新方法論** — 每次發現 P0/P1 問題修復後，必須更新 `QUALITY_SLA.md` §4、§5 與 `mobile/scripts/quality-gate.sh`，加入對應的自動檢查，防止重演。
 
 ---
 

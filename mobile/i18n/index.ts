@@ -14,6 +14,7 @@ i18n.use(initReactI18next).init({
   lng: "zh-TW",
   fallbackLng: "en",
   interpolation: { escapeValue: false },
+  detection: { caches: [] },
 });
 
 export default i18n;
