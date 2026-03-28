@@ -1,9 +1,12 @@
-# CI/CD 自動部署指南
+# CI/CD 自動部署指南（Cron + deploy.sh）
+
+> 此方案使用 VM 上的 cron 每分鐘輪詢 GitHub，適合不需要 GitHub Actions runner 的場景。
+> GitHub Actions 方案請參閱 [CICD_2.md](./CICD_2.md)。
 
 ## 架構概覽
 
 ```
-本機 git push → GitHub → VM cron (每分鐘) → git pull → docker-compose build → docker-compose up -d
+本機 git push → GitHub → VM cron (每分鐘) → git pull → docker compose build → docker compose up -d
 ```
 
 ## 環境資訊
@@ -16,18 +19,19 @@
 | VM 使用者 | `jasonhung.ibm` |
 | 專案路徑 | `~/buildyourownsplitwise` |
 | API 位址 | `http://35.206.96.99:8000/docs` |
+| Compose project name | `buildyourownsplitwise`（容器名稱為 `buildyourownsplitwise-backend-1` 等） |
 
 ## 運作方式
 
 1. Cron 每分鐘執行 `deploy.sh`
 2. 腳本執行 `git pull --ff-only` 檢查是否有新 commit
 3. 若有變更：
-   - 自動清理佔用 port 的非專案 container
-   - `docker-compose build --no-cache` 重建 image
+   - 自動清理佔用 port 的非 `buildyourownsplitwise` 專案 container
+   - `docker-compose build` 重建 image
    - `docker-compose up -d` 重啟服務
 4. 若 build 失敗，舊容器繼續運行，不會中斷服務
 
-## 初始設定步驟（已完成）
+## 初始設定步驟
 
 ### 1. VM 產生 SSH Key
 
@@ -55,9 +59,12 @@ cd buildyourownsplitwise
 ### 4. 首次啟動
 
 ```bash
-# 建立 .env（若需要）
+# 根目錄 .env — port 設定（可選，不建則用預設值）
+cp .env.example .env
+
+# 後端 .env — 應用設定（必要）
 cp backend/.env.example backend/.env
-# 編輯 .env 設定正式環境的密鑰
+# 編輯 backend/.env 設定正式環境的 SECRET_KEY、DATABASE_URL 等
 
 # 啟動服務
 sudo docker-compose up -d
@@ -103,9 +110,9 @@ crontab -l
 
 ### Port 衝突
 
-**問題：** VM 上若有其他 container 佔用 port 8000/5432/6379，`docker-compose up` 會失敗。
+**問題：** VM 上若有其他 container 佔用 port，`docker-compose up` 會失敗。
 
-**解法：** `deploy.sh` 在每次部署前會自動檢查並清理非本專案的衝突 container。若需手動處理：
+**解法：** `deploy.sh` 在每次部署前會自動檢查並清理非 `buildyourownsplitwise` 專案的衝突 container。若需手動處理：
 
 ```bash
 # 查看誰佔了 port
@@ -128,4 +135,4 @@ sudo docker stop <container_id> && sudo docker rm <container_id>
 - Repo 名稱是 `buildyourownsplitwise`（不是 buildyourownsplite**wi**se）
 - deploy.sh 使用 file lock 防止併發執行
 - build 失敗不會影響正在運行的服務
-
+- Compose project name 為 `buildyourownsplitwise`，容器名稱格式：`buildyourownsplitwise-<service>-1`

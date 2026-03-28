@@ -1,4 +1,4 @@
-name: byosw
+name: buildyourownsplitwise
 
 services:
   db:
@@ -22,9 +22,11 @@ services:
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     environment:
-      DATABASE_URL: postgresql+asyncpg://splitewise:splitewise@db:5432/splitewise
-      REDIS_URL: redis://redis:6379/0
-      SECRET_KEY: dev-secret-key-change-in-production
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://splitewise:splitewise@db:5432/splitewise}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
+      GOOGLE_CLIENT_IDS: ${GOOGLE_CLIENT_IDS:-}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}
     depends_on:
       - db
       - redis

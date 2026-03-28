@@ -1,0 +1,145 @@
+name: Deploy to Self-Hosted
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    timeout-minutes: 15
+    env:
+      COMPOSE_CMD: docker compose
+      HEALTH_URL: http://localhost:8000/health
+      HEALTH_RETRIES: 10
+      HEALTH_INTERVAL: 3
+
+    steps:
+      # ── 0. Checkout ──
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── 1. Build new images (舊容器還在跑，零停機) ──
+      - name: Build new images
+        run: $COMPOSE_CMD build --no-cache backend caddy
+
+      # ── 2. Tag 舊 image 為 :bak ──
+      - name: Backup current images
+        run: |
+          for svc in backend caddy; do
+            img=$($COMPOSE_CMD images "$svc" --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | head -1)
+            if [ -n "$img" ] && [ "$img" != ":" ]; then
+              repo=$(echo "$img" | cut -d: -f1)
+              docker tag "$img" "$repo:bak" && echo "Tagged $img → $repo:bak"
+            else
+              echo "WARN: No running image found for $svc, skip backup"
+            fi
+          done
+
+      # ── 3. 從 GitHub Variables/Secrets 寫 .env ──
+      - name: Write .env files
+        run: |
+          cat > .env <<EOF
+          DB_PORT=${{ vars.DB_PORT }}
+          REDIS_PORT=${{ vars.REDIS_PORT }}
+          BACKEND_PORT=${{ vars.BACKEND_PORT }}
+          CADDY_HTTP_PORT=${{ vars.CADDY_HTTP_PORT }}
+          CADDY_HTTPS_PORT=${{ vars.CADDY_HTTPS_PORT }}
+          DATABASE_URL=${{ vars.DATABASE_URL }}
+          REDIS_URL=${{ vars.REDIS_URL }}
+          SECRET_KEY=${{ vars.SECRET_KEY }}
+          GOOGLE_CLIENT_IDS=${{ vars.GOOGLE_CLIENT_IDS }}
+          ALLOWED_ORIGINS=${{ vars.ALLOWED_ORIGINS }}
+          EOF
+          sed -i 's/^[[:space:]]*//' .env
+          # 移除空值行（vars 未設定時不寫入，讓 docker-compose 用預設值）
+          sed -i '/=$/d' .env
+
+          echo "Generated .env:"
+          cat .env
+
+      # ── 3a. 確保 DB 在跑 + 執行 Alembic migration ──
+      - name: Run database migrations
+        run: |
+          $COMPOSE_CMD up -d db
+          echo "Waiting for DB..."
+          for i in $(seq 1 10); do
+            $COMPOSE_CMD exec -T db pg_isready -U splitewise > /dev/null 2>&1 && break
+            sleep 2
+          done
+          # 用新 build 的 backend image 跑 migration，跑完刪除容器
+          $COMPOSE_CMD run --rm -T backend alembic upgrade head
+          echo "✓ Migration complete"
+
+      # ── 4. 重啟服務 + Health check（只動 backend/caddy，db/redis 不碰）──
+      - name: Deploy and health check
+        id: deploy
+        run: |
+          echo "::group::Restarting backend & caddy"
+          $COMPOSE_CMD up -d backend caddy
+          echo "::endgroup::"
+
+          echo "Waiting for health check ($HEALTH_URL)..."
+          for i in $(seq 1 $HEALTH_RETRIES); do
+            if curl -sf --max-time 5 "$HEALTH_URL" > /dev/null 2>&1; then
+              echo "✓ Health check passed on attempt $i"
+              echo "healthy=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "  Attempt $i/$HEALTH_RETRIES failed, retrying in ${HEALTH_INTERVAL}s..."
+            sleep "$HEALTH_INTERVAL"
+          done
+
+          echo "✗ Health check failed after $HEALTH_RETRIES attempts"
+          echo "healthy=false" >> "$GITHUB_OUTPUT"
+          exit 1
+
+      # ── 4a. Rollback（health check 失敗時）──
+      - name: Rollback to backup images
+        if: failure() && steps.deploy.outputs.healthy == 'false'
+        run: |
+          echo "::error::Health check failed — rolling back"
+
+          # rollback schema
+          echo "Rolling back database migration..."
+          $COMPOSE_CMD run --rm -T backend alembic downgrade -1 \
+            || echo "WARN: downgrade failed, may need manual fix"
+
+          # rollback images
+          for svc in backend caddy; do
+            img=$($COMPOSE_CMD images "$svc" --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | head -1)
+            if [ -n "$img" ] && [ "$img" != ":" ]; then
+              repo=$(echo "$img" | cut -d: -f1)
+              if docker image inspect "$repo:bak" > /dev/null 2>&1; then
+                docker tag "$repo:bak" "$img" && echo "Restored $repo:bak → $img"
+              fi
+            fi
+          done
+
+          $COMPOSE_CMD up -d backend caddy
+          echo "Rollback complete, verifying..."
+
+          sleep 5
+          if curl -sf --max-time 5 "$HEALTH_URL" > /dev/null 2>&1; then
+            echo "✓ Rollback verified — old version is running"
+          else
+            echo "::error::Rollback also failed — manual intervention required"
+          fi
+          exit 1
+
+      # ── 5. 清理舊 image（部署成功時）──
+      - name: Cleanup backup images
+        if: success()
+        run: |
+          for svc in backend caddy; do
+            img=$($COMPOSE_CMD images "$svc" --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | head -1)
+            if [ -n "$img" ] && [ "$img" != ":" ]; then
+              repo=$(echo "$img" | cut -d: -f1)
+              if docker image inspect "$repo:bak" > /dev/null 2>&1; then
+                docker rmi "$repo:bak" && echo "Removed $repo:bak"
+              fi
+            fi
+          done
+          docker image prune -f
+          echo "Cleanup done"
