@@ -106,7 +106,7 @@ export default function GroupsScreen() {
           <EmptyState
             icon={Users}
             title={t("create_group")}
-            description="建立一個群組開始分帳吧！"
+            description={t("create_group_hint")}
             actionLabel={t("create_group")}
             onAction={() => setShowCreate(true)}
           />

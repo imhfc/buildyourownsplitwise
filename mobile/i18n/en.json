@@ -33,6 +33,9 @@
   "settle_up": "Settle Up",
   "owes": "owes",
   "balanced": "All settled up!",
+  "create_group_hint": "Create a group to start splitting expenses!",
+  "no_expenses_hint": "No expenses yet",
+  "all_balanced_hint": "All balances are settled!",
 
   "settings": "Settings",
   "language": "Language",

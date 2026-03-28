@@ -7,7 +7,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.exceptions import ForbiddenError
 from app.models.user import User
-from app.schemas.expense import SettlementCreate, SettlementResponse, SettlementSuggestion
+from app.schemas.settlement import SettlementCreate, SettlementResponse, SettlementSuggestion
 from app.services import settlement_service
 
 router = APIRouter(prefix="/groups/{group_id}/settlements", tags=["settlements"])

@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     # Google OAuth (comma-separated list of accepted client IDs: web,ios,android)
     GOOGLE_CLIENT_IDS: str = ""
 
+    # CORS — 逗號分隔，生產環境應設為實際網域，例如 https://app.example.com
+    ALLOWED_ORIGINS: str = "*"
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
 

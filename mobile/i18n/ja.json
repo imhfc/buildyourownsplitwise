@@ -33,6 +33,9 @@
   "settle_up": "精算する",
   "owes": "に支払う",
   "balanced": "精算済み",
+  "create_group_hint": "グループを作成して割り勘を始めましょう！",
+  "no_expenses_hint": "支出記録がありません",
+  "all_balanced_hint": "すべての帳簿が精算されました！",
 
   "settings": "設定",
   "language": "言語",

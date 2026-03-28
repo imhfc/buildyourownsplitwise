@@ -1,10 +1,10 @@
+import os
 import uuid
 from decimal import Decimal
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import event, String, JSON
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.core.database import Base, get_db
@@ -16,27 +16,16 @@ from app.models.expense import Expense, ExpenseSplit
 from app.models.settlement import Settlement
 
 # ---------------------------------------------------------------------------
-# SQLite async engine for testing (avoids needing PostgreSQL)
+# 使用真實 PostgreSQL 進行測試
+# 執行前請先啟動測試 DB：docker compose up db-test -d
 # ---------------------------------------------------------------------------
-TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
+TEST_DATABASE_URL = os.environ.get(
+    "TEST_DATABASE_URL",
+    "postgresql+asyncpg://splitewise:splitewise@localhost:5433/splitewise_test",
+)
 
 engine = create_async_engine(TEST_DATABASE_URL, echo=False)
 TestSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
-
-# Make PostgreSQL UUID / JSONB work with SQLite by compiling to compatible types
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB as PG_JSONB
-from sqlalchemy.ext.compiler import compiles
-
-
-@compiles(PG_UUID, "sqlite")
-def compile_uuid_sqlite(type_, compiler, **kw):
-    return "CHAR(36)"
-
-
-@compiles(PG_JSONB, "sqlite")
-def compile_jsonb_sqlite(type_, compiler, **kw):
-    return "JSON"
 
 
 # ---------------------------------------------------------------------------
@@ -48,6 +37,7 @@ def compile_jsonb_sqlite(type_, compiler, **kw):
 async def setup_database():
     """Create all tables once per test session."""
     async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     yield
     async with engine.begin() as conn:

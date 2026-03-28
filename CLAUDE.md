@@ -3,15 +3,21 @@
 ## 必遵守工作流程（每次都要做）
 
 1. **先讀再寫** — 修改任何檔案之前，務必先讀取該檔案的當前內容，禁止盲目覆蓋。
-2. **開發完必測試** — 每完成一個開發任務後，執行 `pytest backend/tests/` 確保沒有東西壞掉。
+2. **開發完必測試** — 每完成一個開發任務後，執行下列指令確保沒有東西壞掉：
+   ```bash
+   # 第一次或 DB container 未啟動時
+   docker compose -f docker-compose.test.yml up -d db-test
+   # 跑測試（打真實 PostgreSQL，port 5433）
+   cd backend && pytest tests/
+   ```
+   若需自訂 DB 位址：`TEST_DATABASE_URL=postgresql+asyncpg://... pytest tests/`
 3. **新功能 = 新測案** — 每次新增功能或端點，必須同時撰寫對應的測試案例，否則任務不算完成。
 4. **每次對話都要讀這份文件** — 此 CLAUDE.md 是專案開發標準的唯一真相來源。
 5. **Mobile 提交前必跑品質關卡** — 任何 mobile 相關改動提交前執行 `bash mobile/scripts/quality-gate.sh`，任一 FAIL 禁止提交。
 6. **Mobile 套件異動後必跑安裝後關卡** — 任何 `npm install` 後執行 `npx expo-doctor` + `quality-gate.sh`。
-7. **⚠️ 任何 bug 修復後，必須立即更新三份文件，無例外** — 這是強制義務，不是選項。修 bug 但沒有更新文件 = 任務未完成。
-   - `QUALITY_SLA.md` §4 新增組態不變式、§5 新增版本歷史
+7. **⚠️ 任何 bug 修復後，必須立即更新兩份文件，無例外** — 這是強制義務，不是選項。修 bug 但沒有更新文件 = 任務未完成。
+   - `QUALITY_SLA.md` §4 新增組態不變式、§5 新增版本歷史（**事件歷史的唯一真相來源**）
    - `mobile/scripts/quality-gate.sh` 新增對應的自動檢查腳本
-   - `mobile/DEBUG_CHECKLIST.md` 版本歷史補充根因與解法
    - **目的：讓同樣的 bug 永遠不會發生第二次。** 每一個 bug 都是一條新的防線。跳過這步就是在讓未來的自己重踩同一個坑。
 
 ---
@@ -249,7 +255,7 @@ test: 新增結算 API 的整合測試
 ### 9.1 快速啟動
 
 ```bash
-# 啟動基礎設施
+# 啟動開發基礎設施
 docker compose up -d db redis
 
 # 本地執行後端
@@ -259,6 +265,10 @@ uvicorn app.main:app --reload --port 8000
 
 # 或用 Docker 啟動全部
 docker compose up
+
+# ── 跑測試（使用獨立 PostgreSQL，不影響 dev DB）──
+docker compose -f docker-compose.test.yml up -d db-test
+cd backend && pytest tests/
 ```
 
 ### 9.2 環境變數

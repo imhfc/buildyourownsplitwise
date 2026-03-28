@@ -33,6 +33,9 @@
   "settle_up": "結清",
   "owes": "需付給",
   "balanced": "帳務已平衡",
+  "create_group_hint": "建立一個群組開始分帳吧！",
+  "no_expenses_hint": "還沒有任何消費紀錄",
+  "all_balanced_hint": "所有帳務已平衡！",
 
   "settings": "設定",
   "language": "語言",

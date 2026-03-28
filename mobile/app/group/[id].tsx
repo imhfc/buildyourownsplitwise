@@ -119,8 +119,9 @@ export default function GroupDetailScreen() {
       setDesc("");
       setAmount("");
       await fetchData();
-    } catch (e) {
-      console.error("Failed to add expense", e);
+    } catch (e: any) {
+      const msg = e.response?.data?.detail || e.message || "Unknown error";
+      Alert.alert(t("error"), msg);
     } finally {
       setAdding(false);
     }
@@ -205,7 +206,7 @@ export default function GroupDetailScreen() {
             <EmptyState
               icon={Receipt}
               title={t("add_expense")}
-              description="還沒有任何消費紀錄"
+              description={t("no_expenses_hint")}
               actionLabel={t("add_expense")}
               onAction={() => setShowAdd(true)}
             />
@@ -214,7 +215,7 @@ export default function GroupDetailScreen() {
       ) : (
         <FlatList
           data={suggestions}
-          keyExtractor={(_, i) => `s-${i}`}
+          keyExtractor={(item) => `${item.from_user_id}-${item.to_user_id}`}
           renderItem={renderSuggestion}
           contentContainerStyle={{ padding: 20 }}
           refreshControl={
@@ -224,7 +225,7 @@ export default function GroupDetailScreen() {
             <EmptyState
               icon={ArrowLeftRight}
               title={t("balanced")}
-              description="所有帳務已平衡！"
+              description={t("all_balanced_hint")}
             />
           }
         />

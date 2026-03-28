@@ -11,7 +11,7 @@ from app.models.expense import Expense, ExpenseSplit
 from app.models.group import Group
 from app.models.settlement import Settlement
 from app.models.user import User
-from app.schemas.expense import SettlementCreate, SettlementResponse, SettlementSuggestion
+from app.schemas.settlement import SettlementCreate, SettlementResponse, SettlementSuggestion
 from app.services.exchange_rate_service import get_rate
 from app.services.group_service import check_membership
 

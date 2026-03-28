@@ -1,10 +1,9 @@
 import axios from "axios";
 import { useAuthStore } from "../stores/auth";
 
-// Change this to your backend URL
-const API_BASE_URL = __DEV__
-  ? "http://localhost:8001/api/v1"
-  : "http://35.206.96.99:8000/api/v1";
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL ??
+  (__DEV__ ? "http://localhost:8001/api/v1" : "");
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -98,12 +97,35 @@ export const groupsAPI = {
     api.delete(`/groups/${groupId}/members/${userId}`),
 };
 
+export interface ExpenseSplitInput {
+  user_id: string;
+  amount?: number;
+  shares?: number;
+}
+
+export interface ExpenseCreatePayload {
+  description: string;
+  total_amount: number;
+  currency?: string;
+  paid_by: string;
+  split_method?: "equal" | "exact" | "ratio" | "shares";
+  splits?: ExpenseSplitInput[];
+  note?: string;
+}
+
+export interface SettlementCreatePayload {
+  to_user: string;
+  amount: number;
+  currency: string;
+  note?: string;
+}
+
 // Expenses
 export const expensesAPI = {
   list: (groupId: string) => api.get(`/groups/${groupId}/expenses`),
   get: (groupId: string, id: string) =>
     api.get(`/groups/${groupId}/expenses/${id}`),
-  create: (groupId: string, data: any) =>
+  create: (groupId: string, data: ExpenseCreatePayload) =>
     api.post(`/groups/${groupId}/expenses`, data),
   delete: (groupId: string, id: string) =>
     api.delete(`/groups/${groupId}/expenses/${id}`),
@@ -114,7 +136,7 @@ export const settlementsAPI = {
   suggestions: (groupId: string) =>
     api.get(`/groups/${groupId}/settlements/suggestions`),
   list: (groupId: string) => api.get(`/groups/${groupId}/settlements`),
-  create: (groupId: string, data: any) =>
+  create: (groupId: string, data: SettlementCreatePayload) =>
     api.post(`/groups/${groupId}/settlements`, data),
 };
 
