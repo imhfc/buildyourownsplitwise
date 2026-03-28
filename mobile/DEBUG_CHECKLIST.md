@@ -79,12 +79,7 @@
 
 ---
 
-## 版本歷史（每次發現新問題請補充）
+## 版本歷史
 
-| 日期 | 問題 | 根因 | 解法 |
-|------|------|------|------|
-| 2026-03-28 | Expo web 空白頁 | `react-dom: ^19.2.4` 與 Expo SDK 55 不符 | 改 `19.2.0`，`npm install`，`--clear` |
-| 2026-03-28 | Web 顯示日文 | i18next 25.x 讀 `localStorage.i18nextLng` | i18n init 加 `detection: { caches: [] }` |
-| 2026-03-28 | `Cannot use 'import.meta' outside a module` | Expo 55 `getDefaultConfig` 預設 `unstable_enablePackageExports: true`，Metro 解析 Zustand 5.x 的 ESM `.mjs` 版（含 `import.meta.env`）而非 CJS | `metro.config.js` 明確加 `config.resolver.unstable_enablePackageExports = false`，`--clear` 重啟 |
-| 2026-03-28 | App 一直轉圈圈，DevTools 看到 Metro InternalError（`ENOENT: expo-auth-session/node_modules/expo-constants/package.json`） | `expo-crypto` 裝了 canary 版（`55.0.11-canary-...`），與 `expo-auth-session` 的穩定版本要求不符，npm 在 `expo-auth-session/node_modules/` 產生巢狀的 `expo-crypto` 但缺少 `expo-constants`，Metro resolver 崩潰 → bundle 失敗 → Zustand `onRehydrateStorage` 未執行 → `hasHydrated` 永遠 false → 轉圈圈 | `package.json` 改 `expo-crypto: "~55.0.10"`（禁用 canary），`npm install --legacy-peer-deps`，停掉 Metro，`npx expo start --web --clear` |
-| 2026-03-28 | App 一直轉圈圈，Console **沒有任何錯誤** | Zustand persist + `AsyncStorage` 在 Expo web 環境下 `getItem` 的 Promise 掛住不 resolve，`onRehydrateStorage` callback 永遠不執行 → `hasHydrated` 永遠 false → 轉圈圈 | `stores/auth.ts` 改成 `Platform.OS === "web" ? localStorage : AsyncStorage`（web 用原生同步 localStorage），並加 `partialize` 把 `hasHydrated` 排除在 persist 之外，`--clear` 重啟 |
+> 事件完整紀錄（症狀、根因、SLA 影響、組態不變式）統一維護在 **[QUALITY_SLA.md §5](../QUALITY_SLA.md)**。
+> 修復 bug 後請更新 QUALITY_SLA.md，不需在這裡重複維護。

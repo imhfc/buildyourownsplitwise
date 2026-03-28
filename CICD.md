@@ -128,3 +128,4 @@ sudo docker stop <container_id> && sudo docker rm <container_id>
 - Repo 名稱是 `buildyourownsplitwise`（不是 buildyourownsplite**wi**se）
 - deploy.sh 使用 file lock 防止併發執行
 - build 失敗不會影響正在運行的服務
+

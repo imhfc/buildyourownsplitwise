@@ -23,7 +23,7 @@ postgresql://neondb_owner:<PASSWORD>@ep-crimson-voice-am0m4miy-pooler.c-5.us-eas
 postgresql+asyncpg://neondb_owner:<PASSWORD>@ep-crimson-voice-am0m4miy-pooler.c-5.us-east-1.aws.neon.tech/neondb?ssl=require
 ```
 
-> 將 `<PASSWORD>` 替換為實際密碼。密碼請向專案管理員索取，或至 [Neon Dashboard](https://console.neon.tech) 查看。
+> 將 `<PASSWORD>` 替換為實際密碼。密碼請至 [Neon Dashboard](https://console.neon.tech) 查看。
 
 ## 本地開發設定
 
@@ -33,6 +33,6 @@ postgresql+asyncpg://neondb_owner:<PASSWORD>@ep-crimson-voice-am0m4miy-pooler.c-
 
 ## 注意事項
 
-- Neon 免費方案有 **0.5 GB** 儲存限制
+- 免費方案有 **0.5 GB** 儲存限制
 - 無流量時會自動 **scale-to-zero**，首次連線可能需要數秒喚醒
 - 使用內建 **連線池（pooler）**，無需額外設定 PgBouncer
