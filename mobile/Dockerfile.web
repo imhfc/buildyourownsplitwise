@@ -5,5 +5,5 @@ RUN npm ci --legacy-peer-deps
 COPY . .
 RUN npx expo export --platform web
 
-FROM nginx:alpine
-COPY --from=builder /app/dist /usr/share/nginx/html
+FROM caddy:alpine
+COPY --from=builder /app/dist /srv

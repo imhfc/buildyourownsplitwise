@@ -65,7 +65,7 @@ done
 # --- Docker Compose rebuild ---
 log "DEPLOY: Rebuilding and restarting containers..."
 
-sudo docker-compose build --no-cache >> "$LOG" 2>&1
+sudo docker-compose build >> "$LOG" 2>&1
 BUILD_STATUS=$?
 
 if [ $BUILD_STATUS -ne 0 ]; then
