@@ -1,14 +1,15 @@
 import { useCallback, useState } from "react";
-import { View, FlatList, RefreshControl, Modal, Pressable, KeyboardAvoidingView, Platform } from "react-native";
-import { useLocalSearchParams, useFocusEffect } from "expo-router";
+import { View, FlatList, RefreshControl, Modal, Pressable, KeyboardAvoidingView, Platform, Alert } from "react-native";
+import { useLocalSearchParams, useFocusEffect, Stack, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
   Receipt,
   ArrowLeftRight,
   X,
   Plus,
+  Trash2,
 } from "lucide-react-native";
-import { expensesAPI, settlementsAPI } from "../../services/api";
+import { expensesAPI, settlementsAPI, groupsAPI } from "../../services/api";
 import { useAuthStore } from "../../stores/auth";
 import { Card, CardContent } from "~/components/ui/card";
 import { Text, H3, Muted } from "~/components/ui/text";
@@ -85,6 +86,25 @@ export default function GroupDetailScreen() {
     setRefreshing(false);
   };
 
+  const handleDeleteGroup = () => {
+    Alert.alert(t("delete_group"), t("delete_group_confirm"), [
+      { text: t("cancel"), style: "cancel" },
+      {
+        text: t("delete"),
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await groupsAPI.delete(id!);
+            router.replace("/(tabs)");
+          } catch (e: any) {
+            const msg = e.response?.data?.detail || e.message || "Unknown error";
+            Alert.alert(t("error"), msg);
+          }
+        },
+      },
+    ]);
+  };
+
   const handleAddExpense = async () => {
     if (!desc || !amount || Number(amount) <= 0 || !id || !user) return;
     setAdding(true);
@@ -153,6 +173,15 @@ export default function GroupDetailScreen() {
 
   return (
     <View className="flex-1 bg-background">
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <Pressable onPress={handleDeleteGroup} className="pr-2">
+              <Trash2 size={20} color="hsl(0 84.2% 60.2%)" />
+            </Pressable>
+          ),
+        }}
+      />
       <SegmentedTabs
         tabs={[
           { value: "expenses", label: t("expenses") },

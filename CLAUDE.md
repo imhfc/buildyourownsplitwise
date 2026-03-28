@@ -8,7 +8,11 @@
 4. **每次對話都要讀這份文件** — 此 CLAUDE.md 是專案開發標準的唯一真相來源。
 5. **Mobile 提交前必跑品質關卡** — 任何 mobile 相關改動提交前執行 `bash mobile/scripts/quality-gate.sh`，任一 FAIL 禁止提交。
 6. **Mobile 套件異動後必跑安裝後關卡** — 任何 `npm install` 後執行 `npx expo-doctor` + `quality-gate.sh`。
-7. **品質事件必須更新方法論** — 每次發現 P0/P1 問題修復後，必須更新 `QUALITY_SLA.md` §4、§5 與 `mobile/scripts/quality-gate.sh`，加入對應的自動檢查，防止重演。
+7. **⚠️ 任何 bug 修復後，必須立即更新三份文件，無例外** — 這是強制義務，不是選項。修 bug 但沒有更新文件 = 任務未完成。
+   - `QUALITY_SLA.md` §4 新增組態不變式、§5 新增版本歷史
+   - `mobile/scripts/quality-gate.sh` 新增對應的自動檢查腳本
+   - `mobile/DEBUG_CHECKLIST.md` 版本歷史補充根因與解法
+   - **目的：讓同樣的 bug 永遠不會發生第二次。** 每一個 bug 都是一條新的防線。跳過這步就是在讓未來的自己重踩同一個坑。
 
 ---
 

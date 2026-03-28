@@ -71,18 +71,25 @@ pytest backend/tests/                  # SLA-5：後端測試
 
 ### Layer 4：事件學習迴圈
 
-**每次 P0/P1 事件修復後，Claude 必須主動執行：**
+> ⚠️ **這一層是最重要的。前三層都是防止舊問題重演，這層是防止新問題被遺忘。跳過這層 = 浪費了整次修復的價值。**
 
-1. 確認根因（5-Why 分析）
+**每次修復任何 bug（不限 P0/P1），Claude 必須主動、立即執行以下所有步驟，不需等使用者提醒：**
+
+1. 確認根因（5-Why 分析，追到底層原因，不是表面症狀）
 2. 在 §4 新增對應的「組態不變式」
-3. 在 `mobile/scripts/quality-gate.sh` 新增對應的自動檢查
-4. 在 §5「版本歷史」補充紀錄
-5. 更新 `mobile/DEBUG_CHECKLIST.md` 的已知根因表
+3. 在 `mobile/scripts/quality-gate.sh` 新增對應的自動檢查腳本
+4. 在 §5「版本歷史」補充完整紀錄（症狀、根因、解法）
+5. 更新 `mobile/DEBUG_CHECKLIST.md` 的版本歷史表
+
+**若 Claude 修復 bug 後沒有主動完成上述步驟，使用者應提醒，Claude 必須立即補做。**
 
 ---
 
 ## §4 組態不變式（Configuration Invariants）
 
+> ⚠️ **強制規定：每次修復任何 bug，無論大小，都必須在這裡新增一條不變式，並同步更新 `quality-gate.sh`。**
+> 修 bug 但不新增不變式 = 沒有真正修完。這份表格是「我們吃過的虧」的完整清單，每一行都代表一個真實踩過的坑。
+>
 > 以下規則由 `mobile/scripts/quality-gate.sh` 自動驗證。**不得手動跳過。**
 
 | # | 檢查項目 | 對應 SLA | 根因事件 |
@@ -93,6 +100,7 @@ pytest backend/tests/                  # SLA-5：後端測試
 | C-4 | `i18n/index.ts` 必須有 `detection: { caches: [] }` | SLA-3 | 2026-03-28 i18next localStorage 覆蓋 |
 | C-5 | `package.json` 的 `react` 版本不能有 `^` | SLA-2 | 2026-03-28 react-dom 版本不符 |
 | C-6 | `package.json` 的 `react-dom` 版本不能有 `^` | SLA-2 | 2026-03-28 react-dom 版本不符 |
+| C-7 | `package.json` 的 `expo-crypto` 版本**禁止使用 canary**（不能含 `-canary-`） | SLA-2 | 2026-03-28 expo-crypto canary 造成 Metro InternalError |
 
 ---
 
@@ -104,3 +112,4 @@ pytest backend/tests/                  # SLA-5：後端測試
 | 2026-03-28 | P1 | Web 顯示日文 | i18next 25.x 讀 localStorage 蓋掉 config | C-4 |
 | 2026-03-28 | P0 | `import.meta` SyntaxError | Expo 55 `unstable_enablePackageExports: true` 解析 Zustand ESM | C-2, C-3 |
 | 2026-03-28 | P1 | Dark mode Runtime Error | `tailwind.config.js` 缺少 `darkMode: "class"` | C-1 |
+| 2026-03-28 | P0 | App 一直轉圈圈（index.tsx ActivityIndicator 卡住） | `expo-crypto` canary 版本（`55.0.11-canary-...`）造成 npm 在 `expo-auth-session/node_modules/` 產生不完整的巢狀依賴，Metro resolver 嘗試開啟 `expo-auth-session/node_modules/expo-constants/package.json` 但找不到，拋出 InternalError → bundle 編譯失敗 → Zustand persist `onRehydrateStorage` 未執行 → `hasHydrated` 永遠為 `false` → redirect 永不觸發 | C-7 |

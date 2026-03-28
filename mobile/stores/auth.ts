@@ -1,6 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+
+// Web 用原生 localStorage（同步，不會掛住）；Native 用 AsyncStorage
+const storage = createJSONStorage(() =>
+  Platform.OS === "web" ? localStorage : AsyncStorage
+);
 
 interface User {
   id: string;
@@ -46,7 +52,14 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: "auth-storage",
-      storage: createJSONStorage(() => AsyncStorage),
+      storage,
+      // hasHydrated 是 runtime 狀態，不需要 persist
+      partialize: (state) => ({
+        token: state.token,
+        refreshToken: state.refreshToken,
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+      }),
       onRehydrateStorage: () => () => {
         useAuthStore.setState({ hasHydrated: true });
       },

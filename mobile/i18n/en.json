@@ -52,6 +52,13 @@
   "save": "Save",
   "cancel": "Cancel",
   "delete": "Delete",
+  "delete_group": "Delete Group",
+  "delete_group_confirm": "Are you sure you want to delete this group? All expenses will be permanently deleted. This cannot be undone.",
   "confirm": "Confirm",
-  "loading": "Loading..."
+  "loading": "Loading...",
+  "error": "Error",
+
+  "or": "or",
+  "sign_in_with_google": "Sign in with Google",
+  "google_sign_in_failed": "Google sign-in failed"
 }

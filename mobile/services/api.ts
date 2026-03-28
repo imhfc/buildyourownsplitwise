@@ -77,6 +77,8 @@ export const authAPI = {
     api.post("/auth/register", data),
   login: (data: { email: string; password: string }) =>
     api.post("/auth/login", data),
+  googleLogin: (accessToken: string) =>
+    api.post("/auth/google", { access_token: accessToken }),
   getMe: () => api.get("/auth/me"),
   updateMe: (data: Record<string, string>) => api.patch("/auth/me", data),
 };

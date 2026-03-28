@@ -6,6 +6,7 @@ from app.core.deps import get_current_user
 from app.core.exceptions import ConflictError, ValidationError
 from app.models.user import User
 from app.schemas.user import (
+    GoogleAuthRequest,
     RefreshTokenRequest,
     TokenResponse,
     UserLogin,
@@ -61,6 +62,20 @@ async def refresh(data: RefreshTokenRequest, db: AsyncSession = Depends(get_db))
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
     return UserResponse.model_validate(current_user)
+
+
+@router.post("/google", response_model=TokenResponse)
+async def google_login(data: GoogleAuthRequest, db: AsyncSession = Depends(get_db)):
+    """Exchange a Google access token for app JWT tokens."""
+    try:
+        access_token, refresh_token, user = await auth_service.google_login(db, data.access_token)
+    except ValidationError as e:
+        raise HTTPException(status_code=401, detail=e.message)
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        user=UserResponse.model_validate(user),
+    )
 
 
 @router.patch("/me", response_model=UserResponse)

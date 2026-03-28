@@ -52,6 +52,13 @@
   "save": "儲存",
   "cancel": "取消",
   "delete": "刪除",
+  "delete_group": "刪除群組",
+  "delete_group_confirm": "確定要刪除此群組嗎？所有消費紀錄將一併刪除，此操作無法復原。",
   "confirm": "確認",
-  "loading": "載入中..."
+  "loading": "載入中...",
+  "error": "錯誤",
+
+  "or": "或",
+  "sign_in_with_google": "使用 Google 登入",
+  "google_sign_in_failed": "Google 登入失敗"
 }

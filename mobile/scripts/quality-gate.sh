@@ -60,6 +60,14 @@ else
   green "C-6  package.json react-dom 版本已釘選：$REACT_DOM_VER"
 fi
 
+# ── C-7：expo-crypto 禁止使用 canary 版本 ─────────────────────────────────────
+EXPO_CRYPTO_VER=$(node -e "console.log(require('$MOBILE_DIR/package.json').dependencies['expo-crypto'] || '')" 2>/dev/null)
+if echo "$EXPO_CRYPTO_VER" | grep -q '\-canary\-'; then
+  red   "C-7  package.json expo-crypto=\"$EXPO_CRYPTO_VER\" 含 canary 版本（會造成 Metro InternalError / App 轉圈圈）。請改用穩定版如 ~55.0.10"
+else
+  green "C-7  package.json expo-crypto 版本正常：$EXPO_CRYPTO_VER"
+fi
+
 # ── 結果 ──────────────────────────────────────────────────────────────────────
 echo ""
 echo "=== 結果：PASS=$PASS  FAIL=$FAIL ==="

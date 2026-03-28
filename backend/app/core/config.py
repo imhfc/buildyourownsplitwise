@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     EXCHANGE_RATE_API_URL: str = "https://tw.rter.info/capi.php"
     EXCHANGE_RATE_CACHE_TTL: int = 1800  # 30 minutes
 
+    # Google OAuth (comma-separated list of accepted client IDs: web,ios,android)
+    GOOGLE_CLIENT_IDS: str = ""
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
 
