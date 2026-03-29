@@ -59,7 +59,7 @@ docker compose build --no-cache backend caddy
 
 ### Step 4 — Restart + Health check
 
-只重啟 `backend` 和 `caddy`（db/redis 不動），然後對 `http://localhost:8000/health` 做最多 10 次 health check，每次間隔 3 秒。
+只重啟 `backend` 和 `caddy`（db/redis 不動），然後對 `http://localhost:${BACKEND_PORT}/health` 做最多 10 次 health check，每次間隔 3 秒。
 
 ### Step 4a — Rollback（僅 health check 失敗時）
 
@@ -97,8 +97,9 @@ docker compose build --no-cache backend caddy
 | `DATABASE_URL` | `postgresql+asyncpg://splitewise:splitewise@db:5432/splitewise` | DB 連線字串（docker 內部用 `db` hostname） |
 | `REDIS_URL` | `redis://redis:6379/0` | Redis 連線字串（docker 內部用 `redis` hostname） |
 | `SECRET_KEY` | `dev-secret-key-change-in-production` | JWT 簽名密鑰，**生產環境必改** |
-| `GOOGLE_CLIENT_IDS` | （空） | Google OAuth Web Client ID |
+| `GOOGLE_CLIENT_IDS` | （空） | Google OAuth Client ID（前後端共用，自動寫入 `mobile/.env` 作為 `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`） |
 | `ALLOWED_ORIGINS` | `*` | CORS 允許來源，生產環境應設為實際網域 |
+| `EXPO_PUBLIC_API_URL` | （空） | 前端呼叫後端 API 的 URL（如 `https://byosw.duckdns.org/api/v1`） |
 
 ## Self-Hosted Runner 設定
 
