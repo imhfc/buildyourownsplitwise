@@ -1,4 +1,4 @@
-# Build Your Own Splitwise (BYOSW)
+# Build Your Own Splitwise (BYOSW) 
 
 絕對免費，全部由 AI 輔助開發（Vibe Coding）的分帳系統。
 
