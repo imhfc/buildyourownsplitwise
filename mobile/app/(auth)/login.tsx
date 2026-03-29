@@ -1,32 +1,42 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { View, KeyboardAvoidingView, Platform } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
-import * as WebBrowser from "expo-web-browser";
-import * as AuthSession from "expo-auth-session";
 import { authAPI } from "../../services/api";
 import { useAuthStore } from "../../stores/auth";
 import { H1, Muted, Text } from "~/components/ui/text";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 
-WebBrowser.maybeCompleteAuthSession();
+const GOOGLE_CLIENT_ID =
+  process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? "";
 
-const GOOGLE_CLIENT_ID = Platform.select({
-  ios: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-  android: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-  default: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-}) ?? "";
+function buildGoogleOAuthUrl() {
+  const redirectUri = Platform.OS === "web"
+    ? window.location.origin
+    : "https://byosw.duckdns.org";
 
-const discovery = {
-  authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
-  tokenEndpoint: "https://oauth2.googleapis.com/token",
-};
+  const params = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
+    redirect_uri: redirectUri,
+    response_type: "token",
+    scope: "openid profile email",
+    prompt: "select_account",
+  });
+  return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+}
 
-const redirectUri = AuthSession.makeRedirectUri({
-  scheme: "byosw",
-  preferLocalhost: false,
-});
+function getHashParams(): Record<string, string> {
+  if (Platform.OS !== "web") return {};
+  const hash = window.location.hash.substring(1);
+  if (!hash) return {};
+  const params: Record<string, string> = {};
+  hash.split("&").forEach((pair) => {
+    const [key, value] = pair.split("=");
+    params[decodeURIComponent(key)] = decodeURIComponent(value || "");
+  });
+  return params;
+}
 
 export default function LoginScreen() {
   const { t } = useTranslation();
@@ -36,15 +46,28 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const [, , promptAsync] = AuthSession.useAuthRequest(
-    {
-      clientId: GOOGLE_CLIENT_ID,
-      scopes: ["openid", "profile", "email"],
-      redirectUri,
-      responseType: AuthSession.ResponseType.Token,
-    },
-    discovery,
-  );
+  // Handle Google OAuth callback (implicit flow returns token in URL hash)
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const params = getHashParams();
+    const accessToken = params.access_token;
+    if (!accessToken) return;
+
+    // Clear the hash from URL
+    window.history.replaceState(null, "", window.location.pathname);
+
+    setLoading(true);
+    authAPI
+      .googleLogin(accessToken)
+      .then((res) => {
+        setAuth(res.data.access_token, res.data.refresh_token, res.data.user);
+        router.replace("/(tabs)");
+      })
+      .catch((e: any) => {
+        setError(e.response?.data?.detail || t("google_sign_in_failed"));
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) return;
@@ -61,27 +84,12 @@ export default function LoginScreen() {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    setError("");
-    setLoading(true);
-    try {
-      const result = await promptAsync();
-      if (result.type !== "success") {
-        return;
-      }
-      const accessToken = result.params?.access_token;
-      if (!accessToken) {
-        setError(t("google_sign_in_failed"));
-        return;
-      }
-      const res = await authAPI.googleLogin(accessToken);
-      setAuth(res.data.access_token, res.data.refresh_token, res.data.user);
-      router.replace("/(tabs)");
-    } catch (e: any) {
-      setError(e.response?.data?.detail || t("google_sign_in_failed"));
-    } finally {
-      setLoading(false);
+  const handleGoogleLogin = () => {
+    if (!GOOGLE_CLIENT_ID) {
+      setError("Google Client ID not configured");
+      return;
     }
+    window.location.href = buildGoogleOAuthUrl();
   };
 
   return (
