@@ -99,7 +99,6 @@ docker compose build --no-cache backend caddy
 | `SECRET_KEY` | `dev-secret-key-change-in-production` | JWT 簽名密鑰，**生產環境必改** |
 | `GOOGLE_CLIENT_IDS` | （空） | Google OAuth Client ID（前後端共用，自動寫入 `mobile/.env` 作為 `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`） |
 | `ALLOWED_ORIGINS` | `*` | CORS 允許來源，生產環境應設為實際網域 |
-| `EXPO_PUBLIC_API_URL` | （空） | 前端呼叫後端 API 的 URL（如 `https://byosw.duckdns.org/api/v1`） |
 
 ## Self-Hosted Runner 設定
 

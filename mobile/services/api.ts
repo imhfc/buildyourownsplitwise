@@ -3,7 +3,7 @@ import { useAuthStore } from "../stores/auth";
 
 const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_URL ??
-  (__DEV__ ? "http://localhost:8001/api/v1" : "");
+  (__DEV__ ? "http://localhost:8001/api/v1" : "/api/v1");
 
 const api = axios.create({
   baseURL: API_BASE_URL,

@@ -47,7 +47,6 @@ jobs:
 
           # 前端 .env（build 時注入，共用 GOOGLE_CLIENT_IDS）
           cat > mobile/.env <<EOF
-          EXPO_PUBLIC_API_URL=${{ vars.EXPO_PUBLIC_API_URL }}
           EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=${{ vars.GOOGLE_CLIENT_IDS }}
           EOF
           sed -i 's/^[[:space:]]*//' mobile/.env
