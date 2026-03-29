@@ -3,10 +3,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
-from app.core.exceptions import ConflictError, ValidationError
+from app.core.exceptions import ConflictError, ForbiddenError, ValidationError
 from app.models.user import User
 from app.schemas.user import (
     GoogleAuthRequest,
+    PasswordChangeRequest,
     RefreshTokenRequest,
     TokenResponse,
     UserLogin,
@@ -86,6 +87,20 @@ async def update_me(
 ):
     user = await auth_service.update_user(db, current_user, data)
     return UserResponse.model_validate(user)
+
+
+@router.patch("/me/password", status_code=status.HTTP_204_NO_CONTENT)
+async def change_password(
+    data: PasswordChangeRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await auth_service.change_password(db, current_user, data.old_password, data.new_password)
+    except ForbiddenError as e:
+        raise HTTPException(status_code=403, detail=e.message)
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=e.message)
 
 
 @router.get("/lookup", response_model=UserResponse)

@@ -90,3 +90,66 @@ class TestMe:
         assert resp.status_code == 200
         assert resp.json()["display_name"] == "Updated Name"
         assert resp.json()["preferred_currency"] == "USD"
+
+
+class TestChangePassword:
+    async def test_change_password_success(self, client: AsyncClient, db):
+        """Email 用戶可以成功更改密碼。"""
+        user = await create_test_user(db, "pwchange@example.com", "oldpass123")
+        resp = await client.patch(
+            "/api/v1/auth/me/password",
+            headers=auth_header(user),
+            json={"old_password": "oldpass123", "new_password": "newpass456"},
+        )
+        assert resp.status_code == 204
+
+        # 用舊密碼登入應失敗
+        login_fail = await client.post("/api/v1/auth/login", json={
+            "email": "pwchange@example.com",
+            "password": "oldpass123",
+        })
+        assert login_fail.status_code == 401
+
+        # 用新密碼登入應成功
+        login_ok = await client.post("/api/v1/auth/login", json={
+            "email": "pwchange@example.com",
+            "password": "newpass456",
+        })
+        assert login_ok.status_code == 200
+
+    async def test_change_password_wrong_old_password(self, client: AsyncClient, db):
+        """舊密碼錯誤時回傳 400。"""
+        user = await create_test_user(db, "pwwrong@example.com", "correct123")
+        resp = await client.patch(
+            "/api/v1/auth/me/password",
+            headers=auth_header(user),
+            json={"old_password": "wrong", "new_password": "newpass"},
+        )
+        assert resp.status_code == 400
+
+    async def test_change_password_google_user_forbidden(self, client: AsyncClient, db):
+        """Google 用戶嘗試改密碼應回傳 403。"""
+        from app.models.user import User
+        google_user = User(
+            email="google@example.com",
+            display_name="Google User",
+            auth_provider="google",
+            auth_provider_id="google-123",
+        )
+        db.add(google_user)
+        await db.flush()
+
+        resp = await client.patch(
+            "/api/v1/auth/me/password",
+            headers=auth_header(google_user),
+            json={"old_password": "any", "new_password": "any"},
+        )
+        assert resp.status_code == 403
+
+    async def test_change_password_requires_auth(self, client: AsyncClient):
+        """未認證時回傳 403。"""
+        resp = await client.patch(
+            "/api/v1/auth/me/password",
+            json={"old_password": "x", "new_password": "y"},
+        )
+        assert resp.status_code == 403

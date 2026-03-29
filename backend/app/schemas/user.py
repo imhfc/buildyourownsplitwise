@@ -48,3 +48,8 @@ class RefreshTokenRequest(BaseModel):
 
 class GoogleAuthRequest(BaseModel):
     access_token: str
+
+
+class PasswordChangeRequest(BaseModel):
+    old_password: str
+    new_password: str

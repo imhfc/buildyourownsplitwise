@@ -82,6 +82,8 @@ export const authAPI = {
   updateMe: (data: Record<string, string>) => api.patch("/auth/me", data),
   lookupByEmail: (email: string) =>
     api.get("/auth/lookup", { params: { email } }),
+  changePassword: (old_password: string, new_password: string) =>
+    api.patch("/auth/me/password", { old_password, new_password }),
 };
 
 // Groups
@@ -140,6 +142,12 @@ export const settlementsAPI = {
   list: (groupId: string) => api.get(`/groups/${groupId}/settlements`),
   create: (groupId: string, data: SettlementCreatePayload) =>
     api.post(`/groups/${groupId}/settlements`, data),
+};
+
+// Activities
+export const activitiesAPI = {
+  list: (skip = 0, limit = 20) =>
+    api.get("/activities", { params: { skip, limit } }),
 };
 
 // Exchange Rates

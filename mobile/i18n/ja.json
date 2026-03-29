@@ -76,5 +76,24 @@
 
   "or": "または",
   "sign_in_with_google": "Google でログイン",
-  "google_sign_in_failed": "Google ログインに失敗しました"
+  "google_sign_in_failed": "Google ログインに失敗しました",
+
+  "friends": "友達",
+  "activities": "アクティビティ",
+  "account": "アカウント",
+  "no_activities_hint": "アクティビティはまだありません",
+  "expense_added": "が支出を追加しました",
+  "settlement_created": "が精算しました",
+  "in_group": "グループ：",
+  "to": "に",
+  "friends_coming_soon": "友達機能は近日公開",
+  "friends_coming_soon_desc": "友達と直接割り勘する機能を開発中です。お楽しみに！",
+
+  "change_password": "パスワード変更",
+  "old_password": "現在のパスワード",
+  "new_password": "新しいパスワード",
+  "confirm_new_password": "新しいパスワード（確認）",
+  "password_changed": "パスワードを変更しました",
+  "password_mismatch": "パスワードが一致しません",
+  "wrong_old_password": "現在のパスワードが正しくありません"
 }

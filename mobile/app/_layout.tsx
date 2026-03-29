@@ -6,7 +6,7 @@ import { StatusBar } from "expo-status-bar";
 import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ThemeProvider as NavThemeProvider, DarkTheme, DefaultTheme } from "@react-navigation/native";
-import { ThemeProvider, useTheme } from "~/lib/theme";
+import { ThemeProvider, useTheme, COLOR_SCHEMES } from "~/lib/theme";
 import { useAuthStore } from "../stores/auth";
 
 const SCHEME_CLASS: Record<string, string> = {
@@ -24,6 +24,8 @@ const SCHEME_CLASS: Record<string, string> = {
 
 function InnerLayout() {
   const { isDark, colorScheme } = useTheme();
+  const scheme = COLOR_SCHEMES.find((s) => s.id === colorScheme) ?? COLOR_SCHEMES[0];
+  const primaryColor = isDark ? scheme.preview.dark : scheme.preview.light;
   const router = useRouter();
   const segments = useSegments();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -63,7 +65,7 @@ function InnerLayout() {
                 title: "",
                 headerBackTitle: "返回",
                 headerStyle: { backgroundColor: isDark ? "#09090B" : "#FFFFFF" },
-                headerTintColor: isDark ? "#FAFAFA" : "#09090B",
+                headerTintColor: primaryColor,
                 headerShadowVisible: false,
               }}
             />
