@@ -17,6 +17,9 @@ jobs:
 
     steps:
       # ── 0. Checkout ──
+      - name: Clean workspace (remove root-owned files from previous docker runs)
+        run: sudo rm -rf "$GITHUB_WORKSPACE"/* "$GITHUB_WORKSPACE"/.[!.]* 2>/dev/null || true
+
       - name: Checkout code
         uses: actions/checkout@v4
 
