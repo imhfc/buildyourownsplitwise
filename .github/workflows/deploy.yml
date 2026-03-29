@@ -11,7 +11,7 @@ jobs:
     timeout-minutes: 15
     env:
       COMPOSE_CMD: docker compose
-      HEALTH_URL: http://localhost:8000/health
+      HEALTH_URL: http://localhost:${{ vars.BACKEND_PORT || '8000' }}/health
       HEALTH_RETRIES: 10
       HEALTH_INTERVAL: 3
 
