@@ -1,8 +1,8 @@
 name: Deploy to Self-Hosted
 
 on:
-  # push:
-  #   branches: [main]
+  push:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -23,24 +23,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ── 1. Build new images (舊容器還在跑，零停機) ──
-      - name: Build new images
-        run: $COMPOSE_CMD build --no-cache backend caddy
-
-      # ── 2. Tag 舊 image 為 :bak ──
-      - name: Backup current images
-        run: |
-          for svc in backend caddy; do
-            img=$($COMPOSE_CMD images "$svc" --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | head -1)
-            if [ -n "$img" ] && [ "$img" != ":" ]; then
-              repo=$(echo "$img" | cut -d: -f1)
-              docker tag "$img" "$repo:bak" && echo "Tagged $img → $repo:bak"
-            else
-              echo "WARN: No running image found for $svc, skip backup"
-            fi
-          done
-
-      # ── 3. 從 GitHub Variables/Secrets 寫 .env ──
+      # ── 1. 從 GitHub Variables/Secrets 寫 .env（必須在所有 compose 操作之前）──
       - name: Write .env files
         run: |
           cat > .env <<EOF
@@ -61,6 +44,23 @@ jobs:
 
           echo "Generated .env:"
           cat .env
+
+      # ── 2. Build new images (舊容器還在跑，零停機) ──
+      - name: Build new images
+        run: $COMPOSE_CMD build --no-cache backend caddy
+
+      # ── 3. Tag 舊 image 為 :bak ──
+      - name: Backup current images
+        run: |
+          for svc in backend caddy; do
+            img=$($COMPOSE_CMD images "$svc" --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | head -1)
+            if [ -n "$img" ] && [ "$img" != ":" ]; then
+              repo=$(echo "$img" | cut -d: -f1)
+              docker tag "$img" "$repo:bak" && echo "Tagged $img → $repo:bak"
+            else
+              echo "WARN: No running image found for $svc, skip backup"
+            fi
+          done
 
       # ── 3a. 確保 DB 在跑 + 執行 Alembic migration ──
       - name: Run database migrations
