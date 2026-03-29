@@ -3,8 +3,7 @@ import { View, KeyboardAvoidingView, Platform } from "react-native";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import * as WebBrowser from "expo-web-browser";
-import * as Google from "expo-auth-session/providers/google";
-import { makeRedirectUri } from "expo-auth-session";
+import * as AuthSession from "expo-auth-session";
 import { authAPI } from "../../services/api";
 import { useAuthStore } from "../../stores/auth";
 import { H1, Muted, Text } from "~/components/ui/text";
@@ -13,9 +12,21 @@ import { Input } from "~/components/ui/input";
 
 WebBrowser.maybeCompleteAuthSession();
 
-const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? "";
-const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? "";
-const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? "";
+const GOOGLE_CLIENT_ID = Platform.select({
+  ios: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+  android: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+  default: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+}) ?? "";
+
+const discovery = {
+  authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
+  tokenEndpoint: "https://oauth2.googleapis.com/token",
+};
+
+const redirectUri = AuthSession.makeRedirectUri({
+  scheme: "byosw",
+  preferLocalhost: false,
+});
 
 export default function LoginScreen() {
   const { t } = useTranslation();
@@ -25,13 +36,15 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const [, googleResponse, googlePromptAsync] = Google.useAuthRequest({
-    webClientId: GOOGLE_WEB_CLIENT_ID,
-    iosClientId: GOOGLE_IOS_CLIENT_ID,
-    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
-    scopes: ["openid", "profile", "email"],
-    redirectUri: makeRedirectUri({ scheme: "byosw" }),
-  });
+  const [, , promptAsync] = AuthSession.useAuthRequest(
+    {
+      clientId: GOOGLE_CLIENT_ID,
+      scopes: ["openid", "profile", "email"],
+      redirectUri,
+      responseType: AuthSession.ResponseType.Token,
+    },
+    discovery,
+  );
 
   const handleLogin = async () => {
     if (!email || !password) return;
@@ -52,11 +65,11 @@ export default function LoginScreen() {
     setError("");
     setLoading(true);
     try {
-      const result = await googlePromptAsync();
+      const result = await promptAsync();
       if (result.type !== "success") {
         return;
       }
-      const accessToken = result.authentication?.accessToken;
+      const accessToken = result.params?.access_token;
       if (!accessToken) {
         setError(t("google_sign_in_failed"));
         return;
