@@ -80,5 +80,24 @@
 
   "or": "或",
   "sign_in_with_google": "使用 Google 登入",
-  "google_sign_in_failed": "Google 登入失敗"
+  "google_sign_in_failed": "Google 登入失敗",
+
+  "friends": "朋友",
+  "activities": "活動",
+  "account": "帳號",
+  "no_activities_hint": "目前沒有任何活動記錄",
+  "expense_added": "新增了一筆消費",
+  "settlement_created": "完成了一筆結算",
+  "in_group": "在群組",
+  "to": "給",
+  "friends_coming_soon": "朋友功能即將推出",
+  "friends_coming_soon_desc": "直接與朋友分帳的功能正在開發中，敬請期待！",
+
+  "change_password": "更改密碼",
+  "old_password": "目前密碼",
+  "new_password": "新密碼",
+  "confirm_new_password": "確認新密碼",
+  "password_changed": "密碼更改成功",
+  "password_mismatch": "兩次輸入的密碼不一致",
+  "wrong_old_password": "目前密碼不正確"
 }

@@ -1,13 +1,14 @@
 import { Tabs } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Users, Settings } from "lucide-react-native";
-import { useTheme } from "~/lib/theme";
+import { UserPlus, Users, Activity, User } from "lucide-react-native";
+import { useTheme, COLOR_SCHEMES } from "~/lib/theme";
 
 export default function TabsLayout() {
   const { t } = useTranslation();
-  const { isDark } = useTheme();
+  const { isDark, colorScheme } = useTheme();
 
-  const activeTint = isDark ? "#60A5FA" : "#2563EB";
+  const scheme = COLOR_SCHEMES.find((s) => s.id === colorScheme) ?? COLOR_SCHEMES[0];
+  const activeTint = isDark ? scheme.preview.dark : scheme.preview.light;
   const inactiveTint = isDark ? "#A1A1AA" : "#71717A";
 
   return (
@@ -27,6 +28,15 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
+        name="friends"
+        options={{
+          title: t("friends"),
+          tabBarIcon: ({ color, size }) => (
+            <UserPlus size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="index"
         options={{
           title: t("groups"),
@@ -36,11 +46,20 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="settings"
+        name="activities"
         options={{
-          title: t("settings"),
+          title: t("activities"),
           tabBarIcon: ({ color, size }) => (
-            <Settings size={size} color={color} />
+            <Activity size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="account"
+        options={{
+          title: t("account"),
+          tabBarIcon: ({ color, size }) => (
+            <User size={size} color={color} />
           ),
         }}
       />

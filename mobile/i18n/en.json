@@ -80,5 +80,24 @@
 
   "or": "or",
   "sign_in_with_google": "Sign in with Google",
-  "google_sign_in_failed": "Google sign-in failed"
+  "google_sign_in_failed": "Google sign-in failed",
+
+  "friends": "Friends",
+  "activities": "Activity",
+  "account": "Account",
+  "no_activities_hint": "No activity yet",
+  "expense_added": "added an expense",
+  "settlement_created": "settled up",
+  "in_group": "in",
+  "to": "to",
+  "friends_coming_soon": "Friends Coming Soon",
+  "friends_coming_soon_desc": "Direct expense splitting with friends is under development. Stay tuned!",
+
+  "change_password": "Change Password",
+  "old_password": "Current Password",
+  "new_password": "New Password",
+  "confirm_new_password": "Confirm New Password",
+  "password_changed": "Password changed successfully",
+  "password_mismatch": "Passwords do not match",
+  "wrong_old_password": "Current password is incorrect"
 }

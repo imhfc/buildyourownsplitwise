@@ -4,7 +4,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import ConflictError, ValidationError
+from app.core.exceptions import ConflictError, ForbiddenError, ValidationError
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -75,6 +75,16 @@ async def update_user(db: AsyncSession, user: User, data: UserUpdate) -> User:
         setattr(user, field, value)
     await db.flush()
     return user
+
+
+async def change_password(db: AsyncSession, user: User, old_password: str, new_password: str) -> None:
+    """Change password for email-registered users only."""
+    if user.auth_provider != "email":
+        raise ForbiddenError("僅限 email 帳號可更改密碼")
+    if not user.password_hash or not verify_password(old_password, user.password_hash):
+        raise ValidationError("目前密碼不正確")
+    user.password_hash = hash_password(new_password)
+    await db.flush()
 
 
 async def google_login(db: AsyncSession, google_access_token: str) -> tuple[str, str, User]:
