@@ -3,6 +3,29 @@
 > 此方案使用 GitHub Actions 搭配 self-hosted runner，push 到 main 時自動部署，支援 health check 和自動 rollback。
 > 預計部署在新的 VM 上，與現有 Cron 方案（CICD.md）的舊 VM 獨立運作。
 
+## ⚠️ Repository 同步說明
+
+由於目前的開發者不是原始 repository（`imhfc/buildyourownsplitwise`）的 owner，無法直接在該 repo 設定 self-hosted runner 和 GitHub Actions。因此採用以下架構：
+
+```
+imhfc/buildyourownsplitwise (原始 repo)
+        │
+        │  每分鐘透過 ncbs_gcp 自動 gh sync
+        ▼
+aiinpocket/buildyourownsplitwise (fork/mirror repo)
+        │
+        │  GitHub Actions + self-hosted runner
+        ▼
+      VM 部署
+```
+
+**實際運作方式：**
+- `ncbs_gcp` 每分鐘將 `imhfc/buildyourownsplitwise` 同步到 `aiinpocket/buildyourownsplitwise`
+- Self-hosted runner 註冊在 `aiinpocket/buildyourownsplitwise`
+- **查看 Variables / Secrets 設定**：到 `aiinpocket/buildyourownsplitwise` → Settings → Secrets and variables → Actions
+- **查看 Workflow 執行紀錄**：到 `aiinpocket/buildyourownsplitwise` → Actions tab
+- **手動觸發部署**：也是從 `aiinpocket/buildyourownsplitwise` 的 Actions 頁面操作
+
 ## 架構概覽
 
 ```
@@ -79,16 +102,29 @@ docker compose build --no-cache backend caddy
 
 ## Self-Hosted Runner 設定
 
+### 0. 進入 VM 後的第一步
+
+SSH 進入 VM 後，**必須先切換到 `ap01` 使用者**再進行任何操作：
+
+```bash
+sudo su - ap01
+```
+
+GitHub self-hosted runner 是以 `ap01` 身分安裝與運行的，所有部署相關的檔案、Docker 權限、runner 設定都屬於此帳號。未切換身分直接操作可能導致權限問題或路徑錯誤。
+
 ### 1. 在 VM 上安裝 runner
 
 ```bash
+# 確認已切換至 ap01 使用者
+# sudo su - ap01
+
 # GitHub repo → Settings → Actions → Runners → New self-hosted runner
 # 依照頁面指示下載並設定，以下為大致流程：
 
 mkdir ~/actions-runner && cd ~/actions-runner
 curl -o actions-runner-linux-x64-2.XXX.X.tar.gz -L https://github.com/actions/runner/releases/download/vX.XXX.X/actions-runner-linux-x64-2.XXX.X.tar.gz
 tar xzf ./actions-runner-linux-x64-2.XXX.X.tar.gz
-./config.sh --url https://github.com/imhfc/buildyourownsplitwise --token <TOKEN>
+./config.sh --url https://github.com/aiinpocket/buildyourownsplitwise --token <TOKEN>
 ```
 
 ### 2. 設為系統服務（開機自動啟動）

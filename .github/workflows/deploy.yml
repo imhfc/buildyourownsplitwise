@@ -68,7 +68,7 @@ jobs:
             $COMPOSE_CMD exec -T db pg_isready -U splitewise > /dev/null 2>&1 && break
             sleep 2
           done
-          # 用新 build 的 backend image 跑 migration，跑完刪除容器
+          # 用新 build 的 backend image 跑 migration（prod override 已移除 bind mount）
           $COMPOSE_CMD run --rm -T backend alembic upgrade head
           echo "✓ Migration complete"
 
