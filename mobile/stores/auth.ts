@@ -13,6 +13,7 @@ interface User {
   email: string | null;
   display_name: string;
   avatar_url: string | null;
+  auth_provider: string;
   preferred_currency: string;
   locale: string;
 }
@@ -64,9 +65,9 @@ export const useAuthStore = create<AuthState>()(
   )
 );
 
-// Zustand 5 的 toThenable 對 localStorage 是同步執行，onRehydrateStorage 在 create() 完成前
-// 就被呼叫，此時 useAuthStore 還是 undefined，setState 會靜默失敗。
-// 正確做法：store 建立後再註冊，並補上同步情境的檢查。
+// Zustand 5 的 toThenable 對 localStorage 是同步執行，persist 選項中的 hydration 回呼
+// 在 create() 完成前就被呼叫，此時 useAuthStore 還是 undefined，setState 會靜默失敗。
+// 正確做法：store 建立後再用 onFinishHydration 註冊，並補上同步情境的檢查。
 useAuthStore.persist.onFinishHydration(() => {
   useAuthStore.setState({ hasHydrated: true });
 });
