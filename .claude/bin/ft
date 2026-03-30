@@ -1,0 +1,48 @@
+#!/bin/bash
+# Fine-Tune AI Agent 命令行工具
+
+# 獲取 .claude 目錄的絕對路徑
+CLAUDE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
+PROJECT_ROOT="$( cd "$CLAUDE_DIR/.." && pwd )"
+
+# 載入工具函數
+source "$CLAUDE_DIR/bin/ft-lib.sh"
+
+# 主函數
+main() {
+    case "${1:-help}" in
+        init)
+            shift
+            cmd_init "$@"
+            ;;
+        sync)
+            shift
+            cmd_sync "$@"
+            ;;
+        status)
+            shift
+            cmd_status "$@"
+            ;;
+        update)
+            shift
+            cmd_update "$@"
+            ;;
+        hooks)
+            shift
+            cmd_hooks "$@"
+            ;;
+        help|--help|-h)
+            cmd_help
+            ;;
+        version|--version|-v)
+            cmd_version
+            ;;
+        *)
+            echo "Unknown command: $1"
+            echo "Run 'ft help' for usage."
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

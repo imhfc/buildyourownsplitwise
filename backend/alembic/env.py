@@ -14,6 +14,7 @@ from app.models.group import Group, GroupMember  # noqa: F401
 from app.models.expense import Expense, ExpenseSplit  # noqa: F401
 from app.models.settlement import Settlement  # noqa: F401
 from app.models.exchange_rate import ExchangeRate  # noqa: F401
+from app.models.friendship import Friendship  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)

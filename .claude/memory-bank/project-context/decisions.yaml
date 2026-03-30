@@ -1,0 +1,57 @@
+# 決策記錄索引
+# 版本: 2.0 (2026-03-30) - 適配 Build Your Own Splitewise 專案
+#
+# 記錄非正式但重要的技術決策
+# ============================================================
+
+decisions:
+  - id: DEC-001
+    date: 2026-03-28
+    context: "需要選擇後端框架和 ORM 以支援非同步操作和高效能"
+    decision: |
+      1. 後端使用 FastAPI + SQLAlchemy 2.0 (async)
+      2. 資料庫驅動使用 asyncpg（非同步 PostgreSQL）
+      3. 所有 API 端點和資料庫操作使用 async/await
+    rationale: "FastAPI 原生支援 async，SQLAlchemy 2.0 提供成熟的 async ORM，asyncpg 是最快的 PostgreSQL async 驅動"
+    status: active
+
+  - id: DEC-002
+    date: 2026-03-28
+    context: "分帳計算需要精確的小數處理"
+    decision: |
+      1. 所有金額欄位使用 Decimal(12,2)，禁止 float
+      2. 四捨五入的差異歸付款人承擔
+      3. 結算演算法使用淨餘額圖 + 貪婪 max-heap 最小化交易次數
+    rationale: "浮點數會產生精度問題（如 0.1 + 0.2 != 0.3），Decimal 保證精確計算"
+    status: active
+
+  - id: DEC-003
+    date: 2026-03-28
+    context: "前端需要支援多平台和快速開發"
+    decision: |
+      1. 使用 Expo + React Native 支援 iOS/Android/Web
+      2. 樣式使用 NativeWind (Tailwind CSS for RN)
+      3. 全域狀態使用 Zustand（輕量、TypeScript 友善）
+      4. 多語系使用 i18next（zh-TW 為預設語言）
+    rationale: "Expo 降低原生開發門檻，NativeWind 統一樣式語法，Zustand 比 Redux 簡潔"
+    status: active
+
+  - id: DEC-004
+    date: 2026-03-28
+    context: "需要匯率轉換支援多幣別分帳"
+    decision: |
+      1. 匯率來源：台灣銀行 API
+      2. 使用 Redis 快取匯率資料
+      3. 快取過期策略：定時更新
+    rationale: "台銀匯率最符合台灣用戶需求，Redis 減少外部 API 呼叫頻率"
+    status: active
+
+  - id: DEC-005
+    date: 2026-03-30
+    context: "導入 fine-tune-ai-agent 框架提升 AI 輔助開發效能"
+    decision: |
+      1. 安裝 fine-tune-ai-agent 框架（Atomic Agents + Skills + Hooks）
+      2. 所有 rules/hooks/skills 從 Java/Gradle 改寫為 Python/Expo
+      3. 透過 settings.json 註冊 hooks 自動觸發
+    rationale: "框架提供結構化的 AI 開發輔助（代碼審查、測試撰寫、安全檢查），但原版為 Java 專案設計，需全面適配"
+    status: active

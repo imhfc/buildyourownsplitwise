@@ -58,6 +58,7 @@ app/
 - Services 禁止從 `api/` 匯入
 - Models 禁止從 `services/` 或 `api/` 匯入
 - 每一層只能依賴其下方的層
+- `get_db()` 依賴會在請求結束後自動 `commit()`，Services 層禁止手動呼叫 `db.commit()`（僅用 `db.flush()` 取得生成的 ID）
 
 ### 1.2 非同步優先
 
@@ -348,3 +349,5 @@ cd backend && pytest tests/
 | Modal/BottomSheet 未處理鍵盤遮擋 | 使用 `KeyboardAvoidingView` 包裹表單內容 |
 | 直接在 JSX 中寫複雜邏輯 | 抽成獨立函式或自訂 hook |
 | 按鈕寫死顏色（如 `bg-blue-500`） | 一律使用 `<Button>` 的 `variant`，跟隨 `bg-primary` 色系 |
+| 用 `Alert.alert` 帶 buttons 做確認 | Expo Web 上 `Alert.alert` 的 buttons/onPress 不作用，必須用自定義 Modal 做確認對話框 |
+| `useNativeDriver: true` 硬編碼 | 使用 `Platform.OS !== "web"` 條件判斷，否則 web 環境會產生警告並 fallback 到 JS 動畫 |

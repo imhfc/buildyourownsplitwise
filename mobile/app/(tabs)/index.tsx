@@ -37,6 +37,7 @@ export default function GroupsScreen() {
   const [newCurrency, setNewCurrency] = useState("TWD");
   const [creating, setCreating] = useState(false);
   const swipeableRefs = useRef<Map<string, Swipeable>>(new Map());
+  const [confirmTarget, setConfirmTarget] = useState<{ item: GroupItem; action: "delete" | "leave" } | null>(null);
 
   const fetchGroups = useCallback(async () => {
     try {
@@ -86,42 +87,29 @@ export default function GroupsScreen() {
 
   const handleDeleteGroup = (item: GroupItem) => {
     closeSwipeable(item.id);
-    Alert.alert(t("delete_group"), t("delete_group_confirm"), [
-      { text: t("cancel"), style: "cancel" },
-      {
-        text: t("delete"),
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await groupsAPI.delete(item.id);
-            await fetchGroups();
-          } catch (e: any) {
-            const msg = e.response?.data?.detail || e.message || "Unknown error";
-            Alert.alert(t("error"), msg);
-          }
-        },
-      },
-    ]);
+    setConfirmTarget({ item, action: "delete" });
   };
 
   const handleLeaveGroup = (item: GroupItem) => {
     closeSwipeable(item.id);
-    Alert.alert(t("leave_group"), t("leave_group_confirm"), [
-      { text: t("cancel"), style: "cancel" },
-      {
-        text: t("leave_group"),
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await groupsAPI.removeMember(item.id, user!.id);
-            await fetchGroups();
-          } catch (e: any) {
-            const msg = e.response?.data?.detail || e.message || "Unknown error";
-            Alert.alert(t("error"), msg);
-          }
-        },
-      },
-    ]);
+    setConfirmTarget({ item, action: "leave" });
+  };
+
+  const handleConfirmAction = async () => {
+    if (!confirmTarget) return;
+    const { item, action } = confirmTarget;
+    setConfirmTarget(null);
+    try {
+      if (action === "delete") {
+        await groupsAPI.delete(item.id);
+      } else {
+        await groupsAPI.removeMember(item.id, user!.id);
+      }
+      await fetchGroups();
+    } catch (e: any) {
+      const msg = e.response?.data?.detail || e.message || "Unknown error";
+      Alert.alert(t("error"), msg);
+    }
   };
 
   const renderRightActions = (item: GroupItem, dragX: Animated.AnimatedInterpolation<number>) => {
@@ -198,6 +186,32 @@ export default function GroupsScreen() {
       />
 
       <FAB onPress={() => setShowCreate(true)} />
+
+      <Modal
+        visible={!!confirmTarget}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirmTarget(null)}
+      >
+        <View className="flex-1 justify-center items-center bg-black/50 px-6">
+          <View className="bg-background rounded-2xl p-6 w-full max-w-sm gap-4">
+            <H3>
+              {confirmTarget?.action === "delete" ? t("delete_group") : t("leave_group")}
+            </H3>
+            <Text className="text-muted-foreground">
+              {confirmTarget?.action === "delete" ? t("delete_group_confirm") : t("leave_group_confirm")}
+            </Text>
+            <View className="flex-row gap-3 justify-end">
+              <Button variant="outline" onPress={() => setConfirmTarget(null)}>
+                {t("cancel")}
+              </Button>
+              <Button variant="destructive" onPress={handleConfirmAction}>
+                {confirmTarget?.action === "delete" ? t("delete") : t("leave_group")}
+              </Button>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={showCreate}

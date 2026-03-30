@@ -1,0 +1,30 @@
+# 開發進度追蹤
+# 版本: 7.0 (2026-03-30) - 適配 Build Your Own Splitewise 專案
+#
+# 原則：
+# - 已完成任務 → git log / git blame 可查
+# - 本檔案僅追蹤「當前正在做什麼」和「接下來要做什麼」
+
+last_updated: 2026-03-30
+last_update_detail: "導入 fine-tune-ai-agent 框架並完成 Python/Expo 適配"
+
+# 當前衝刺
+current_sprint: "AI 開發框架整合"
+sprint_goal: "完成 fine-tune-ai-agent 框架適配，讓所有 skills/hooks/rules 能正確服務本專案"
+
+# 已完成的核心功能
+completed_features:
+  - "費用管理（CRUD + 4 種分帳模式）"
+  - "群組管理（建立/邀請/移除成員）"
+  - "結算演算法（淨餘額圖 + max-heap）"
+  - "多幣別支援（台銀匯率 + Redis 快取）"
+  - "JWT 認證 + Google OAuth"
+  - "多語系（zh-TW / en / ja）"
+  - "10 種色系 + 深色模式"
+  - "CI/CD 自動部署（GitHub Actions → GCP VM）"
+
+# 當前任務（僅進行中或待辦）
+current_tasks:
+  - task: "fine-tune-ai-agent 框架整合"
+    status: "in_progress"
+    detail: "rules/hooks/skills/memory-bank 已適配完成，待驗證"

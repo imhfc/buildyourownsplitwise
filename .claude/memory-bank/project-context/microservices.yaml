@@ -1,0 +1,35 @@
+# 專案服務配置
+# v3.0.0 | 2026-03-30 - 適配 Build Your Own Splitewise（單體應用）
+#
+# 本專案為單體全端應用，非微服務架構
+
+workspace:
+  project_root: "."
+  backend_path: "backend"
+  frontend_path: "mobile"
+
+# 服務元件
+components:
+  - name: "backend"
+    description: "FastAPI 後端 API"
+    path: "backend/"
+    tech: "Python 3.x + FastAPI + SQLAlchemy"
+    entry: "app/main.py"
+    test: "pytest tests/"
+
+  - name: "mobile"
+    description: "React Native 前端（Expo）"
+    path: "mobile/"
+    tech: "TypeScript + React Native + Expo"
+    entry: "app/_layout.tsx"
+    test: "npx jest"
+
+  - name: "database"
+    description: "PostgreSQL 16"
+    type: "infrastructure"
+    config: "docker-compose.yml"
+
+  - name: "cache"
+    description: "Redis 7"
+    type: "infrastructure"
+    config: "docker-compose.yml"

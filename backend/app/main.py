@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import activities, auth, exchange_rates, expenses, groups, settlements
+from app.api import activities, auth, exchange_rates, expenses, friends, groups, settlements
 from app.core.config import settings
 from app.core.redis import close_redis
 
@@ -31,6 +31,7 @@ app.include_router(groups.router, prefix="/api/v1")
 app.include_router(expenses.router, prefix="/api/v1")
 app.include_router(settlements.router, prefix="/api/v1")
 app.include_router(exchange_rates.router, prefix="/api/v1")
+app.include_router(friends.router, prefix="/api/v1")
 app.include_router(activities.router, prefix="/api/v1")
 
 

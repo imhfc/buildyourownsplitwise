@@ -1,0 +1,3 @@
+[submodule "fine-tune-ai-agent"]
+	path = fine-tune-ai-agent
+	url = git@github.ibm.com:Forge-AI/fine-tune-ai-agent.git

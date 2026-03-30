@@ -1,0 +1,53 @@
+# 全局偏好設定
+# v5.0.0 | 2026-03-30
+# 變更記錄：
+#   v5.0.0 (2026-03-30) - 適配 Build Your Own Splitewise 專案
+#   v4.0.0 (2026-03-27) - 原始 fine-tune-ai-agent 版本
+#
+# 原則：
+# - 語言/禁止事項/核心原則 → 由 CLAUDE.md 定義（Single Source of Truth）
+# - 本檔案僅保留被 Skills 直接引用的結構化配置
+
+# Git 操作框架（被 git-ops skill 引用）
+git_operations:
+  scripts_path: ".claude/skills/git-ops/scripts"
+  operations:
+    commit: { collector: "--for-commit", executor: "commit", ai_decision: true }
+    status: { collector: "--status", executor: null, ai_decision: false }
+    push:   { collector: "--for-push", executor: "push", ai_decision: true }
+    merge:  { collector: "--for-merge", executor: "merge", ai_decision: true }
+    branch: { collector: "--for-branch", executor: "branch", ai_decision: true }
+  rules:
+    use_scripts: true
+    forbidden: ["git commit", "git push"]
+    allowed: ["git add", "git diff", "git log"]
+
+# 並行開發觸發條件（被 parallel-develop skill 引用）
+parallel_development:
+  confirmation_required: true
+  triggers:
+    min_files: 5
+    min_modules: 2
+    require_keyword: true
+  execution:
+    use_worktree: true
+    parallel_limit: 5
+
+# 專案特定偏好
+project:
+  name: "Build Your Own Splitewise"
+  type: "fullstack"
+  backend:
+    framework: "FastAPI"
+    language: "Python 3.x"
+    test_command: "cd backend && pytest tests/"
+    test_db_command: "docker compose -f docker-compose.test.yml up -d db-test"
+  frontend:
+    framework: "React Native + Expo"
+    language: "TypeScript"
+    quality_gate: "bash mobile/scripts/quality-gate.sh"
+    test_command: "cd mobile && npx jest"
+  deployment:
+    method: "Docker Compose + GitHub Actions CI/CD"
+    vm: "GCP (35.206.96.99)"
+    domain: "byosw.duckdns.org"

@@ -1,0 +1,993 @@
+{
+	"info": {
+		"_postman_id": "c7df197b-433b-4256-8558-0ada26541815",
+		"name": "Auto Token & Session v2026-01-05",
+		"description": "# 自動取得 Token 與 Session 工具\n\n## 版本\n- **版本號**: 2026-01-05 v8 (Cookie Jar Fallback)\n\n## 使用方式\n**每次開啟 Postman 後，請先執行「初始化」請求！**\n\n這會自動取得 JWT Token 和 HTG Session，之後所有 API 請求都可正常運作。\n\n> 注意：如果 ARPT 未取得，請先執行「取得 ARPT (SIT)」或「取得 ARPT (UAT)」一次。\n\n## 運作原理\n每個請求執行前會自動：\n1. 檢查 JWT Token 是否過期 → 過期自動重取\n2. 檢查 HTG Session 是否過期 → 過期自動重取\n3. 產生新的 traceparent 和 timestamp\n\n## Collection Variables 說明\n\n### HTG 登入資訊\n| 變數 | 說明 | 範例 |\n|------|------|------|\n| `HTG_LDAP_USER` | LDAP 使用者 ID | Z00038488 |\n| `HTG_LDAP_PASSWORD` | LDAP 密碼 | 1a2s#D$F |\n| `HTG_APP_ID` | 應用程式 ID | NVNSC |\n\n### SIT 環境\n| 變數 | 說明 | 範例 |\n|------|------|------|\n| `HTG_SIT_ENDPOINT` | HTG SIT 端點 | http://192.168.38.136:80/WS_HG/HgXmlRequestHandler |\n| `HTG_SIT_RACF_ID` | SIT RACF ID | Z38489 |\n| `HTG_SIT_RACF_PASSWORD` | SIT RACF 密碼 | 2wsxcde3 |\n| `HTG_SIT_BRANCH_NO` | SIT 分行代碼 | 0495 |\n\n### UAT 環境\n| 變數 | 說明 | 範例 |\n|------|------|------|\n| `HTG_UAT_ENDPOINT` | HTG UAT 端點 | http://192.168.38.139:80/WS_HG/HgXmlRequestHandler |\n| `HTG_UAT_RACF_ID` | UAT RACF ID | Z53622 |\n| `HTG_UAT_RACF_PASSWORD` | UAT RACF 密碼 | 6yhn7ujm |\n| `HTG_UAT_BRANCH_NO` | UAT 分行代碼 | 0495 |\n\n### Token 與 Session\n| 變數 | 說明 | 範例 |\n|------|------|------|\n| `TOKEN_ENDPOINT` | JWT Token 端點 | http://10.155.137.228:52346/fetchJWTToken |\n| `TOKEN_EXPIRY_HOURS` | Token 有效時間(小時) | 3 |\n| `SESSION_EXPIRY_HOURS` | Session 有效時間(小時) | 1 |\n\n## 疑難排解\n如果遇到認證問題，可執行「清除並重新初始化」請求來重置所有變數。\n\n## ARPT 說明\nARPT (Anti-Replay Protection Token) 由 F5 BIG-IP 負載均衡器設定。\n- 格式: `{IP}.{Port}.{Reserved}` 例如 `3406764204.36895.0000`\n- 如果自動取得失敗，請執行「取得 ARPT」請求一次",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "0. 工具",
+			"item": [
+				{
+					"name": "初始化 (每次開啟 Postman 先執行)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// 此請求會觸發 Collection Pre-request Script 取得 Token & Session",
+									"console.log('');",
+									"console.log('╔════════════════════════════════════════════════════════════════╗');",
+									"console.log('║              初始化 Token & Session                         ║');",
+									"console.log('╚════════════════════════════════════════════════════════════════╝');",
+									"console.log('');",
+									"console.log('正在取得 Token 和 Session...');",
+									"console.log('(Collection Pre-request Script 會自動執行)');",
+									"console.log('');",
+									"console.log('第一次執行可能會出現 token 錯誤，這是正常的！');",
+									"console.log('請再執行一次，Token 就會生效。');",
+									"console.log('');",
+									"console.log('如果 ARPT 未取得，請先執行「取得 ARPT (SIT/UAT)」請求一次。');"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// 檢查初始化結果",
+									"console.log('');",
+									"console.log('════════════════════════════════════════════════════════════════');",
+									"console.log('📌 Token:', pm.globals.get('x-authorization-ap') ? '已取得' : '未取得');",
+									"console.log('📌 SIT Session:', pm.globals.get('sit-htg-session-id') || '⏳ 請再執行一次');",
+									"console.log('📌 UAT Session:', pm.globals.get('uat-htg-session-id') || '⏳ 請再執行一次');",
+									"console.log('📌 SIT ARPT:', pm.globals.get('sit-htg-arpt') || '請執行「取得 ARPT (SIT)」');",
+									"console.log('📌 UAT ARPT:', pm.globals.get('uat-htg-arpt') || '請執行「取得 ARPT (UAT)」');",
+									"console.log('════════════════════════════════════════════════════════════════');",
+									"",
+									"if (pm.globals.get('x-authorization-ap')) {",
+									"    console.log('');",
+									"    console.log('初始化完成！現在可以執行其他 API 請求了。');",
+									"    if (!pm.globals.get('sit-htg-arpt') && !pm.globals.get('uat-htg-arpt')) {",
+									"        console.log('');",
+									"        console.log('ARPT 尚未取得，建議執行「取得 ARPT」請求。');",
+									"    }",
+									"} else {",
+									"    console.log('');",
+									"    console.log('Token 尚未取得，請再執行一次此請求。');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"strictSSL": false,
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{AUTH_NVMP_BK_NVMP_BK}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "{{API_BASIC_AUTH_PASSWORD}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-client-system",
+								"value": "{{API_CLIENT_SYSTEM}}",
+								"type": "default"
+							},
+							{
+								"key": "datetime",
+								"value": "{{x-timestamp}}",
+								"type": "default"
+							},
+							{
+								"key": "x-authorization-ap",
+								"value": "{{x-authorization-ap}}",
+								"type": "default"
+							},
+							{
+								"key": "traceparent",
+								"value": "{{traceparent}}",
+								"type": "default"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API_GATEWAY_BASE_URL}}/nvmp-bk/cust-information-mgmt/cust-information-mgmt/customer-info-management/v2/system/status",
+							"host": [
+								"{{API_GATEWAY_BASE_URL}}"
+							],
+							"path": [
+								"nvmp-bk",
+								"cust-information-mgmt",
+								"cust-information-mgmt",
+								"customer-info-management",
+								"v2",
+								"system",
+								"status"
+							]
+						},
+						"description": "**每次開啟 Postman 請先執行此請求！**\n\n此請求會：\n1. 觸發 Collection Pre-request Script\n2. 自動取得 JWT Token\n3. 自動取得 SIT/UAT HTG Session\n\n**注意**: 第一次執行會出現 token 錯誤，這是正常的。請再執行一次，Token 就會生效。\n\n執行兩次後，所有其他 API 請求都可以正常運作。"
+					},
+					"response": []
+				},
+				{
+					"name": "檢視目前狀態",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// ========================================",
+									"// 顯示目前所有認證變數狀態",
+									"// ========================================",
+									"",
+									"console.log('╔════════════════════════════════════════════════════════════════╗');",
+									"console.log('║                      目前認證狀態                              ║');",
+									"console.log('╚════════════════════════════════════════════════════════════════╝');",
+									"",
+									"// Token 狀態",
+									"var token = pm.globals.get('x-authorization-ap');",
+									"var lastTokenTime = pm.globals.get('lastTokenTime');",
+									"var tokenExpiry = lastTokenTime ? new Date(lastTokenTime + 3*60*60*1000) : null;",
+									"",
+									"console.log('');",
+									"console.log('📌 JWT Token:');",
+									"console.log('   狀態:', token ? '已取得' : '未取得');",
+									"if (tokenExpiry) {",
+									"    var isExpired = Date.now() > tokenExpiry.getTime();",
+									"    console.log('   過期時間:', tokenExpiry.toLocaleString());",
+									"    console.log('   目前狀態:', isExpired ? '已過期' : '有效');",
+									"}",
+									"",
+									"// Session 狀態",
+									"var sessionSit = pm.globals.get('sit-htg-session-id');",
+									"var sessionUat = pm.globals.get('uat-htg-session-id');",
+									"var lastSessionTime = pm.globals.get('lastSessionTime');",
+									"var sessionExpiry = lastSessionTime ? new Date(lastSessionTime + 1*60*60*1000) : null;",
+									"",
+									"console.log('');",
+									"console.log('📌 HTG Session (SIT):');",
+									"console.log('   Session ID:', sessionSit || '未取得');",
+									"console.log('   ARPT:', pm.globals.get('sit-htg-arpt') || '未取得');",
+									"",
+									"console.log('');",
+									"console.log('📌 HTG Session (UAT):');",
+									"console.log('   Session ID:', sessionUat || '未取得');",
+									"console.log('   ARPT:', pm.globals.get('uat-htg-arpt') || '未取得');",
+									"",
+									"if (sessionExpiry) {",
+									"    var isSessionExpired = Date.now() > sessionExpiry.getTime();",
+									"    console.log('');",
+									"    console.log('📌 Session 過期狀態:');",
+									"    console.log('   過期時間:', sessionExpiry.toLocaleString());",
+									"    console.log('   目前狀態:', isSessionExpired ? '已過期' : '有效');",
+									"}",
+									"",
+									"console.log('');",
+									"console.log('════════════════════════════════════════════════════════════════');",
+									"",
+									"// 阻止實際請求發送",
+									"throw new Error('僅顯示狀態，不發送請求');"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "https://localhost/status-check",
+							"protocol": "https",
+							"host": [
+								"localhost"
+							],
+							"path": [
+								"status-check"
+							]
+						},
+						"description": "**用途**: 查看目前所有認證變數的狀態\n\n**注意**: 此請求不會實際發送，僅在 Console 顯示資訊"
+					},
+					"response": []
+				}
+			],
+			"description": "工具請求：清除變數、檢視狀態等"
+		},
+		{
+			"name": "2. HTG 手動登入",
+			"item": [
+				{
+					"name": "HTG-登入-NVNSC-SIT",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// ========== SIT 手動登入 v6 ==========",
+									"var responseBody = pm.response.text();",
+									"var sessionIdMatch = responseBody.match(/<data id=\"sessionId\" value=\"([^\"]+)\"\\/>/);",
+									"",
+									"if (sessionIdMatch && sessionIdMatch[1]) {",
+									"    pm.globals.set('sit-htg-session-id', sessionIdMatch[1]);",
+									"    pm.globals.set('lastSessionTime', Date.now());",
+									"    console.log('[SIT] Session ID:', sessionIdMatch[1]);",
+									"} else {",
+									"    console.log('[SIT] 無法解析 sessionId');",
+									"    console.log('[SIT] Response:', responseBody.substring(0, 500));",
+									"}",
+									"",
+									"// ========== 提取 ARPT v6 ==========",
+									"var arptValue = null;",
+									"var htgDomain = '192.168.38.136';",
+									"var htgUrl = 'http://' + htgDomain + '/WS_HG/HgXmlRequestHandler';",
+									"",
+									"console.log('[SIT] === 開始提取 ARPT ===');",
+									"",
+									"// 方式 1: 從 Response Headers",
+									"var headers = pm.response.headers;",
+									"if (headers && typeof headers.all === 'function') {",
+									"    var allHeaders = headers.all();",
+									"    for (var i = 0; i < allHeaders.length; i++) {",
+									"        var h = allHeaders[i];",
+									"        var hKey = h.key || h.name || '';",
+									"        var hVal = h.value || '';",
+									"        if (hKey.toLowerCase() === 'set-cookie' && hVal.indexOf('ARPT=') !== -1) {",
+									"            var m = hVal.match(/ARPT=([^;]+)/);",
+									"            if (m && m[1]) {",
+									"                arptValue = m[1];",
+									"                console.log('[SIT] 從 Response Headers 找到 ARPT:', arptValue);",
+									"            }",
+									"        }",
+									"    }",
+									"}",
+									"",
+									"// 方式 2: 從 Cookie Jar",
+									"var cookieJar = pm.cookies.jar();",
+									"cookieJar.getAll(htgUrl, function(err, cookies) {",
+									"    if (!err && cookies && cookies.length > 0) {",
+									"        for (var j = 0; j < cookies.length; j++) {",
+									"            var c = cookies[j];",
+									"            var cName = (c.name || c.key || '').toUpperCase();",
+									"            if (cName === 'ARPT') {",
+									"                if (!arptValue) {",
+									"                    arptValue = c.value;",
+									"                    pm.globals.set('sit-htg-arpt', 'ARPT=' + arptValue);",
+									"                    console.log('[SIT] 從 Cookie Jar 找到 ARPT:', arptValue);",
+									"                }",
+									"            }",
+									"        }",
+									"    }",
+									"});",
+									"",
+									"// 方式 3: 從 Request Cookie header",
+									"if (!arptValue) {",
+									"    var reqCookie = pm.request.headers.get('Cookie');",
+									"    if (reqCookie) {",
+									"        var m2 = reqCookie.match(/ARPT=([^;]+)/);",
+									"        if (m2 && m2[1]) {",
+									"            arptValue = m2[1];",
+									"            console.log('[SIT] 從 Request Cookie 找到 ARPT:', arptValue);",
+									"        }",
+									"    }",
+									"}",
+									"",
+									"console.log('[SIT] === 結束提取 ARPT ===');",
+									"",
+									"if (arptValue) {",
+									"    pm.globals.set('sit-htg-arpt', 'ARPT=' + arptValue);",
+									"    console.log('[SIT] ARPT 已儲存');",
+									"} else {",
+									"    console.log('[SIT] 未找到 ARPT - 請先執行「取得 ARPT (SIT)」請求');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/xml",
+								"type": "default"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<hostgateway>\n    <header>\n        <action type=\"P8EstablishSession\"/>\n    </header>\n    <body>\n        <data id=\"userId\" value=\"{{HTG_LDAP_USER}}\"/>\n        <data id=\"passWord\" value=\"{{HTG_LDAP_PASSWORD}}\"/>\n        <data id=\"branchNo\" value=\"{{HTG_SIT_BRANCH_NO}}\"/>\n        <data id=\"racfId\" value=\"{{HTG_SIT_RACF_ID}}\"/>\n        <data id=\"racfPassWord\" value=\"{{HTG_SIT_RACF_PASSWORD}}\"/>\n        <data id=\"signOnLU0\" value=\"no0\"/>\n        <data id=\"applicationId\" value=\"{{HTG_APP_ID}}\"/>\n    </body>\n</hostgateway>",
+							"options": {
+								"raw": {
+									"language": "xml"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://192.168.38.136:80/WS_HG/HgXmlRequestHandler",
+							"protocol": "http",
+							"host": [
+								"192",
+								"168",
+								"38",
+								"136"
+							],
+							"port": "80",
+							"path": [
+								"WS_HG",
+								"HgXmlRequestHandler"
+							]
+						},
+						"description": "手動登入 HTG SIT"
+					},
+					"response": []
+				},
+				{
+					"name": "HTG-登入-NVNSC-UAT",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// ========== UAT 手動登入 v6 ==========",
+									"var responseBody = pm.response.text();",
+									"var sessionIdMatch = responseBody.match(/<data id=\"sessionId\" value=\"([^\"]+)\"\\/>/);",
+									"",
+									"if (sessionIdMatch && sessionIdMatch[1]) {",
+									"    pm.globals.set('uat-htg-session-id', sessionIdMatch[1]);",
+									"    pm.globals.set('lastSessionTime', Date.now());",
+									"    console.log('[UAT] Session ID:', sessionIdMatch[1]);",
+									"} else {",
+									"    console.log('[UAT] 無法解析 sessionId');",
+									"    console.log('[UAT] Response:', responseBody.substring(0, 500));",
+									"}",
+									"",
+									"// ========== 提取 ARPT v6 ==========",
+									"var arptValue = null;",
+									"var htgDomain = '192.168.38.139';",
+									"var htgUrl = 'http://' + htgDomain + '/WS_HG/HgXmlRequestHandler';",
+									"",
+									"console.log('[UAT] === 開始提取 ARPT ===');",
+									"",
+									"// 方式 1: 從 Response Headers",
+									"var headers = pm.response.headers;",
+									"if (headers && typeof headers.all === 'function') {",
+									"    var allHeaders = headers.all();",
+									"    for (var i = 0; i < allHeaders.length; i++) {",
+									"        var h = allHeaders[i];",
+									"        var hKey = h.key || h.name || '';",
+									"        var hVal = h.value || '';",
+									"        if (hKey.toLowerCase() === 'set-cookie' && hVal.indexOf('ARPT=') !== -1) {",
+									"            var m = hVal.match(/ARPT=([^;]+)/);",
+									"            if (m && m[1]) {",
+									"                arptValue = m[1];",
+									"                console.log('[UAT] 從 Response Headers 找到 ARPT:', arptValue);",
+									"            }",
+									"        }",
+									"    }",
+									"}",
+									"",
+									"// 方式 2: 從 Cookie Jar",
+									"var cookieJar = pm.cookies.jar();",
+									"cookieJar.getAll(htgUrl, function(err, cookies) {",
+									"    if (!err && cookies && cookies.length > 0) {",
+									"        for (var j = 0; j < cookies.length; j++) {",
+									"            var c = cookies[j];",
+									"            var cName = (c.name || c.key || '').toUpperCase();",
+									"            if (cName === 'ARPT') {",
+									"                if (!arptValue) {",
+									"                    arptValue = c.value;",
+									"                    pm.globals.set('uat-htg-arpt', 'ARPT=' + arptValue);",
+									"                    console.log('[UAT] 從 Cookie Jar 找到 ARPT:', arptValue);",
+									"                }",
+									"            }",
+									"        }",
+									"    }",
+									"});",
+									"",
+									"// 方式 3: 從 Request Cookie header",
+									"if (!arptValue) {",
+									"    var reqCookie = pm.request.headers.get('Cookie');",
+									"    if (reqCookie) {",
+									"        var m2 = reqCookie.match(/ARPT=([^;]+)/);",
+									"        if (m2 && m2[1]) {",
+									"            arptValue = m2[1];",
+									"            console.log('[UAT] 從 Request Cookie 找到 ARPT:', arptValue);",
+									"        }",
+									"    }",
+									"}",
+									"",
+									"console.log('[UAT] === 結束提取 ARPT ===');",
+									"",
+									"if (arptValue) {",
+									"    pm.globals.set('uat-htg-arpt', 'ARPT=' + arptValue);",
+									"    console.log('[UAT] ARPT 已儲存');",
+									"} else {",
+									"    console.log('[UAT] 未找到 ARPT - 請先執行「取得 ARPT (UAT)」請求');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/xml",
+								"type": "default"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<hostgateway>\n    <header>\n        <action type=\"P8EstablishSession\"/>\n    </header>\n    <body>\n        <data id=\"userId\" value=\"{{HTG_LDAP_USER}}\"/>\n        <data id=\"passWord\" value=\"{{HTG_LDAP_PASSWORD}}\"/>\n        <data id=\"branchNo\" value=\"{{HTG_UAT_BRANCH_NO}}\"/>\n        <data id=\"racfId\" value=\"{{HTG_UAT_RACF_ID}}\"/>\n        <data id=\"racfPassWord\" value=\"{{HTG_UAT_RACF_PASSWORD}}\"/>\n        <data id=\"signOnLU0\" value=\"no0\"/>\n        <data id=\"applicationId\" value=\"{{HTG_APP_ID}}\"/>\n    </body>\n</hostgateway>",
+							"options": {
+								"raw": {
+									"language": "xml"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{HTG_UAT_ENDPOINT}}",
+							"host": [
+								"{{HTG_UAT_ENDPOINT}}"
+							]
+						},
+						"description": "手動登入 HTG UAT"
+					},
+					"response": []
+				}
+			],
+			"description": "HTG 手動登入（一般不需要使用）"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// ╔════════════════════════════════════════════════════════════════════════╗",
+					"// ║              自動取得 Token & Session 腳本 (全自動版)                   ║",
+					"// ║                   版本號：2026-01-05 v8 (Cookie Jar Fallback)          ║",
+					"// ║                   支援 Postman 10.x                                    ║",
+					"// ╚════════════════════════════════════════════════════════════════════════╝",
+					"",
+					"// ┌────────────────────────────────────────────────────────────────────────┐",
+					"// │ 1. 配置驗證 - 檢查必要變數                                             │",
+					"// └────────────────────────────────────────────────────────────────────────┘",
+					"",
+					"var REQUIRED_VARS = [",
+					"    { key: 'HTG_LDAP_USER', desc: 'LDAP 使用者 ID' },",
+					"    { key: 'HTG_LDAP_PASSWORD', desc: 'LDAP 密碼' },",
+					"    { key: 'HTG_APP_ID', desc: '應用程式 ID' },",
+					"    { key: 'HTG_SIT_ENDPOINT', desc: 'SIT HTG 端點' },",
+					"    { key: 'HTG_SIT_RACF_ID', desc: 'SIT RACF ID' },",
+					"    { key: 'HTG_SIT_RACF_PASSWORD', desc: 'SIT RACF 密碼' },",
+					"    { key: 'HTG_SIT_BRANCH_NO', desc: 'SIT 分行代碼' },",
+					"    { key: 'HTG_UAT_ENDPOINT', desc: 'UAT HTG 端點' },",
+					"    { key: 'HTG_UAT_RACF_ID', desc: 'UAT RACF ID' },",
+					"    { key: 'HTG_UAT_RACF_PASSWORD', desc: 'UAT RACF 密碼' },",
+					"    { key: 'HTG_UAT_BRANCH_NO', desc: 'UAT 分行代碼' },",
+					"    { key: 'TOKEN_ENDPOINT', desc: 'JWT Token 端點' },",
+					"    { key: 'TOKEN_EXPIRY_HOURS', desc: 'Token 有效時間(小時)' },",
+					"    { key: 'SESSION_EXPIRY_HOURS', desc: 'Session 有效時間(小時)' }",
+					"];",
+					"",
+					"var missingVars = [];",
+					"for (var i = 0; i < REQUIRED_VARS.length; i++) {",
+					"    var value = pm.collectionVariables.get(REQUIRED_VARS[i].key);",
+					"    if (!value || value.trim() === '') {",
+					"        missingVars.push(REQUIRED_VARS[i]);",
+					"    }",
+					"}",
+					"",
+					"if (missingVars.length > 0) {",
+					"    console.error('╔════════════════════════════════════════════════════════════════════════╗');",
+					"    console.error('║  配置錯誤：缺少必要的 Collection Variables                          ║');",
+					"    console.error('╚════════════════════════════════════════════════════════════════════════╝');",
+					"    for (var j = 0; j < missingVars.length; j++) {",
+					"        console.error('  ' + missingVars[j].key + ' - ' + missingVars[j].desc);",
+					"    }",
+					"    throw new Error('缺少 ' + missingVars.length + ' 個必要變數');",
+					"}",
+					"",
+					"// ┌────────────────────────────────────────────────────────────────────────┐",
+					"// │ 2. 讀取配置                                                            │",
+					"// └────────────────────────────────────────────────────────────────────────┘",
+					"",
+					"var CONFIG = {",
+					"    ldap: {",
+					"        user: pm.collectionVariables.get('HTG_LDAP_USER'),",
+					"        password: pm.collectionVariables.get('HTG_LDAP_PASSWORD')",
+					"    },",
+					"    appId: pm.collectionVariables.get('HTG_APP_ID'),",
+					"    sit: {",
+					"        endpoint: pm.collectionVariables.get('HTG_SIT_ENDPOINT'),",
+					"        racfId: pm.collectionVariables.get('HTG_SIT_RACF_ID'),",
+					"        racfPassword: pm.collectionVariables.get('HTG_SIT_RACF_PASSWORD'),",
+					"        branchNo: pm.collectionVariables.get('HTG_SIT_BRANCH_NO')",
+					"    },",
+					"    uat: {",
+					"        endpoint: pm.collectionVariables.get('HTG_UAT_ENDPOINT'),",
+					"        racfId: pm.collectionVariables.get('HTG_UAT_RACF_ID'),",
+					"        racfPassword: pm.collectionVariables.get('HTG_UAT_RACF_PASSWORD'),",
+					"        branchNo: pm.collectionVariables.get('HTG_UAT_BRANCH_NO')",
+					"    },",
+					"    token: {",
+					"        endpoint: pm.collectionVariables.get('TOKEN_ENDPOINT'),",
+					"        expiryHours: parseInt(pm.collectionVariables.get('TOKEN_EXPIRY_HOURS'))",
+					"    },",
+					"    session: {",
+					"        expiryHours: parseInt(pm.collectionVariables.get('SESSION_EXPIRY_HOURS'))",
+					"    }",
+					"};",
+					"",
+					"console.log('[Config] 所有變數已載入');",
+					"",
+					"// ┌────────────────────────────────────────────────────────────────────────┐",
+					"// │ 3. 工具函數                                                            │",
+					"// └────────────────────────────────────────────────────────────────────────┘",
+					"",
+					"function generateTraceId() {",
+					"    var result = '';",
+					"    for (var i = 0; i < 16; i++) {",
+					"        result += (Math.floor(Math.random() * 256) & 0xff).toString(16).padStart(2, '0');",
+					"    }",
+					"    return result;",
+					"}",
+					"",
+					"function generateSpanId() {",
+					"    var result = '';",
+					"    for (var i = 0; i < 8; i++) {",
+					"        result += (Math.floor(Math.random() * 256) & 0xff).toString(16).padStart(2, '0');",
+					"    }",
+					"    return result;",
+					"}",
+					"",
+					"function generateTimestamp() {",
+					"    var now = new Date();",
+					"    var offset = -now.getTimezoneOffset();",
+					"    var sign = offset >= 0 ? '+' : '-';",
+					"    var h = String(Math.floor(Math.abs(offset) / 60)).padStart(2, '0');",
+					"    var m = String(Math.abs(offset) % 60).padStart(2, '0');",
+					"    return now.getFullYear() + '-' +",
+					"        String(now.getMonth() + 1).padStart(2, '0') + '-' +",
+					"        String(now.getDate()).padStart(2, '0') + 'T' +",
+					"        String(now.getHours()).padStart(2, '0') + ':' +",
+					"        String(now.getMinutes()).padStart(2, '0') + ':' +",
+					"        String(now.getSeconds()).padStart(2, '0') + '.' +",
+					"        String(now.getMilliseconds()).padStart(3, '0') + sign + h + ':' + m;",
+					"}",
+					"",
+					"function isExpired(lastTime, expiryHours) {",
+					"    return !lastTime || (Date.now() - lastTime) > (expiryHours * 60 * 60 * 1000);",
+					"}",
+					"",
+					"function buildHtgLoginXml(env) {",
+					"    var cfg = CONFIG[env];",
+					"    return '<?xml version=\"1.0\" encoding=\"UTF-8\"?>' +",
+					"        '<hostgateway>' +",
+					"        '<header><action type=\"P8EstablishSession\"/></header>' +",
+					"        '<body>' +",
+					"        '<data id=\"userId\" value=\"' + CONFIG.ldap.user + '\"/>' +",
+					"        '<data id=\"passWord\" value=\"' + CONFIG.ldap.password + '\"/>' +",
+					"        '<data id=\"branchNo\" value=\"' + cfg.branchNo + '\"/>' +",
+					"        '<data id=\"racfId\" value=\"' + cfg.racfId + '\"/>' +",
+					"        '<data id=\"racfPassWord\" value=\"' + cfg.racfPassword + '\"/>' +",
+					"        '<data id=\"signOnLU0\" value=\"no0\"/>' +",
+					"        '<data id=\"applicationId\" value=\"' + CONFIG.appId + '\"/>' +",
+					"        '</body>' +",
+					"        '</hostgateway>';",
+					"}",
+					"",
+					"// ========== v7: 通用 ARPT 提取函數 (完整 debug 版) ==========",
+					"function extractArptFromHeaders(headers, label) {",
+					"    var arptValue = null;",
+					"    ",
+					"    if (!headers) {",
+					"        console.log('[' + label + '] headers 為空');",
+					"        return null;",
+					"    }",
+					"    ",
+					"    // 方式 1: headers.all()",
+					"    if (typeof headers.all === 'function') {",
+					"        var allHeaders = headers.all();",
+					"        console.log('[' + label + '] Response 共有 ' + allHeaders.length + ' 個 headers');",
+					"        for (var i = 0; i < allHeaders.length; i++) {",
+					"            var h = allHeaders[i];",
+					"            var hKey = (h.key || h.name || '').toLowerCase();",
+					"            var hVal = h.value || '';",
+					"            // 顯示所有 Set-Cookie headers",
+					"            if (hKey === 'set-cookie') {",
+					"                console.log('[' + label + '] Set-Cookie: ' + hVal.substring(0, 100));",
+					"            }",
+					"            if (hKey === 'set-cookie' && hVal.indexOf('ARPT=') !== -1) {",
+					"                var m = hVal.match(/ARPT=([^;]+)/);",
+					"                if (m && m[1]) {",
+					"                    arptValue = m[1];",
+					"                    console.log('[' + label + '] 從 headers.all() 找到 ARPT: ' + arptValue);",
+					"                }",
+					"            }",
+					"        }",
+					"    }",
+					"    ",
+					"    // 方式 2: headers.members",
+					"    if (!arptValue && headers.members && Array.isArray(headers.members)) {",
+					"        console.log('[' + label + '] headers.members 有 ' + headers.members.length + ' 個');",
+					"        for (var j = 0; j < headers.members.length; j++) {",
+					"            var m2 = headers.members[j];",
+					"            var mKey = (m2.key || m2.name || '').toLowerCase();",
+					"            var mVal = m2.value || '';",
+					"            if (mKey === 'set-cookie') {",
+					"                console.log('[' + label + '] Set-Cookie (members): ' + mVal.substring(0, 100));",
+					"            }",
+					"            if (mKey === 'set-cookie' && mVal.indexOf('ARPT=') !== -1) {",
+					"                var match = mVal.match(/ARPT=([^;]+)/);",
+					"                if (match && match[1]) {",
+					"                    arptValue = match[1];",
+					"                    console.log('[' + label + '] 從 headers.members 找到 ARPT: ' + arptValue);",
+					"                }",
+					"            }",
+					"        }",
+					"    }",
+					"    ",
+					"    // 方式 3: headers.get('Set-Cookie') - 只能取第一個",
+					"    if (!arptValue && typeof headers.get === 'function') {",
+					"        var setCookie = headers.get('Set-Cookie');",
+					"        if (setCookie) {",
+					"            console.log('[' + label + '] headers.get Set-Cookie: ' + setCookie.substring(0, 100));",
+					"            if (setCookie.indexOf('ARPT=') !== -1) {",
+					"                var m3 = setCookie.match(/ARPT=([^;]+)/);",
+					"                if (m3 && m3[1]) {",
+					"                    arptValue = m3[1];",
+					"                    console.log('[' + label + '] 從 headers.get() 找到 ARPT: ' + arptValue);",
+					"                }",
+					"            }",
+					"        }",
+					"    }",
+					"    ",
+					"    return arptValue;",
+					"}",
+					"",
+					"// ========== v8: handleHtgResponse (Headers + Cookie Jar 雙重檢查) ==========",
+					"function handleHtgResponse(res, env) {",
+					"    var body = res.text();",
+					"    var prefix = env === 'uat' ? 'uat' : 'sit';",
+					"    var label = env.toUpperCase();",
+					"    var htgDomain = env === 'uat' ? '192.168.38.139' : '192.168.38.136';",
+					"    var htgUrl = 'http://' + htgDomain + '/WS_HG/HgXmlRequestHandler';",
+					"    ",
+					"    console.log('[' + label + '] ========== HTG Response ==========');",
+					"    ",
+					"    // 解析 sessionId",
+					"    var sessionMatch = body.match(/<data id=\"sessionId\" value=\"([^\"]+)\"\\/>/);",
+					"    if (sessionMatch && sessionMatch[1]) {",
+					"        pm.globals.set(prefix + '-htg-session-id', sessionMatch[1]);",
+					"        pm.globals.set('lastSessionTime', Date.now());",
+					"        console.log('[' + label + '] Session: ' + sessionMatch[1]);",
+					"    } else {",
+					"        console.log('[' + label + '] Session 解析失敗');",
+					"        console.log('[' + label + '] Response: ' + body.substring(0, 300));",
+					"    }",
+					"    ",
+					"    // 方式 1: 從 Response Headers 提取 ARPT",
+					"    console.log('[' + label + '] 檢查 Response Headers...');",
+					"    var arptValue = extractArptFromHeaders(res.headers, label);",
+					"    ",
+					"    if (arptValue) {",
+					"        pm.globals.set(prefix + '-htg-arpt', 'ARPT=' + arptValue);",
+					"        console.log('[' + label + '] ARPT 已從 Headers 儲存: ARPT=' + arptValue);",
+					"    } else {",
+					"        // 方式 2: 從 Cookie Jar 讀取 (pm.sendRequest 可能自動存了)",
+					"        console.log('[' + label + '] Headers 沒有 ARPT，嘗試從 Cookie Jar 讀取...');",
+					"        try {",
+					"            var cookieJar = pm.cookies.jar();",
+					"            cookieJar.getAll(htgUrl, function(err, cookies) {",
+					"                if (err) {",
+					"                    console.log('[' + label + '] Cookie Jar 錯誤:', err);",
+					"                    return;",
+					"                }",
+					"                if (cookies && cookies.length > 0) {",
+					"                    console.log('[' + label + '] Cookie Jar 有 ' + cookies.length + ' 個 cookies');",
+					"                    for (var i = 0; i < cookies.length; i++) {",
+					"                        var c = cookies[i];",
+					"                        var cName = (c.name || c.key || '').toUpperCase();",
+					"                        var cValue = c.value || '';",
+					"                        console.log('[' + label + '] Cookie: ' + cName + '=' + cValue.substring(0, 30));",
+					"                        if (cName === 'ARPT' && cValue) {",
+					"                            pm.globals.set(prefix + '-htg-arpt', 'ARPT=' + cValue);",
+					"                            console.log('[' + label + '] ARPT 已從 Cookie Jar 儲存: ARPT=' + cValue);",
+					"                        }",
+					"                    }",
+					"                } else {",
+					"                    console.log('[' + label + '] Cookie Jar 是空的');",
+					"                    // 檢查是否已有 ARPT",
+					"                    var existingArpt = pm.globals.get(prefix + '-htg-arpt');",
+					"                    if (existingArpt) {",
+					"                        console.log('[' + label + '] ℹ使用現有 ARPT: ' + existingArpt);",
+					"                    } else {",
+					"                        console.log('[' + label + '] 未找到 ARPT');",
+					"                        console.log('[' + label + '] 請手動執行一次「HTG-登入-' + label + '」或「取得 ARPT」請求');",
+					"                    }",
+					"                }",
+					"            });",
+					"        } catch (e) {",
+					"            console.log('[' + label + '] Cookie Jar 存取失敗:', e);",
+					"        }",
+					"    }",
+					"    ",
+					"    console.log('[' + label + '] ====================================');",
+					"}",
+					"",
+					"// ┌────────────────────────────────────────────────────────────────────────┐",
+					"// │ 4. 自動產生 Traceparent & Timestamp                                    │",
+					"// └────────────────────────────────────────────────────────────────────────┘",
+					"",
+					"pm.globals.set('traceparent', '00-' + generateTraceId() + '-' + generateSpanId() + '-01');",
+					"pm.globals.set('x-timestamp', generateTimestamp());",
+					"",
+					"// ┌────────────────────────────────────────────────────────────────────────┐",
+					"// │ 5. 自動取得 JWT Token (v7: 同時提取 ARPT)                               │",
+					"// └────────────────────────────────────────────────────────────────────────┘",
+					"",
+					"(function() {",
+					"    if (isExpired(pm.globals.get('lastTokenTime'), CONFIG.token.expiryHours)) {",
+					"        console.log('[Token] ⏳ 過期或不存在，正在取得...');",
+					"        pm.sendRequest(CONFIG.token.endpoint, function(err, res) {",
+					"            if (err) { console.log('[Token] 錯誤:', err); return; }",
+					"            try {",
+					"                pm.globals.set('x-authorization-ap', 'Bearer ' + res.json().access_token);",
+					"                pm.globals.set('lastTokenTime', Date.now());",
+					"                console.log('[Token] 已更新');",
+					"                ",
+					"                // ========== v7: 從 Token Response 提取 ARPT (使用通用函數) ==========",
+					"                console.log('[Token] ========== Token Response ==========');",
+					"                console.log('[Token] 檢查 Response Headers 是否有 ARPT...');",
+					"                var tokenArpt = extractArptFromHeaders(res.headers, 'Token');",
+					"                if (tokenArpt) {",
+					"                    // Token endpoint 是通用的，同時存到 SIT 和 UAT",
+					"                    pm.globals.set('sit-htg-arpt', 'ARPT=' + tokenArpt);",
+					"                    pm.globals.set('uat-htg-arpt', 'ARPT=' + tokenArpt);",
+					"                    console.log('[Token] ARPT 已儲存到 SIT 和 UAT: ARPT=' + tokenArpt);",
+					"                } else {",
+					"                    console.log('[Token] ℹToken Response 沒有 ARPT (這是正常的，ARPT 可能來自 HTG)');",
+					"                }",
+					"                console.log('[Token] ====================================')",
+					"            } catch (e) { console.log('[Token] 解析失敗:', e); }",
+					"        });",
+					"    } else {",
+					"        console.log('[Token] 有效');",
+					"    }",
+					"})();",
+					"",
+					"// ┌────────────────────────────────────────────────────────────────────────┐",
+					"// │ 6. 自動取得 HTG Session (SIT + UAT)                                    │",
+					"// └────────────────────────────────────────────────────────────────────────┘",
+					"",
+					"(function() {",
+					"    if (isExpired(pm.globals.get('lastSessionTime'), CONFIG.session.expiryHours)) {",
+					"        console.log('[Session] ⏳ 過期或不存在，正在取得...');",
+					"        ",
+					"        // 讀取現有 ARPT (如果有的話)",
+					"        var sitArpt = pm.globals.get('sit-htg-arpt') || '';",
+					"        var uatArpt = pm.globals.get('uat-htg-arpt') || '';",
+					"        ",
+					"        // SIT 登入",
+					"        pm.sendRequest({",
+					"            url: CONFIG.sit.endpoint,",
+					"            method: 'POST',",
+					"            header: {",
+					"                'Content-Type': 'application/xml',",
+					"                'Cookie': sitArpt",
+					"            },",
+					"            body: { mode: 'raw', raw: buildHtgLoginXml('sit') }",
+					"        }, function(err, res) {",
+					"            if (err) { console.log('[SIT] 錯誤:', err); return; }",
+					"            handleHtgResponse(res, 'sit');",
+					"        });",
+					"        ",
+					"        // UAT 登入",
+					"        pm.sendRequest({",
+					"            url: CONFIG.uat.endpoint,",
+					"            method: 'POST',",
+					"            header: {",
+					"                'Content-Type': 'application/xml',",
+					"                'Cookie': uatArpt",
+					"            },",
+					"            body: { mode: 'raw', raw: buildHtgLoginXml('uat') }",
+					"        }, function(err, res) {",
+					"            if (err) { console.log('[UAT] 錯誤:', err); return; }",
+					"            handleHtgResponse(res, 'uat');",
+					"        });",
+					"    } else {",
+					"        console.log('[Session] 有效');",
+					"    }",
+					"})();",
+					"",
+					"console.log('────────────────────────────────────────────────────────────────');"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "VERSION",
+			"value": "2026-01-05",
+			"type": "string"
+		},
+		{
+			"key": "HTG_LDAP_USER",
+			"value": "Z00038488",
+			"type": "string"
+		},
+		{
+			"key": "HTG_LDAP_PASSWORD",
+			"value": "2s3d$F%G",
+			"type": "string"
+		},
+		{
+			"key": "HTG_APP_ID",
+			"value": "NVNSC",
+			"type": "string"
+		},
+		{
+			"key": "HTG_SIT_ENDPOINT",
+			"value": "http://192.168.38.136:80/WS_HG/HgXmlRequestHandler",
+			"type": "string"
+		},
+		{
+			"key": "HTG_SIT_RACF_ID",
+			"value": "Z38489",
+			"type": "string"
+		},
+		{
+			"key": "HTG_SIT_RACF_PASSWORD",
+			"value": "4rfv6yhn",
+			"type": "string"
+		},
+		{
+			"key": "HTG_SIT_BRANCH_NO",
+			"value": "0901",
+			"type": "string"
+		},
+		{
+			"key": "HTG_UAT_ENDPOINT",
+			"value": "http://192.168.38.139:80/WS_HG/HgXmlRequestHandler",
+			"type": "string"
+		},
+		{
+			"key": "HTG_UAT_RACF_ID",
+			"value": "Z53622",
+			"type": "string"
+		},
+		{
+			"key": "HTG_UAT_RACF_PASSWORD",
+			"value": "6yhn7ujm",
+			"type": "string"
+		},
+		{
+			"key": "HTG_UAT_BRANCH_NO",
+			"value": "0901",
+			"type": "string"
+		},
+		{
+			"key": "TOKEN_ENDPOINT",
+			"value": "http://10.155.137.228:52346/fetchJWTToken",
+			"type": "string"
+		},
+		{
+			"key": "TOKEN_EXPIRY_HOURS",
+			"value": "3",
+			"type": "string"
+		},
+		{
+			"key": "SESSION_EXPIRY_HOURS",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "API_GATEWAY_BASE_URL",
+			"value": "https://iagw.sit.ctbcbank.com:8443",
+			"type": "string"
+		},
+		{
+			"key": "API_BASIC_AUTH_PASSWORD",
+			"value": "1qaz@WSX",
+			"type": "string",
+			"description": "Basic Auth 密碼 (所有帳號共用)"
+		},
+		{
+			"key": "API_CLIENT_SYSTEM",
+			"value": "NVBK-LON",
+			"type": "string"
+		},
+		{
+			"key": "AUTH_NVMP_BK_NVMP_BK",
+			"value": "ap.iagw.nvmp-bk.nvmp-bk",
+			"type": "string",
+			"description": "Consumer: NVMP-BK → Provider: NVMP-BK"
+		},
+		{
+			"key": "AUTH_NVNSC_NVMP_BK",
+			"value": "ap.iagw.nvnsc.nvmp-bk",
+			"type": "string",
+			"description": "Consumer: NVNSC → Provider: NVMP-BK"
+		},
+		{
+			"key": "AUTH_CBSI_NVMP_BK",
+			"value": "ap.iagw.cbsi.nvmp-bk",
+			"type": "string",
+			"description": "Consumer: CBSI → Provider: NVMP-BK"
+		},
+		{
+			"key": "AUTH_CSDP_NVMP_BK",
+			"value": "ap.iagw.csdp.nvmp-bk",
+			"type": "string",
+			"description": "Consumer: CSDP → Provider: NVMP-BK"
+		},
+		{
+			"key": "AUTH_CSSI_NVMP_BK",
+			"value": "ap.iagw.cssi.nvmp-bk",
+			"type": "string",
+			"description": "Consumer: CSSI → Provider: NVMP-BK"
+		},
+		{
+			"key": "AUTH_CTEC_NVMP_BK",
+			"value": "ap.iagw.ctec.nvmp-bk",
+			"type": "string",
+			"description": "Consumer: CTEC → Provider: NVMP-BK"
+		},
+		{
+			"key": "AUTH_PCMS_NVMP_BK",
+			"value": "ap.iagw.pcms.nvmp-bk",
+			"type": "string",
+			"description": "Consumer: PCMS → Provider: NVMP-BK"
+		},
+		{
+			"key": "AUTH_NVMP_BK_DAAS",
+			"value": "ap.iagw.nvmp-bk.daas",
+			"type": "string",
+			"description": "Consumer: NVMP-BK → Provider: DAAS"
+		},
+		{
+			"key": "AUTH_NVNSC_NVMP_BK_IBM",
+			"value": "ap.iagw.nvnsc.nvmp-bk.ibm",
+			"type": "string",
+			"description": "Consumer: NVNSC → Provider: NVMP-BK (IBM)"
+		}
+	]
+}
