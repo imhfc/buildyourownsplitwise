@@ -33,3 +33,7 @@ class CurrencyInfo(BaseModel):
     code: str
     name_zh: str
     name_en: str
+
+
+class ExchangeRateLastUpdated(BaseModel):
+    last_updated: datetime | None

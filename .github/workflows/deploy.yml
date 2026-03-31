@@ -28,12 +28,10 @@ jobs:
         run: |
           cat > .env <<EOF
           DB_PORT=${{ vars.DB_PORT }}
-          REDIS_PORT=${{ vars.REDIS_PORT }}
           BACKEND_PORT=${{ vars.BACKEND_PORT }}
           CADDY_HTTP_PORT=${{ vars.CADDY_HTTP_PORT }}
           CADDY_HTTPS_PORT=${{ vars.CADDY_HTTPS_PORT }}
           DATABASE_URL=${{ vars.DATABASE_URL }}
-          REDIS_URL=${{ vars.REDIS_URL }}
           SECRET_KEY=${{ vars.SECRET_KEY }}
           GOOGLE_CLIENT_IDS=${{ vars.GOOGLE_CLIENT_IDS }}
           ALLOWED_ORIGINS=${{ vars.ALLOWED_ORIGINS }}
@@ -85,7 +83,7 @@ jobs:
           $COMPOSE_CMD run --rm -T backend alembic upgrade head
           echo "✓ Migration complete"
 
-      # ── 4. 重啟服務 + Health check（只動 backend/caddy，db/redis 不碰）──
+      # ── 4. 重啟服務 + Health check（只動 backend/caddy，db 不碰）──
       - name: Deploy and health check
         id: deploy
         run: |

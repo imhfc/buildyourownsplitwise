@@ -12,24 +12,17 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
-
   backend:
     build: ./backend
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://splitewise:splitewise@db:5432/splitewise}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
       GOOGLE_CLIENT_IDS: ${GOOGLE_CLIENT_IDS:-}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}
     depends_on:
       - db
-      - redis
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
 
   caddy:

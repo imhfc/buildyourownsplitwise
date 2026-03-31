@@ -6,7 +6,7 @@
 # - 本檔案僅追蹤「當前正在做什麼」和「接下來要做什麼」
 
 last_updated: 2026-03-30
-last_update_detail: "導入 fine-tune-ai-agent 框架並完成 Python/Expo 適配"
+last_update_detail: "修復新增消費無聲失敗 bug（Alert.alert → inline error）、TypeScript 型別推斷、後端 NotFoundError 未捕捉"
 
 # 當前衝刺
 current_sprint: "AI 開發框架整合"
@@ -28,3 +28,25 @@ current_tasks:
   - task: "fine-tune-ai-agent 框架整合"
     status: "in_progress"
     detail: "rules/hooks/skills/memory-bank 已適配完成，待驗證"
+
+  - task: "審查其他 Modal 表單的 Alert.alert 問題"
+    status: "pending"
+    detail: |
+      本次修復確認 Alert.alert 在 Expo Web 上不可靠。
+      需審查所有含 API 呼叫的 Modal 表單元件（建立群組、邀請成員等），
+      套用 Inline Error Display Pattern（DEC-006）。
+
+bugs_fixed:
+  - id: BUG-001
+    date: 2026-03-30
+    symptom: "新增消費按儲存後什麼都沒發生"
+    root_causes:
+      - "Alert.alert 在 Expo Web 上不穩定，catch 區塊錯誤訊息無聲消失"
+      - "user 為 null（hydration 未完成）時 handleAddExpense silent return 無回饋"
+      - "splitMethod 型別推斷為 string，與 API payload 聯合型別不符"
+      - "後端 create_expense 未捕捉 NotFoundError 導致匯率查詢失敗時回傳 500"
+    fixes:
+      - "inline error state 取代 Alert.alert（DEC-006）"
+      - "splitMethod 改用明確型別 (typeof SPLIT_METHODS)[number]"
+      - "後端端點新增 NotFoundError 捕捉"
+      - "i18n 三語新增 unknown_error 字串"

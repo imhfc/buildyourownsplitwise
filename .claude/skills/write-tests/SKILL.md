@@ -40,11 +40,14 @@ description: 撰寫單元測試、執行測試、分析覆蓋率。Use this skil
 ## 執行流程
 
 ```
+Step 0: 讀取 .claude/rules/testing-standards.md（取得最新環境、指令、規則）
 Step 1: test-writer (Haiku) — 分析目標代碼，撰寫測試
 Step 2: test-runner (Haiku) — 執行測試，收集結果
 Step 3: test-fixer (Haiku) — 如有失敗，自動修復
 Step 4: coverage-analyzer (Haiku) — 分析覆蓋率，建議補充
 ```
+
+> **重要**：`.claude/rules/testing-standards.md` 為測試操作的唯一真相來源，每次觸發此 skill 必須先讀取。
 
 ## 後端測試規範
 
@@ -70,24 +73,21 @@ async def test_<功能>_error(client: AsyncClient, auth_headers: dict):
 ```
 
 ### 必遵守規則
-- 使用 `conftest.py` 中的 fixtures（async session、auth client）
+- 使用 `conftest.py` 中的 fixtures（`db`, `client`, `user_a`, `user_b`, `group_with_members`, `auth_header()`）
 - 每個端點至少正常路徑 + 一個錯誤案例
 - 金額計算用 `Decimal`，禁止 `float`
-- 測試 DB 使用 port 5433（docker-compose.test.yml）
+- 測試 DB 使用 Neon serverless（`TEST_DATABASE_URL` 定義在 `backend/.env`），不需要本機 Docker
 
 ### 執行測試
 ```bash
-# 啟動測試 DB（首次）
-docker compose -f docker-compose.test.yml up -d db-test
-
 # 執行所有測試
-cd backend && pytest tests/
+cd backend && .venv/bin/python -m pytest tests/
 
 # 執行特定測試
-cd backend && pytest tests/test_expenses.py -v
+cd backend && .venv/bin/python -m pytest tests/test_expenses.py -v
 
 # 查看覆蓋率
-cd backend && pytest tests/ --cov=app --cov-report=term-missing
+cd backend && .venv/bin/python -m pytest tests/ --cov=app --cov-report=term-missing
 ```
 
 ## 前端測試規範

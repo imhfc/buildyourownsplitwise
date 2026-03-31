@@ -35,6 +35,7 @@ backend/app/
 - 時間戳記一律 UTC，使用 `server_default=func.now()`
 - 所有操作使用 async/await + asyncpg
 - Schema 變更建立新 Alembic revision，禁止修改已存在的 migration
+- Service 層禁止在請求路徑中同步呼叫外部 API，外部資料（匯率等）必須透過背景排程預取存入 DB
 
 ## Mobile 規範
 
@@ -42,3 +43,4 @@ backend/app/
 - 按鈕使用 `<Button>` 的 variant，跟隨 bg-primary 色系
 - 數字輸入必須搭配 onChangeText 正規表達式過濾
 - 所有 API 呼叫需 try/catch 並顯示錯誤訊息
+- Modal 表單的 API 錯誤必須用 inline error state 顯示，禁止用 Alert.alert（Expo Web 上行為不穩定）

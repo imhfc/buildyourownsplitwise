@@ -36,7 +36,7 @@ async def create_expense(
 ):
     try:
         return await expense_service.create_expense(db, group_id, current_user.id, data)
-    except (ForbiddenError, ValidationError) as e:
+    except (ForbiddenError, NotFoundError, ValidationError) as e:
         _handle(e)
 
 

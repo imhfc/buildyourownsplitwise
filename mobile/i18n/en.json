@@ -37,6 +37,12 @@
   "ratio": "By Ratio",
   "exact": "Exact Amount",
   "shares": "By Shares",
+  "split_details": "Split Details",
+  "remaining": "Remaining",
+  "exceeded": "Exceeded",
+  "split_amounts_must_match": "Split amounts must equal the total amount",
+  "need_positive_shares": "At least one person must have shares greater than 0",
+  "total_shares_label": "Total Shares",
   "note": "Note",
 
   "settlements": "Settlements",
@@ -77,6 +83,7 @@
   "confirm": "Confirm",
   "loading": "Loading...",
   "error": "Error",
+  "unknown_error": "Unknown error",
 
   "or": "or",
   "sign_in_with_google": "Sign in with Google",

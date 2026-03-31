@@ -15,12 +15,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30  # 30 minutes
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7  # 7 days
 
-    # Redis
-    REDIS_URL: str = "redis://localhost:6379/0"
-
     # Exchange rate
     EXCHANGE_RATE_API_URL: str = "https://tw.rter.info/capi.php"
-    EXCHANGE_RATE_CACHE_TTL: int = 1800  # 30 minutes
 
     # Google OAuth (comma-separated list of accepted client IDs: web,ios,android)
     GOOGLE_CLIENT_IDS: str = ""

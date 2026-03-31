@@ -3,19 +3,20 @@
 ## 必遵守工作流程（每次都要做）
 
 1. **先讀再寫** — 修改任何檔案之前，務必先讀取該檔案的當前內容，禁止盲目覆蓋。
-2. **開發完必測試** — 每完成一個開發任務後，執行下列指令確保沒有東西壞掉：
+2. **開發完必審查** — 功能開發完成後，必須觸發 `/review-code` 進行代碼審查，確認無安全漏洞、架構違規、效能問題。
+3. **新功能必寫新測試** — 新端點或功能必須觸發 `/write-tests` 撰寫對應測試案例並執行，未附測試的功能不算完成。
+4. **既有功能必跑回歸測試** — 任何改動（含 bug 修復、重構）完成後，必須執行完整測試套件確認既有功能未被破壞：
    ```bash
    # 第一次或 DB container 未啟動時
    docker compose -f docker-compose.test.yml up -d db-test
-   # 跑測試（打真實 PostgreSQL，port 5433）
+   # 後端回歸測試（打真實 PostgreSQL，port 5433）
    cd backend && pytest tests/
    ```
    若需自訂 DB 位址：`TEST_DATABASE_URL=postgresql+asyncpg://... pytest tests/`
-3. **新功能 = 新測案** — 每次新增功能或端點，必須同時撰寫對應的測試案例，否則任務不算完成。
-4. **每次對話都要讀這份文件** — 此 CLAUDE.md 是專案開發標準的唯一真相來源。
-5. **Mobile 提交前必跑品質關卡** — 任何 mobile 相關改動提交前執行 `bash mobile/scripts/quality-gate.sh`，任一 FAIL 禁止提交。
-6. **Mobile 套件異動後必跑安裝後關卡** — 任何 `npm install` 後執行 `npx expo-doctor` + `quality-gate.sh`。
-7. **⚠️ 任何 bug 修復後，必須立即更新兩份文件，無例外** — 這是強制義務，不是選項。修 bug 但沒有更新文件 = 任務未完成。
+5. **每次對話都要讀這份文件** — 此 CLAUDE.md 是專案開發標準的唯一真相來源。
+6. **Mobile 提交前必跑品質關卡** — 任何 mobile 相關改動提交前執行 `bash mobile/scripts/quality-gate.sh`，任一 FAIL 禁止提交。
+7. **Mobile 套件異動後必跑安裝後關卡** — 任何 `npm install` 後執行 `npx expo-doctor` + `quality-gate.sh`。
+8. **任何 bug 修復後，必須立即更新兩份文件，無例外** — 這是強制義務，不是選項。修 bug 但沒有更新文件 = 任務未完成。
    - `QUALITY_SLA.md` §4 新增組態不變式、§5 新增版本歷史（**事件歷史的唯一真相來源**）
    - `mobile/scripts/quality-gate.sh` 新增對應的自動檢查腳本
    - **目的：讓同樣的 bug 永遠不會發生第二次。** 每一個 bug 都是一條新的防線。跳過這步就是在讓未來的自己重踩同一個坑。
@@ -32,7 +33,6 @@
 | ---------- | ----------------------------------- |
 | 後端       | FastAPI (Python 3.x)                |
 | 資料庫     | PostgreSQL 16 + SQLAlchemy (async)  |
-| 快取       | Redis 7                             |
 | 認證       | JWT (python-jose + passlib/bcrypt)  |
 | 資料遷移   | Alembic                             |
 | 測試       | pytest + pytest-asyncio             |
@@ -65,6 +65,12 @@ app/
 - 所有資料庫操作使用 `async/await` 搭配 `asyncpg`
 - 所有 API 端點應使用 `async def`
 - 外部 HTTP 請求使用 `httpx.AsyncClient`
+
+### 1.3 外部資料預取模式
+
+- Service 層禁止在 API 請求路徑中同步呼叫外部 API（匯率、第三方服務等）
+- 外部資料必須透過背景排程定期寫入 DB，Service 層只從 DB 讀取
+- 理由：外部 API 延遲不可控，同步呼叫會累積延遲導致前端 timeout
 
 ---
 
@@ -350,4 +356,7 @@ cd backend && pytest tests/
 | 直接在 JSX 中寫複雜邏輯 | 抽成獨立函式或自訂 hook |
 | 按鈕寫死顏色（如 `bg-blue-500`） | 一律使用 `<Button>` 的 `variant`，跟隨 `bg-primary` 色系 |
 | 用 `Alert.alert` 帶 buttons 做確認 | Expo Web 上 `Alert.alert` 的 buttons/onPress 不作用，必須用自定義 Modal 做確認對話框 |
+| `catch` 區塊用 `Alert.alert` 顯示 API 錯誤 | Expo Web 上 Alert 行為不穩定，錯誤訊息可能無聲消失；必須用 inline error state（`useState<string \| null>`）搭配 Modal 內 `<Text className="text-destructive">` 顯示，操作成功後清除 |
+| `useState("equal")` 期望聯合型別 | TypeScript 會將字串字面值推斷為 `string`，必須明確標注：`useState<'equal' \| 'exact' \| 'ratio' \| 'shares'>('equal')` 或用 `(typeof SPLIT_METHODS)[number]` 從常數陣列衍生型別 |
+| handler 函式在前置條件不滿足時 silent return | 若 user 為 null 或 hydration 未完成而直接 return，使用者看到的是「什麼都沒發生」；必須在 return 前 `setFormError(t("unknown_error"))` 或用 UI `disabled` 阻擋操作 |
 | `useNativeDriver: true` 硬編碼 | 使用 `Platform.OS !== "web"` 條件判斷，否則 web 環境會產生警告並 fallback 到 JS 動畫 |

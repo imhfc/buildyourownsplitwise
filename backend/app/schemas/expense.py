@@ -14,7 +14,7 @@ class ExpenseSplitInput(BaseModel):
 class ExpenseCreate(BaseModel):
     description: str
     total_amount: Decimal
-    currency: str = "TWD"
+    currency: str | None = None  # None = 使用群組預設幣別
     paid_by: uuid.UUID
     split_method: str = "equal"  # equal/ratio/exact/shares
     splits: list[ExpenseSplitInput] = []

@@ -37,6 +37,12 @@
   "ratio": "比率",
   "exact": "金額指定",
   "shares": "人数割り",
+  "split_details": "割り勘詳細",
+  "remaining": "残り",
+  "exceeded": "超過",
+  "split_amounts_must_match": "各金額の合計は消費金額と一致する必要があります",
+  "need_positive_shares": "少なくとも1人の割合は0より大きい必要があります",
+  "total_shares_label": "合計割合",
   "note": "メモ",
 
   "settlements": "精算",
@@ -77,6 +83,7 @@
   "or": "または",
   "sign_in_with_google": "Google でログイン",
   "google_sign_in_failed": "Google ログインに失敗しました",
+  "unknown_error": "不明なエラー",
 
   "friends": "友達",
   "activities": "アクティビティ",

@@ -37,13 +37,14 @@ decisions:
     status: active
 
   - id: DEC-004
-    date: 2026-03-28
-    context: "需要匯率轉換支援多幣別分帳"
+    date: 2026-03-31
+    context: "需要匯率轉換支援多幣別分帳，原方案依賴 Redis 快取但本機開發環境無 Redis，導致 TCP hang 累積逾時"
     decision: |
-      1. 匯率來源：台灣銀行 API
-      2. 使用 Redis 快取匯率資料
-      3. 快取過期策略：定時更新
-    rationale: "台銀匯率最符合台灣用戶需求，Redis 減少外部 API 呼叫頻率"
+      1. 匯率來源：台灣銀行 API (tw.rter.info)
+      2. 移除 Redis 依賴，改用背景排程每 30 分鐘抓匯率存 DB
+      3. Service 層只從 DB 讀取匯率，禁止在請求路徑中呼叫外部 API
+      4. 新增 /exchange-rates/last-updated 端點供前端顯示更新時間
+    rationale: "Redis 在本機開發環境不存在導致前端 timeout；外部 API 延遲不可控，背景排程 + DB 查詢保證毫秒級回應"
     status: active
 
   - id: DEC-005
@@ -54,4 +55,58 @@ decisions:
       2. 所有 rules/hooks/skills 從 Java/Gradle 改寫為 Python/Expo
       3. 透過 settings.json 註冊 hooks 自動觸發
     rationale: "框架提供結構化的 AI 開發輔助（代碼審查、測試撰寫、安全檢查），但原版為 Java 專案設計，需全面適配"
+    status: active
+
+  - id: DEC-006
+    date: 2026-03-30
+    context: |
+      前端 Modal 表單的 catch 區塊使用 Alert.alert 顯示 API 錯誤，
+      導致 Expo Web 上使用者完全看不到錯誤訊息，誤判功能壞掉。
+      curl 確認後端正常，問題在前端錯誤回饋機制。
+    decision: |
+      放棄 Alert.alert 作為 Modal 表單錯誤回饋機制，
+      統一改用 inline error state 搭配 Modal 內 Text 元件顯示：
+      1. 宣告 const [formError, setFormError] = useState<string | null>(null)
+      2. catch 區塊執行 setFormError(t("unknown_error"))
+      3. Modal 內渲染 {formError && <Text className="text-destructive">{formError}</Text>}
+      4. 操作成功或 Modal 關閉時 setFormError(null)
+    rationale: |
+      Alert.alert 在 Expo Web 上行為不穩定，不帶 buttons 時雖理論上等同
+      window.alert，但實際上錯誤訊息可能無聲消失。
+      Inline error 在操作情境中直接顯示，對 web 和 native 都穩定有效。
+    impact: "所有含 API 呼叫的 Modal 表單元件需同步審查並修改"
+    status: active
+
+  - id: DEC-007
+    date: 2026-03-31
+    context: |
+      原本的「開發完必測試」過於粗糙，無法區分代碼審查、撰寫新測試、回歸測試三種不同目的的品質保障手段。
+      使用者要求將開發完成後的品質流程拆分為明確的三個步驟。
+    decision: |
+      開發完成後的強制品質流程拆分為三步：
+      1. 觸發 /review-code 進行代碼審查（安全、架構、效能）
+      2. 新功能觸發 /write-tests 撰寫對應測試案例並執行
+      3. 所有改動（含 bug 修復、重構）必須跑完整回歸測試套件
+    rationale: |
+      審查、新測試、回歸測試各有不同目的：
+      - 審查：發現設計問題、安全漏洞
+      - 新測試：確保新功能有覆蓋
+      - 回歸測試：確保舊功能未被破壞
+      混在一起容易遺漏其中一環。
+    status: active
+
+  - id: DEC-008
+    date: 2026-03-31
+    context: |
+      前端群組頁面 AxiosError timeout（10s），根因是 settlement_service.calculate_balances
+      呼叫 exchange_rate_service.get_rate，後者嘗試連 Redis（本機無 Redis → TCP hang）
+      和 fallback 打台銀 API（httpx 10s timeout），累積延遲超過前端 timeout。
+    decision: |
+      1. 移除 Redis 依賴，exchange_rate_service 不再引用 redis module
+      2. get_rate() 只查 DB（direct → reverse → cross-rate via TWD）
+      3. 新增 background_refresh_loop() 背景排程，app startup 時啟動
+      4. 排程間隔 30 分鐘，首次啟動立即執行
+    rationale: |
+      Service 層在請求路徑中依賴外部基礎設施（Redis、外部 API）是反模式。
+      背景預取 + DB 查詢將匯率查詢延遲從秒級降到毫秒級。
     status: active

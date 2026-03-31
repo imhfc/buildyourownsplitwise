@@ -15,9 +15,6 @@ python-multipart==0.0.19
 # HTTP client (exchange rates)
 httpx==0.28.1
 
-# Redis
-redis==5.2.1
-
 # Image processing
 Pillow==11.1.0
 

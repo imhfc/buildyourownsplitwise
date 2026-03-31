@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { View, FlatList, RefreshControl, Modal, Pressable, KeyboardAvoidingView, Platform, Alert } from "react-native";
+import { View, FlatList, RefreshControl, Modal, Pressable, KeyboardAvoidingView, Platform, Alert, ScrollView } from "react-native";
 import { useLocalSearchParams, useFocusEffect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
@@ -9,7 +9,7 @@ import {
   Users,
   UserMinus,
 } from "lucide-react-native";
-import { expensesAPI, settlementsAPI, groupsAPI, authAPI } from "../../services/api";
+import { expensesAPI, settlementsAPI, groupsAPI, authAPI, ExpenseSplitInput } from "../../services/api";
 import { useAuthStore } from "../../stores/auth";
 import { Card, CardContent } from "~/components/ui/card";
 import { Text, H3, Muted } from "~/components/ui/text";
@@ -61,11 +61,14 @@ export default function GroupDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Add expense modal
+  const [groupCurrency, setGroupCurrency] = useState("TWD");
   const [showAdd, setShowAdd] = useState(false);
   const [desc, setDesc] = useState("");
   const [amount, setAmount] = useState("");
-  const [splitMethod, setSplitMethod] = useState("equal");
+  const [splitMethod, setSplitMethod] = useState<(typeof SPLIT_METHODS)[number]>("equal");
   const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState("");
+  const [splitInputs, setSplitInputs] = useState<Record<string, string>>({});
 
   // Add member modal
   const [showAddMember, setShowAddMember] = useState(false);
@@ -88,6 +91,9 @@ export default function GroupDetailScreen() {
       setExpenses(expRes.data);
       setSuggestions(sugRes.data);
       setMembers(groupRes.data.members ?? []);
+      if (groupRes.data.default_currency) {
+        setGroupCurrency(groupRes.data.default_currency);
+      }
     } catch (e) {
       console.error("Failed to fetch group data", e);
     }
@@ -105,23 +111,73 @@ export default function GroupDetailScreen() {
     setRefreshing(false);
   };
 
+  const initSplitInputs = (method: (typeof SPLIT_METHODS)[number]) => {
+    const defaults: Record<string, string> = {};
+    members.forEach((m) => {
+      defaults[m.user.id] = method === "shares" || method === "ratio" ? "1" : "";
+    });
+    setSplitInputs(defaults);
+  };
+
+  const canSubmitExpense = (() => {
+    if (!desc || !amount || Number(amount) <= 0) return false;
+    if (splitMethod === "exact") {
+      const sum = Object.values(splitInputs).reduce((acc, v) => acc + (Number(v) || 0), 0);
+      return Math.abs(sum - Number(amount)) < 0.01;
+    }
+    if (splitMethod === "ratio" || splitMethod === "shares") {
+      return Object.values(splitInputs).reduce((acc, v) => acc + (Number(v) || 0), 0) > 0;
+    }
+    return true;
+  })();
+
   const handleAddExpense = async () => {
+    setAddError("");
     if (!desc || !amount || Number(amount) <= 0 || !id || !user) return;
+
+    let splits: ExpenseSplitInput[] | undefined;
+
+    if (splitMethod === "exact") {
+      splits = members.map((m) => ({
+        user_id: m.user.id,
+        amount: Number(splitInputs[m.user.id]) || 0,
+      }));
+      const sum = splits.reduce((acc, s) => acc + (s.amount ?? 0), 0);
+      if (Math.abs(sum - Number(amount)) > 0.01) {
+        setAddError(t("split_amounts_must_match"));
+        return;
+      }
+    } else if (splitMethod === "ratio" || splitMethod === "shares") {
+      const totalShares = Object.values(splitInputs).reduce((acc, v) => acc + (Number(v) || 0), 0);
+      if (totalShares <= 0) {
+        setAddError(t("need_positive_shares"));
+        return;
+      }
+      splits = members.map((m) => ({
+        user_id: m.user.id,
+        shares: Number(splitInputs[m.user.id]) || 0,
+      }));
+    }
+
     setAdding(true);
     try {
       await expensesAPI.create(id, {
         description: desc,
         total_amount: parseFloat(amount),
+        currency: groupCurrency,
         paid_by: user.id,
         split_method: splitMethod,
+        splits,
       });
       setShowAdd(false);
       setDesc("");
       setAmount("");
+      setSplitMethod("equal");
+      setSplitInputs({});
       await fetchData();
     } catch (e: any) {
-      const msg = e.response?.data?.detail || e.message || "Unknown error";
-      Alert.alert(t("error"), msg);
+      const msg = e.response?.data?.detail || e.message || t("unknown_error");
+      setAddError(msg);
     } finally {
       setAdding(false);
     }
@@ -293,7 +349,7 @@ export default function GroupDetailScreen() {
               title={t("add_expense")}
               description={t("no_expenses_hint")}
               actionLabel={t("add_expense")}
-              onAction={() => setShowAdd(true)}
+              onAction={() => { setAddError(""); setSplitMethod("equal"); setSplitInputs({}); setShowAdd(true); }}
             />
           }
         />
@@ -333,7 +389,7 @@ export default function GroupDetailScreen() {
         />
       )}
 
-      {tab === "expenses" && <FAB onPress={() => setShowAdd(true)} />}
+      {tab === "expenses" && <FAB onPress={() => { setAddError(""); setSplitMethod("equal"); setSplitInputs({}); setShowAdd(true); }} />}
       {tab === "members" && (
         <FAB onPress={() => { setShowAddMember(true); setMemberEmail(""); setFoundUser(null); setLookupError(""); }} />
       )}
@@ -389,14 +445,88 @@ export default function GroupDetailScreen() {
                       label: t(m),
                     }))}
                     value={splitMethod}
-                    onValueChange={setSplitMethod}
+                    onValueChange={(v) => {
+                      const method = v as (typeof SPLIT_METHODS)[number];
+                      setSplitMethod(method);
+                      if (method !== "equal") {
+                        initSplitInputs(method);
+                      } else {
+                        setSplitInputs({});
+                      }
+                    }}
                   />
                 </View>
+
+                {splitMethod !== "equal" && members.length > 0 && (
+                  <View className="gap-3">
+                    <Text className="text-sm font-medium">{t("split_details")}</Text>
+                    <ScrollView style={{ maxHeight: 200 }} showsVerticalScrollIndicator={false}>
+                      {members.map((m) => (
+                        <View key={m.user.id} className="flex-row items-center gap-2 mb-2">
+                          <Text className="flex-1 text-sm" numberOfLines={1}>
+                            {m.user.display_name}
+                          </Text>
+                          <View className="w-28">
+                            <Input
+                              value={splitInputs[m.user.id] ?? ""}
+                              onChangeText={(text) => {
+                                if (text === "" || /^\d*\.?\d{0,2}$/.test(text)) {
+                                  setSplitInputs((prev) => ({ ...prev, [m.user.id]: text }));
+                                }
+                              }}
+                              keyboardType="decimal-pad"
+                              placeholder={splitMethod === "exact" ? "0.00" : "1"}
+                            />
+                          </View>
+                        </View>
+                      ))}
+                    </ScrollView>
+
+                    {splitMethod === "exact" && amount ? (
+                      (() => {
+                        const total = Number(amount);
+                        const sum = Object.values(splitInputs).reduce((acc, v) => acc + (Number(v) || 0), 0);
+                        const diff = total - sum;
+                        const isBalanced = Math.abs(diff) < 0.01;
+                        return (
+                          <Text className={`text-sm font-medium ${isBalanced ? "text-primary" : "text-destructive"}`}>
+                            {diff >= 0 ? t("remaining") : t("exceeded")}: {Math.abs(diff).toFixed(2)}
+                          </Text>
+                        );
+                      })()
+                    ) : (splitMethod === "ratio" || splitMethod === "shares") && amount ? (
+                      (() => {
+                        const total = Number(amount);
+                        const totalShares = Object.values(splitInputs).reduce((acc, v) => acc + (Number(v) || 0), 0);
+                        return (
+                          <View className="gap-1">
+                            <Text className="text-sm text-muted-foreground">
+                              {t("total_shares_label")}: {totalShares}
+                            </Text>
+                            {totalShares > 0 && members.map((m) => {
+                              const s = Number(splitInputs[m.user.id]) || 0;
+                              const est = (total * s / totalShares).toFixed(2);
+                              return (
+                                <Text key={m.user.id} className="text-xs text-muted-foreground">
+                                  {m.user.display_name}: {groupCurrency} {est}
+                                </Text>
+                              );
+                            })}
+                          </View>
+                        );
+                      })()
+                    ) : null}
+                  </View>
+                )}
+
+                {addError ? (
+                  <Text className="text-sm text-destructive">{addError}</Text>
+                ) : null}
 
                 <Button
                   onPress={handleAddExpense}
                   loading={adding}
-                  disabled={adding || !desc || !amount || Number(amount) <= 0}
+                  disabled={adding || !canSubmitExpense}
                   size="lg"
                   className="mt-2"
                 >

@@ -6,6 +6,7 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from app.core.database import Base, get_db
 from app.core.security import create_access_token, hash_password
@@ -17,15 +18,22 @@ from app.models.settlement import Settlement
 from app.models.friendship import Friendship  # noqa: F401
 
 # ---------------------------------------------------------------------------
-# 使用真實 PostgreSQL 進行測試
-# 執行前請先啟動測試 DB：docker compose up db-test -d
+# 使用真實 PostgreSQL 進行測試（Neon serverless 或本機 Docker）
+# Neon 需要 NullPool + statement_cache_size=0 以避免連線衝突
 # ---------------------------------------------------------------------------
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL",
     "postgresql+asyncpg://splitewise:splitewise@localhost:5433/splitewise_test",
 )
 
-engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+_is_neon = "neon.tech" in TEST_DATABASE_URL
+
+engine = create_async_engine(
+    TEST_DATABASE_URL,
+    echo=False,
+    poolclass=NullPool if _is_neon else None,
+    connect_args={"statement_cache_size": 0} if _is_neon else {},
+)
 TestSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
@@ -47,15 +55,24 @@ async def setup_database():
 
 @pytest_asyncio.fixture
 async def db(setup_database):
-    """Provide a transactional database session that rolls back after each test."""
-    async with engine.connect() as conn:
-        trans = await conn.begin()
-        session = AsyncSession(bind=conn, expire_on_commit=False)
-
+    """Provide a database session. Uses nested transaction on local DB, fresh session on Neon."""
+    if _is_neon:
+        # Neon serverless: 不支援 nested transaction，改用獨立 session + 測試後清資料
+        session = AsyncSession(bind=engine, expire_on_commit=False)
         yield session
-
         await session.close()
-        await trans.rollback()
+        # 清除所有測試資料（按 FK 順序）
+        async with engine.begin() as conn:
+            for table in reversed(Base.metadata.sorted_tables):
+                await conn.execute(table.delete())
+    else:
+        # 本機 Docker: nested transaction + rollback（零殘留）
+        async with engine.connect() as conn:
+            trans = await conn.begin()
+            session = AsyncSession(bind=conn, expire_on_commit=False)
+            yield session
+            await session.close()
+            await trans.rollback()
 
 
 @pytest_asyncio.fixture

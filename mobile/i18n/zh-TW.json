@@ -37,6 +37,12 @@
   "ratio": "按比例",
   "exact": "精確金額",
   "shares": "按份數",
+  "split_details": "分帳明細",
+  "remaining": "剩餘",
+  "exceeded": "超出",
+  "split_amounts_must_match": "各人金額總和必須等於消費金額",
+  "need_positive_shares": "至少一人的份數必須大於 0",
+  "total_shares_label": "總份數",
   "note": "備註",
 
   "settlements": "結算",
@@ -77,6 +83,7 @@
   "confirm": "確認",
   "loading": "載入中...",
   "error": "錯誤",
+  "unknown_error": "未知錯誤",
 
   "or": "或",
   "sign_in_with_google": "使用 Google 登入",

@@ -103,6 +103,7 @@ pytest backend/tests/                  # SLA-5：後端測試
 | C-7 | `package.json` 的 `expo-crypto` 版本**禁止使用 canary**（不能含 `-canary-`） | SLA-2 | 2026-03-28 expo-crypto canary 造成 Metro InternalError |
 | C-8 | `stores/auth.ts` 禁止在 `persist()` 選項內使用 `onRehydrateStorage`（Zustand 5 同步 toThenable 導致 callback 在 create() 完成前執行，此時 `useAuthStore` 為 undefined，setState 靜默失敗） | SLA-2 | 2026-03-28 hasHydrated 永遠為 false → App 轉圈圈 |
 | C-9 | `app/_layout.tsx` redirect 邏輯必須涵蓋已登入用戶不在任何路由群組的情境（需包含 `inTabsGroup` 與 `inGroupPage` 判斷，避免從 root index 卡住，也避免在 `group/[id]` 時錯誤導回 tabs） | SLA-2 | 2026-03-28 isAuthenticated=true 在 root index 時兩個條件都不成立 → 永遠不跳轉 |
+| C-10 | `app/group/[id].tsx` 的 Modal 表單 API 錯誤必須用 inline error state 顯示（必須有 `setAddError`），禁止用 `Alert.alert` 顯示 API 錯誤 | SLA-3 | 2026-03-30 新增消費失敗時錯誤訊息無聲消失 |
 
 ---
 
@@ -116,3 +117,4 @@ pytest backend/tests/                  # SLA-5：後端測試
 | 2026-03-28 | P1 | Dark mode Runtime Error | `tailwind.config.js` 缺少 `darkMode: "class"` | C-1 |
 | 2026-03-28 | P0 | App 一直轉圈圈（index.tsx ActivityIndicator 卡住） | `expo-crypto` canary 版本（`55.0.11-canary-...`）造成 npm 在 `expo-auth-session/node_modules/` 產生不完整的巢狀依賴，Metro resolver 嘗試開啟 `expo-auth-session/node_modules/expo-constants/package.json` 但找不到，拋出 InternalError → bundle 編譯失敗 → Zustand persist `onRehydrateStorage` 未執行 → `hasHydrated` 永遠為 `false` → redirect 永不觸發 | C-7 |
 | 2026-03-28 | P0 | App 加入 Google 登入後一直轉圈圈（無 JS Error，spinner 在 index.tsx） | **雙重根因**：(1) Zustand 5 的 `toThenable` 對 localStorage 同步執行，`onRehydrateStorage` callback 在 `create()` 完成前就被呼叫，此時 `useAuthStore` 還是 `undefined`，`setState` 靜默失敗 → `hasHydrated` 永遠 `false`；(2) `_layout.tsx` redirect 邏輯僅處理兩種情境，未處理「已登入但在 root index（非 tabs 也非 auth）」→ 兩個 if 都不成立，永遠卡在 spinner | C-8, C-9 |
+| 2026-03-30 | P1 | 無法新增消費（按「儲存」後無任何反應） | **雙重根因**：(1) 前端 `handleAddExpense` catch 區塊用 `Alert.alert` 顯示錯誤，Expo Web 上行為不穩定，錯誤訊息無聲消失；(2) 後端 `create_expense` 端點只捕捉 `ForbiddenError` 和 `ValidationError`，未捕捉 `NotFoundError`（匯率查詢失敗時），導致 500 Internal Server Error | C-10 |

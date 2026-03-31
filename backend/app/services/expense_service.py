@@ -73,8 +73,11 @@ async def create_expense(
     group = group_result.scalar_one()
     base_currency = group.default_currency
 
-    if data.currency.upper() != base_currency.upper():
-        rate, _ = await get_rate(db, data.currency, base_currency)
+    # currency 未指定時，fallback 到群組預設幣別
+    expense_currency = (data.currency or base_currency).upper()
+
+    if expense_currency != base_currency.upper():
+        rate, _ = await get_rate(db, expense_currency, base_currency)
     else:
         rate = Decimal("1")
 
@@ -82,7 +85,7 @@ async def create_expense(
         group_id=group_id,
         description=data.description,
         total_amount=data.total_amount,
-        currency=data.currency,
+        currency=expense_currency,
         base_currency=base_currency,
         exchange_rate_to_base=rate,
         paid_by=data.paid_by,

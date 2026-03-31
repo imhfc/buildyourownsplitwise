@@ -1,22 +1,21 @@
-"""Exchange rate service — fetches rates from 台銀 API and caches in Redis."""
+"""Exchange rate service — fetches rates from 台銀 API, background refresh every 30 min."""
 
-import json
+import asyncio
 import logging
 from datetime import datetime, timezone
 from decimal import Decimal
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.exceptions import NotFoundError, ValidationError
-from app.core.redis import get_redis
 from app.models.exchange_rate import ExchangeRate
 
 logger = logging.getLogger(__name__)
 
-CACHE_KEY = "exchange_rates:latest"
+REFRESH_INTERVAL_SECONDS = 30 * 60  # 30 minutes
 
 # 台銀 API 可查到的幣別對照表（code → 中文名, 英文名）
 CURRENCY_MAP: dict[str, tuple[str, str]] = {
@@ -71,7 +70,7 @@ async def fetch_rates_from_api() -> dict[str, Decimal]:
 
 
 async def refresh_rates(db: AsyncSession) -> list[ExchangeRate]:
-    """Fetch latest rates from API, store in DB and Redis cache."""
+    """Fetch latest rates from API and store in DB."""
     raw_rates = await fetch_rates_from_api()
     now = datetime.now(timezone.utc)
     saved = []
@@ -91,29 +90,44 @@ async def refresh_rates(db: AsyncSession) -> list[ExchangeRate]:
         saved.append(exchange_rate)
 
     await db.flush()
-
-    # Cache in Redis
-    try:
-        redis = await get_redis()
-        cache_data = {
-            pair: str(rate) for pair, rate in raw_rates.items()
-        }
-        cache_data["_fetched_at"] = now.isoformat()
-        await redis.set(CACHE_KEY, json.dumps(cache_data), ex=settings.EXCHANGE_RATE_CACHE_TTL)
-    except Exception:
-        logger.warning("Failed to cache exchange rates in Redis, continuing without cache")
-
     return saved
+
+
+async def _get_single_rate(
+    db: AsyncSession, currency: str, target: str = "TWD"
+) -> tuple[Decimal, datetime] | None:
+    """Get rate for a single currency pair from DB (direct + reverse). Returns None if not found."""
+    result = await db.execute(
+        select(ExchangeRate)
+        .where(ExchangeRate.source_currency == currency, ExchangeRate.target_currency == target)
+        .order_by(ExchangeRate.fetched_at.desc())
+        .limit(1)
+    )
+    record = result.scalar_one_or_none()
+    if record:
+        return record.rate, record.fetched_at
+    # reverse
+    result = await db.execute(
+        select(ExchangeRate)
+        .where(ExchangeRate.source_currency == target, ExchangeRate.target_currency == currency)
+        .order_by(ExchangeRate.fetched_at.desc())
+        .limit(1)
+    )
+    record = result.scalar_one_or_none()
+    if record:
+        return round(Decimal("1") / record.rate, 8), record.fetched_at
+    return None
 
 
 async def get_rate(
     db: AsyncSession, source_currency: str, target_currency: str
 ) -> tuple[Decimal, datetime]:
     """
-    Get exchange rate between two currencies.
+    Get exchange rate between two currencies from DB only.
     Returns (rate, fetched_at).
 
-    Lookup order: Redis cache → DB → fetch from API.
+    Rates are pre-populated by the background refresh task.
+    Lookup order: direct pair → reverse pair → cross-rate via TWD.
     """
     source_currency = source_currency.upper()
     target_currency = target_currency.upper()
@@ -121,24 +135,7 @@ async def get_rate(
     if source_currency == target_currency:
         return Decimal("1"), datetime.now(timezone.utc)
 
-    # Try Redis cache first
-    pair_key = f"{source_currency}{target_currency}"
-    try:
-        redis = await get_redis()
-        cached = await redis.get(CACHE_KEY)
-        if cached:
-            data = json.loads(cached)
-            if pair_key in data:
-                return Decimal(data[pair_key]), datetime.fromisoformat(data["_fetched_at"])
-            # Try reverse pair
-            reverse_key = f"{target_currency}{source_currency}"
-            if reverse_key in data:
-                rate = Decimal("1") / Decimal(data[reverse_key])
-                return round(rate, 8), datetime.fromisoformat(data["_fetched_at"])
-    except Exception:
-        logger.warning("Redis cache miss or error, falling back to DB")
-
-    # Try DB — get latest rate
+    # Try direct pair
     result = await db.execute(
         select(ExchangeRate)
         .where(
@@ -152,7 +149,7 @@ async def get_rate(
     if record:
         return record.rate, record.fetched_at
 
-    # Try reverse
+    # Try reverse pair
     result = await db.execute(
         select(ExchangeRate)
         .where(
@@ -167,18 +164,21 @@ async def get_rate(
         rate = Decimal("1") / record.rate
         return round(rate, 8), record.fetched_at
 
-    # Fetch from API as last resort
-    try:
-        await refresh_rates(db)
-        return await get_rate_from_db(db, source_currency, target_currency)
-    except Exception as e:
-        raise NotFoundError(f"Exchange rate not found for {source_currency} → {target_currency}")
+    # Cross-rate via TWD: e.g. USD→THB = (USDTWD) / (THBTWD)
+    if source_currency != "TWD" and target_currency != "TWD":
+        src_to_twd = await _get_single_rate(db, source_currency, "TWD")
+        tgt_to_twd = await _get_single_rate(db, target_currency, "TWD")
+        if src_to_twd and tgt_to_twd:
+            rate = round(src_to_twd[0] / tgt_to_twd[0], 8)
+            return rate, max(src_to_twd[1], tgt_to_twd[1])
+
+    raise NotFoundError(f"Exchange rate not found for {source_currency} → {target_currency}")
 
 
 async def get_rate_from_db(
     db: AsyncSession, source_currency: str, target_currency: str
 ) -> tuple[Decimal, datetime]:
-    """Get the latest rate from DB only."""
+    """Get the latest rate from DB only (tries reverse pair too)."""
     result = await db.execute(
         select(ExchangeRate)
         .where(
@@ -189,9 +189,25 @@ async def get_rate_from_db(
         .limit(1)
     )
     record = result.scalar_one_or_none()
-    if not record:
-        raise NotFoundError(f"Exchange rate not found for {source_currency} → {target_currency}")
-    return record.rate, record.fetched_at
+    if record:
+        return record.rate, record.fetched_at
+
+    # Try reverse pair
+    result = await db.execute(
+        select(ExchangeRate)
+        .where(
+            ExchangeRate.source_currency == target_currency,
+            ExchangeRate.target_currency == source_currency,
+        )
+        .order_by(ExchangeRate.fetched_at.desc())
+        .limit(1)
+    )
+    record = result.scalar_one_or_none()
+    if record:
+        rate = Decimal("1") / record.rate
+        return round(rate, 8), record.fetched_at
+
+    raise NotFoundError(f"Exchange rate not found for {source_currency} → {target_currency}")
 
 
 async def convert_amount(
@@ -216,9 +232,6 @@ async def get_available_currencies() -> list[dict[str, str]]:
 
 async def get_all_latest_rates(db: AsyncSession) -> list[ExchangeRate]:
     """Get all latest exchange rates (one per currency pair)."""
-    # Use a subquery to get latest fetched_at per pair
-    from sqlalchemy import func
-
     subq = (
         select(
             ExchangeRate.source_currency,
@@ -240,3 +253,26 @@ async def get_all_latest_rates(db: AsyncSession) -> list[ExchangeRate]:
         .order_by(ExchangeRate.source_currency)
     )
     return list(result.scalars().all())
+
+
+async def get_last_updated(db: AsyncSession) -> datetime | None:
+    """Get the most recent fetched_at timestamp across all rates."""
+    result = await db.execute(
+        select(func.max(ExchangeRate.fetched_at))
+    )
+    return result.scalar_one_or_none()
+
+
+async def background_refresh_loop() -> None:
+    """Background task: refresh exchange rates every 30 minutes."""
+    from app.core.database import async_session
+
+    while True:
+        try:
+            async with async_session() as db:
+                await refresh_rates(db)
+                await db.commit()
+            logger.info("Exchange rates refreshed successfully")
+        except Exception:
+            logger.exception("Failed to refresh exchange rates")
+        await asyncio.sleep(REFRESH_INTERVAL_SECONDS)

@@ -82,6 +82,13 @@ else
   red   "C-9  _layout.tsx redirect 邏輯缺少 inTabsGroup 判斷（已登入用戶在 root index 時兩個 if 都不成立 → spinner 永遠不跳轉）"
 fi
 
+# ── C-10：group/[id].tsx Modal 表單 API 錯誤必須用 inline error state ──────────
+if grep -q 'setAddError' "$MOBILE_DIR/app/group/[id].tsx" 2>/dev/null; then
+  green "C-10 group/[id].tsx 使用 inline error state（setAddError）顯示 API 錯誤"
+else
+  red   "C-10 group/[id].tsx 缺少 setAddError（Modal 表單 API 錯誤必須用 inline error state 顯示，禁止用 Alert.alert）"
+fi
+
 # ── 結果 ──────────────────────────────────────────────────────────────────────
 echo ""
 echo "=== 結果：PASS=$PASS  FAIL=$FAIL ==="

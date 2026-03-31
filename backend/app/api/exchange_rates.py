@@ -5,7 +5,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.exceptions import NotFoundError
 from app.models.user import User
-from app.schemas.exchange_rate import CurrencyInfo, ExchangeRateConvert, ExchangeRateConvertResponse, ExchangeRateResponse
+from app.schemas.exchange_rate import CurrencyInfo, ExchangeRateConvert, ExchangeRateConvertResponse, ExchangeRateLastUpdated, ExchangeRateResponse
 from app.services import exchange_rate_service
 
 router = APIRouter(prefix="/exchange-rates", tags=["exchange-rates"])
@@ -17,6 +17,16 @@ async def list_currencies(
 ):
     """Get all available currencies with names."""
     return await exchange_rate_service.get_available_currencies()
+
+
+@router.get("/last-updated", response_model=ExchangeRateLastUpdated)
+async def last_updated(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get the timestamp of the most recent exchange rate update."""
+    ts = await exchange_rate_service.get_last_updated(db)
+    return ExchangeRateLastUpdated(last_updated=ts)
 
 
 @router.get("", response_model=list[ExchangeRateResponse])
