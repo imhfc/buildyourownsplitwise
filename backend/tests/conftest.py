@@ -2,6 +2,8 @@ import os
 import uuid
 from decimal import Decimal
 
+os.environ.setdefault("TESTING", "true")
+
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
@@ -28,11 +30,12 @@ TEST_DATABASE_URL = os.environ.get(
 
 _is_neon = "neon.tech" in TEST_DATABASE_URL
 
+# NullPool + statement_cache_size=0 避免 asyncpg 連線狀態衝突（Neon 和本機 Docker 皆適用）
 engine = create_async_engine(
     TEST_DATABASE_URL,
     echo=False,
-    poolclass=NullPool if _is_neon else None,
-    connect_args={"statement_cache_size": 0} if _is_neon else {},
+    poolclass=NullPool,
+    connect_args={"statement_cache_size": 0},
 )
 TestSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
@@ -55,24 +58,14 @@ async def setup_database():
 
 @pytest_asyncio.fixture
 async def db(setup_database):
-    """Provide a database session. Uses nested transaction on local DB, fresh session on Neon."""
-    if _is_neon:
-        # Neon serverless: 不支援 nested transaction，改用獨立 session + 測試後清資料
-        session = AsyncSession(bind=engine, expire_on_commit=False)
-        yield session
-        await session.close()
-        # 清除所有測試資料（按 FK 順序）
-        async with engine.begin() as conn:
-            for table in reversed(Base.metadata.sorted_tables):
-                await conn.execute(table.delete())
-    else:
-        # 本機 Docker: nested transaction + rollback（零殘留）
-        async with engine.connect() as conn:
-            trans = await conn.begin()
-            session = AsyncSession(bind=conn, expire_on_commit=False)
-            yield session
-            await session.close()
-            await trans.rollback()
+    """Provide a database session. 測試後清除所有資料（NullPool 避免 asyncpg 連線衝突）。"""
+    session = AsyncSession(bind=engine, expire_on_commit=False)
+    yield session
+    await session.close()
+    # 清除所有測試資料（按 FK 順序）
+    async with engine.begin() as conn:
+        for table in reversed(Base.metadata.sorted_tables):
+            await conn.execute(table.delete())
 
 
 @pytest_asyncio.fixture

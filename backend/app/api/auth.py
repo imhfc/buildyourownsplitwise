@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.exceptions import ConflictError, ForbiddenError, ValidationError
+from app.core.rate_limit import limiter
 from app.models.user import User
 from app.schemas.user import (
     GoogleAuthRequest,
@@ -34,7 +35,8 @@ async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def login(request: Request, data: UserLogin, db: AsyncSession = Depends(get_db)):
     try:
         access_token, refresh_token, user = await auth_service.login_user(db, data.email, data.password)
     except ValidationError as e:

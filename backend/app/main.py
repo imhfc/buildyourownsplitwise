@@ -5,15 +5,19 @@ import traceback
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from app.api import activities, auth, exchange_rates, expenses, friends, groups, settlements
 from app.core.config import settings
+from app.core.rate_limit import limiter
 from app.services.exchange_rate_service import background_refresh_loop
 
 logger = logging.getLogger(__name__)
 
-
 app = FastAPI(title=settings.APP_NAME, debug=settings.DEBUG)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 @app.on_event("startup")

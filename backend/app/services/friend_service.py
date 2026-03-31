@@ -156,9 +156,11 @@ async def search_users(
     db: AsyncSession, user_id: uuid.UUID, query: str
 ) -> list[FriendSearchResult]:
     """Search users by email for adding friends."""
+    # 轉義 SQL LIKE 特殊字元，避免使用者透過 % 或 _ 進行模式注入
+    escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
     result = await db.execute(
         select(User).where(
-            User.email.ilike(f"%{query}%"),
+            User.email.ilike(f"%{escaped}%", escape="\\"),
             User.id != user_id,
         ).limit(10)
     )

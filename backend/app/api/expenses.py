@@ -61,7 +61,7 @@ async def get_expense(
 ):
     try:
         await check_membership(db, group_id, current_user.id)
-        return await expense_service.get_expense_detail(db, expense_id)
+        return await expense_service.get_expense_detail(db, expense_id, group_id)
     except (ForbiddenError, NotFoundError) as e:
         _handle(e)
 

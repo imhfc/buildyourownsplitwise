@@ -88,10 +88,30 @@ async def change_password(db: AsyncSession, user: User, old_password: str, new_p
 
 
 async def google_login(db: AsyncSession, google_access_token: str) -> tuple[str, str, User]:
-    """Verify Google access token via userinfo API, find or create user. Returns (access_token, refresh_token, user)."""
+    """Verify Google access token via tokeninfo + userinfo API, find or create user.
+
+    Returns (access_token, refresh_token, user).
+    """
     import httpx
 
-    async with httpx.AsyncClient() as client:
+    from app.core.config import settings
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        # Step 1: 驗證 access token 有效性並檢查 audience（防止其他應用的 token 被冒用）
+        if settings.GOOGLE_CLIENT_IDS:
+            tokeninfo_resp = await client.get(
+                "https://oauth2.googleapis.com/tokeninfo",
+                params={"access_token": google_access_token},
+            )
+            if tokeninfo_resp.status_code != 200:
+                raise ValidationError("Invalid Google access token")
+
+            tokeninfo = tokeninfo_resp.json()
+            allowed_client_ids = [cid.strip() for cid in settings.GOOGLE_CLIENT_IDS.split(",") if cid.strip()]
+            if tokeninfo.get("aud") not in allowed_client_ids:
+                raise ValidationError("Google token audience mismatch")
+
+        # Step 2: 取得使用者資訊
         resp = await client.get(
             "https://www.googleapis.com/oauth2/v3/userinfo",
             headers={"Authorization": f"Bearer {google_access_token}"},

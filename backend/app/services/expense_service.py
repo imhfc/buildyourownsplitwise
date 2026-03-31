@@ -140,10 +140,15 @@ async def delete_expense(
     await db.delete(expense)
 
 
-async def get_expense_detail(db: AsyncSession, expense_id: uuid.UUID) -> ExpenseResponse:
+async def get_expense_detail(
+    db: AsyncSession, expense_id: uuid.UUID, group_id: uuid.UUID | None = None
+) -> ExpenseResponse:
+    conditions = [Expense.id == expense_id]
+    if group_id is not None:
+        conditions.append(Expense.group_id == group_id)
     result = await db.execute(
         select(Expense)
-        .where(Expense.id == expense_id)
+        .where(*conditions)
         .options(
             selectinload(Expense.splits).selectinload(ExpenseSplit.user),
             selectinload(Expense.payer),
