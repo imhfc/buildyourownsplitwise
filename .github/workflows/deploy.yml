@@ -32,7 +32,7 @@ jobs:
           CADDY_HTTP_PORT=${{ vars.CADDY_HTTP_PORT }}
           CADDY_HTTPS_PORT=${{ vars.CADDY_HTTPS_PORT }}
           DATABASE_URL=${{ vars.DATABASE_URL }}
-          SECRET_KEY=${{ vars.SECRET_KEY }}
+          SECRET_KEY=${{ secrets.SECRET_KEY }}
           GOOGLE_CLIENT_IDS=${{ vars.GOOGLE_CLIENT_IDS }}
           ALLOWED_ORIGINS=${{ vars.ALLOWED_ORIGINS }}
           EOF
