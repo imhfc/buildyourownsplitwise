@@ -195,14 +195,14 @@ export default function FriendsScreen() {
     { value: "pending", label: t("pending_requests") },
   ];
 
-  const renderAvatar = (name: string, avatarUrl?: string | null) => (
-    <Avatar name={name} avatarUrl={avatarUrl} size="md" />
+  const renderAvatar = (name: string, avatarUrl?: string | null, index?: number) => (
+    <Avatar name={name} avatarUrl={avatarUrl} index={index} size="md" />
   );
 
-  const renderFriendItem = ({ item }: { item: FriendItem }) => (
+  const renderFriendItem = ({ item, index }: { item: FriendItem; index: number }) => (
     <Card className="mb-3">
       <CardContent className="flex-row items-center p-4 gap-3">
-        {renderAvatar(item.friend.display_name, item.friend.avatar_url)}
+        {renderAvatar(item.friend.display_name, item.friend.avatar_url, index)}
         <View className="flex-1">
           <Text className="text-base font-medium">{item.friend.display_name}</Text>
           {item.friend.email ? (

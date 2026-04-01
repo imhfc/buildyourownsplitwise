@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { View, Image } from "react-native";
 import { cn } from "~/lib/utils";
 import { Text } from "./text";
@@ -44,16 +45,19 @@ export function Avatar({
   size = "md",
   className,
 }: AvatarProps) {
+  const [imgError, setImgError] = useState(false);
+  useEffect(() => { setImgError(false); }, [avatarUrl]);
   const color = getAvatarColor(index);
   const initials = getInitials(name);
   const px = imageSizeMap[size];
 
-  if (avatarUrl) {
+  if (avatarUrl && !imgError) {
     return (
       <Image
         source={{ uri: avatarUrl }}
         style={{ width: px, height: px, borderRadius: px / 2 }}
         className={className}
+        onError={() => setImgError(true)}
       />
     );
   }

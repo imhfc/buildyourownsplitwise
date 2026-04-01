@@ -16,10 +16,7 @@ depends_on = None
 
 def upgrade() -> None:
     # Drop pinned_at if it exists (from earlier iteration)
-    try:
-        op.drop_column('group_members', 'pinned_at')
-    except Exception:
-        pass
+    op.execute('ALTER TABLE group_members DROP COLUMN IF EXISTS pinned_at')
     op.add_column('group_members', sa.Column('sort_order', sa.Integer(), server_default='0', nullable=False))
 
 
