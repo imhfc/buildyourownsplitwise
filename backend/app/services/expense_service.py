@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 from app.core.exceptions import ForbiddenError, NotFoundError, ValidationError
 from app.models.expense import Expense, ExpenseSplit
 from app.models.group import Group
-from app.schemas.expense import ExpenseCreate, ExpenseResponse, ExpenseSplitResponse
+from app.schemas.expense import ExpenseCreate, ExpenseResponse, ExpenseSplitResponse, ExpenseUpdate
 from app.services.exchange_rate_service import get_rate
 from app.services.group_service import check_membership, get_group_member_ids
 
@@ -91,6 +91,7 @@ async def create_expense(
         paid_by=data.paid_by,
         split_method=data.split_method,
         note=data.note,
+        expense_date=data.expense_date,
         created_by=user_id,
     )
     db.add(expense)
@@ -140,6 +141,90 @@ async def delete_expense(
     await db.delete(expense)
 
 
+async def update_expense(
+    db: AsyncSession,
+    group_id: uuid.UUID,
+    expense_id: uuid.UUID,
+    user_id: uuid.UUID,
+    data: ExpenseUpdate,
+) -> ExpenseResponse:
+    await check_membership(db, group_id, user_id)
+    member_ids = await get_group_member_ids(db, group_id)
+
+    result = await db.execute(select(Expense).where(Expense.id == expense_id))
+    expense = result.scalar_one_or_none()
+    if not expense:
+        raise NotFoundError("Expense not found")
+
+    if expense.created_by != user_id:
+        raise ForbiddenError("Only creator can update expense")
+
+    # Update non-None fields
+    if data.description is not None:
+        expense.description = data.description
+    if data.note is not None:
+        expense.note = data.note
+    if data.expense_date is not None:
+        expense.expense_date = data.expense_date
+    if data.paid_by is not None:
+        if data.paid_by not in member_ids:
+            raise ValidationError("Payer is not a group member")
+        expense.paid_by = data.paid_by
+
+    # Get group for default currency
+    group_result = await db.execute(select(Group).where(Group.id == group_id))
+    group = group_result.scalar_one()
+    base_currency = group.default_currency
+
+    # Handle currency and amount changes
+    if data.currency is not None:
+        expense_currency = data.currency.upper()
+        if expense_currency != base_currency.upper():
+            rate, _ = await get_rate(db, expense_currency, base_currency)
+        else:
+            rate = Decimal("1")
+        expense.currency = expense_currency
+        expense.exchange_rate_to_base = rate
+
+    if data.total_amount is not None:
+        expense.total_amount = data.total_amount
+
+    if data.split_method is not None:
+        expense.split_method = data.split_method
+
+    # If splits data provided, recalculate
+    if data.splits is not None or data.split_method is not None or data.total_amount is not None:
+        # Delete old splits
+        result = await db.execute(
+            select(ExpenseSplit).where(ExpenseSplit.expense_id == expense.id)
+        )
+        for split in result.scalars().all():
+            await db.delete(split)
+        await db.flush()
+
+        # Build a temporary ExpenseCreate for calculate_splits
+        split_data = ExpenseCreate(
+            description=expense.description,
+            total_amount=expense.total_amount,
+            paid_by=expense.paid_by,
+            split_method=expense.split_method,
+            splits=data.splits or [],
+        )
+
+        splits = calculate_splits(split_data, member_ids)
+        for s in splits:
+            new_split = ExpenseSplit(
+                expense_id=expense.id,
+                user_id=s["user_id"],
+                amount=s["amount"],
+                shares=s.get("shares"),
+            )
+            db.add(new_split)
+
+    await db.flush()
+    return await get_expense_detail(db, expense.id)
+
+
 async def get_expense_detail(
     db: AsyncSession, expense_id: uuid.UUID, group_id: uuid.UUID | None = None
 ) -> ExpenseResponse:
@@ -185,5 +270,6 @@ def format_expense(e: Expense) -> ExpenseResponse:
         ],
         note=e.note,
         receipt_image_url=e.receipt_image_url,
+        expense_date=e.expense_date,
         created_at=e.created_at,
     )

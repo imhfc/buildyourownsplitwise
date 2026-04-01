@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-from app.api import activities, auth, exchange_rates, expenses, friends, groups, settlements
+from app.api import activities, auth, balances, exchange_rates, expenses, friends, groups, settlements
 from app.core.config import settings
 from app.core.rate_limit import limiter
 from app.services.exchange_rate_service import background_refresh_loop
@@ -41,6 +41,7 @@ app.include_router(settlements.router, prefix="/api/v1")
 app.include_router(exchange_rates.router, prefix="/api/v1")
 app.include_router(friends.router, prefix="/api/v1")
 app.include_router(activities.router, prefix="/api/v1")
+app.include_router(balances.router, prefix="/api/v1")
 
 
 @app.exception_handler(Exception)

@@ -1,5 +1,5 @@
-import { useCallback, useState } from "react";
-import { View, FlatList, RefreshControl, Modal, Pressable, KeyboardAvoidingView, Platform, Alert, ScrollView } from "react-native";
+import { useCallback, useState, useRef } from "react";
+import { View, FlatList, RefreshControl, Modal, Pressable, KeyboardAvoidingView, Platform, Alert, ScrollView, ActivityIndicator } from "react-native";
 import { useLocalSearchParams, useFocusEffect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
@@ -8,7 +8,10 @@ import {
   X,
   Users,
   UserMinus,
+  Check,
+  ChevronLeft,
 } from "lucide-react-native";
+import { CurrencyPicker } from "~/components/ui/currency-picker";
 import { expensesAPI, settlementsAPI, groupsAPI, authAPI, ExpenseSplitInput } from "../../services/api";
 import { useAuthStore } from "../../stores/auth";
 import { Card, CardContent } from "~/components/ui/card";
@@ -58,6 +61,7 @@ export default function GroupDetailScreen() {
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [groupName, setGroupName] = useState("");
   const [refreshing, setRefreshing] = useState(false);
 
   // Add expense modal
@@ -66,6 +70,8 @@ export default function GroupDetailScreen() {
   const [desc, setDesc] = useState("");
   const [amount, setAmount] = useState("");
   const [splitMethod, setSplitMethod] = useState<(typeof SPLIT_METHODS)[number]>("equal");
+  const [expenseCurrency, setExpenseCurrency] = useState("TWD");
+  const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState("");
   const [splitInputs, setSplitInputs] = useState<Record<string, string>>({});
@@ -78,24 +84,38 @@ export default function GroupDetailScreen() {
   const [addingMember, setAddingMember] = useState(false);
   const [lookupError, setLookupError] = useState("");
 
+  const [loading, setLoading] = useState(true);
+  const [sugLoading, setSugLoading] = useState(false);
+  const hasFetched = useRef(false);
+
   const isAdmin = members.find((m) => m.user.id === user?.id)?.role === "admin";
 
   const fetchData = useCallback(async () => {
     if (!id) return;
+    const isFirstLoad = !hasFetched.current;
+    if (isFirstLoad) setLoading(true);
     try {
-      const [expRes, sugRes, groupRes] = await Promise.all([
+      // Phase 1: group info + expenses (fast) -- render immediately
+      const [expRes, groupRes] = await Promise.all([
         expensesAPI.list(id),
-        settlementsAPI.suggestions(id),
         groupsAPI.get(id),
       ]);
       setExpenses(expRes.data);
-      setSuggestions(sugRes.data);
       setMembers(groupRes.data.members ?? []);
-      if (groupRes.data.default_currency) {
-        setGroupCurrency(groupRes.data.default_currency);
-      }
+      if (groupRes.data.name) setGroupName(groupRes.data.name);
+      if (groupRes.data.default_currency) setGroupCurrency(groupRes.data.default_currency);
+      hasFetched.current = true;
+      if (isFirstLoad) setLoading(false);
+
+      // Phase 2: settlement suggestions (slow) -- load in background
+      setSugLoading(true);
+      settlementsAPI.suggestions(id)
+        .then((sugRes) => setSuggestions(sugRes.data))
+        .catch((e) => console.error("Failed to fetch suggestions", e))
+        .finally(() => setSugLoading(false));
     } catch (e) {
       console.error("Failed to fetch group data", e);
+      if (isFirstLoad) setLoading(false);
     }
   }, [id]);
 
@@ -111,9 +131,31 @@ export default function GroupDetailScreen() {
     setRefreshing(false);
   };
 
+  const selectedMembersList = members.filter((m) => selectedMembers.has(m.user.id));
+
+  const toggleMember = (memberId: string) => {
+    setSelectedMembers((prev) => {
+      const next = new Set(prev);
+      if (next.has(memberId)) {
+        next.delete(memberId);
+      } else {
+        next.add(memberId);
+      }
+      return next;
+    });
+  };
+
+  const toggleAllMembers = () => {
+    if (selectedMembers.size === members.length) {
+      setSelectedMembers(new Set());
+    } else {
+      setSelectedMembers(new Set(members.map((m) => m.user.id)));
+    }
+  };
+
   const initSplitInputs = (method: (typeof SPLIT_METHODS)[number]) => {
     const defaults: Record<string, string> = {};
-    members.forEach((m) => {
+    selectedMembersList.forEach((m) => {
       defaults[m.user.id] = method === "shares" || method === "ratio" ? "1" : "";
     });
     setSplitInputs(defaults);
@@ -121,12 +163,13 @@ export default function GroupDetailScreen() {
 
   const canSubmitExpense = (() => {
     if (!desc || !amount || Number(amount) <= 0) return false;
+    if (selectedMembers.size === 0) return false;
     if (splitMethod === "exact") {
-      const sum = Object.values(splitInputs).reduce((acc, v) => acc + (Number(v) || 0), 0);
+      const sum = selectedMembersList.reduce((acc, m) => acc + (Number(splitInputs[m.user.id]) || 0), 0);
       return Math.abs(sum - Number(amount)) < 0.01;
     }
     if (splitMethod === "ratio" || splitMethod === "shares") {
-      return Object.values(splitInputs).reduce((acc, v) => acc + (Number(v) || 0), 0) > 0;
+      return selectedMembersList.reduce((acc, m) => acc + (Number(splitInputs[m.user.id]) || 0), 0) > 0;
     }
     return true;
   })();
@@ -134,11 +177,18 @@ export default function GroupDetailScreen() {
   const handleAddExpense = async () => {
     setAddError("");
     if (!desc || !amount || Number(amount) <= 0 || !id || !user) return;
+    if (selectedMembers.size === 0) {
+      setAddError(t("at_least_one_participant"));
+      return;
+    }
 
     let splits: ExpenseSplitInput[] | undefined;
 
-    if (splitMethod === "exact") {
-      splits = members.map((m) => ({
+    if (splitMethod === "equal") {
+      // equal 也送 splits，讓後端只分給選中的人
+      splits = selectedMembersList.map((m) => ({ user_id: m.user.id }));
+    } else if (splitMethod === "exact") {
+      splits = selectedMembersList.map((m) => ({
         user_id: m.user.id,
         amount: Number(splitInputs[m.user.id]) || 0,
       }));
@@ -148,12 +198,12 @@ export default function GroupDetailScreen() {
         return;
       }
     } else if (splitMethod === "ratio" || splitMethod === "shares") {
-      const totalShares = Object.values(splitInputs).reduce((acc, v) => acc + (Number(v) || 0), 0);
+      const totalShares = selectedMembersList.reduce((acc, m) => acc + (Number(splitInputs[m.user.id]) || 0), 0);
       if (totalShares <= 0) {
         setAddError(t("need_positive_shares"));
         return;
       }
-      splits = members.map((m) => ({
+      splits = selectedMembersList.map((m) => ({
         user_id: m.user.id,
         shares: Number(splitInputs[m.user.id]) || 0,
       }));
@@ -164,7 +214,7 @@ export default function GroupDetailScreen() {
       await expensesAPI.create(id, {
         description: desc,
         total_amount: parseFloat(amount),
-        currency: groupCurrency,
+        currency: expenseCurrency,
         paid_by: user.id,
         split_method: splitMethod,
         splits,
@@ -323,6 +373,20 @@ export default function GroupDetailScreen() {
 
   return (
     <View className="flex-1 bg-background">
+      {/* Custom header with back button */}
+      <View className="flex-row items-center px-3 pt-3 pb-1 gap-1">
+        <Pressable
+          onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)")}
+          className="flex-row items-center p-2 -ml-1"
+        >
+          <ChevronLeft size={24} color="hsl(var(--primary))" />
+          <Text className="text-primary text-base">{t("groups")}</Text>
+        </Pressable>
+        <Text className="flex-1 text-lg font-semibold text-foreground text-center mr-12" numberOfLines={1}>
+          {groupName}
+        </Text>
+      </View>
+
       <SegmentedTabs
         tabs={[
           { value: "expenses", label: t("expenses") },
@@ -334,7 +398,11 @@ export default function GroupDetailScreen() {
         className="mx-5 mt-4"
       />
 
-      {tab === "expenses" ? (
+      {loading ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" />
+        </View>
+      ) : tab === "expenses" ? (
         <FlatList
           data={expenses}
           keyExtractor={(item) => item.id}
@@ -349,27 +417,33 @@ export default function GroupDetailScreen() {
               title={t("add_expense")}
               description={t("no_expenses_hint")}
               actionLabel={t("add_expense")}
-              onAction={() => { setAddError(""); setSplitMethod("equal"); setSplitInputs({}); setShowAdd(true); }}
+              onAction={() => { setAddError(""); setSplitMethod("equal"); setSplitInputs({}); setSelectedMembers(new Set(members.map((m) => m.user.id))); setExpenseCurrency(groupCurrency); setShowAdd(true); }}
             />
           }
         />
       ) : tab === "settlements" ? (
-        <FlatList
-          data={suggestions}
-          keyExtractor={(item) => `${item.from_user_id}-${item.to_user_id}`}
-          renderItem={renderSuggestion}
-          contentContainerStyle={{ padding: 20 }}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-          ListEmptyComponent={
-            <EmptyState
-              icon={ArrowLeftRight}
-              title={t("balanced")}
-              description={t("all_balanced_hint")}
-            />
-          }
-        />
+        sugLoading && suggestions.length === 0 ? (
+          <View className="flex-1 items-center justify-center">
+            <ActivityIndicator size="large" />
+          </View>
+        ) : (
+          <FlatList
+            data={suggestions}
+            keyExtractor={(item) => `${item.from_user_id}-${item.to_user_id}`}
+            renderItem={renderSuggestion}
+            contentContainerStyle={{ padding: 20 }}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            ListEmptyComponent={
+              <EmptyState
+                icon={ArrowLeftRight}
+                title={t("balanced")}
+                description={t("all_balanced_hint")}
+              />
+            }
+          />
+        )
       ) : (
         <FlatList
           data={members}
@@ -389,7 +463,7 @@ export default function GroupDetailScreen() {
         />
       )}
 
-      {tab === "expenses" && <FAB onPress={() => { setAddError(""); setSplitMethod("equal"); setSplitInputs({}); setShowAdd(true); }} />}
+      {tab === "expenses" && <FAB onPress={() => { setAddError(""); setSplitMethod("equal"); setSplitInputs({}); setSelectedMembers(new Set(members.map((m) => m.user.id))); setExpenseCurrency(groupCurrency); setShowAdd(true); }} />}
       {tab === "members" && (
         <FAB onPress={() => { setShowAddMember(true); setMemberEmail(""); setFoundUser(null); setLookupError(""); }} />
       )}
@@ -418,51 +492,110 @@ export default function GroupDetailScreen() {
                 </Pressable>
               </View>
 
-              <View className="gap-4">
-                <Input
-                  label={t("description")}
-                  value={desc}
-                  onChangeText={setDesc}
-                  placeholder={t("description")}
-                />
-                <Input
-                  label={t("amount")}
-                  value={amount}
-                  onChangeText={(text) => {
-                    if (text === "" || /^\d*\.?\d{0,2}$/.test(text)) {
-                      setAmount(text);
-                    }
-                  }}
-                  keyboardType="decimal-pad"
-                  placeholder="0"
-                />
-
-                <View className="gap-2">
-                  <Text className="text-sm font-medium">{t("split_method")}</Text>
-                  <SegmentedTabs
-                    tabs={SPLIT_METHODS.map((m) => ({
-                      value: m,
-                      label: t(m),
-                    }))}
-                    value={splitMethod}
-                    onValueChange={(v) => {
-                      const method = v as (typeof SPLIT_METHODS)[number];
-                      setSplitMethod(method);
-                      if (method !== "equal") {
-                        initSplitInputs(method);
-                      } else {
-                        setSplitInputs({});
-                      }
-                    }}
+              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 500 }}>
+                <View className="gap-4">
+                  <Input
+                    label={t("description")}
+                    value={desc}
+                    onChangeText={setDesc}
+                    placeholder={t("description")}
                   />
-                </View>
 
-                {splitMethod !== "equal" && members.length > 0 && (
-                  <View className="gap-3">
-                    <Text className="text-sm font-medium">{t("split_details")}</Text>
-                    <ScrollView style={{ maxHeight: 200 }} showsVerticalScrollIndicator={false}>
-                      {members.map((m) => (
-                        <View key={m.user.id} className="flex-row items-center gap-2 mb-2">
+                  <View className="flex-row gap-3">
+                    <View className="flex-1">
+                      <Input
+                        label={t("amount")}
+                        value={amount}
+                        onChangeText={(text) => {
+                          if (text === "" || /^\d*\.?\d{0,2}$/.test(text)) {
+                            setAmount(text);
+                          }
+                        }}
+                        keyboardType="decimal-pad"
+                        placeholder="0"
+                      />
+                    </View>
+                    <View className="w-40">
+                      <CurrencyPicker
+                        label={t("currency")}
+                        value={expenseCurrency}
+                        onSelect={setExpenseCurrency}
+                      />
+                    </View>
+                  </View>
+
+                  {/* Participants */}
+                  <View className="gap-2">
+                    <View className="flex-row items-center justify-between">
+                      <Text className="text-sm font-medium">
+                        {t("participants")} ({selectedMembers.size}/{members.length})
+                      </Text>
+                      <Pressable onPress={toggleAllMembers}>
+                        <Text className="text-sm text-primary">
+                          {selectedMembers.size === members.length ? t("deselect_all") : t("select_all")}
+                        </Text>
+                      </Pressable>
+                    </View>
+                    <View className="flex-row flex-wrap gap-2">
+                      {members.map((m) => {
+                        const selected = selectedMembers.has(m.user.id);
+                        return (
+                          <Pressable
+                            key={m.user.id}
+                            onPress={() => {
+                              toggleMember(m.user.id);
+                              // 切換成員後，如果非 equal 方式，重新初始化該成員的 splitInput
+                              if (splitMethod !== "equal") {
+                                setSplitInputs((prev) => {
+                                  const next = { ...prev };
+                                  if (selected) {
+                                    delete next[m.user.id];
+                                  } else {
+                                    next[m.user.id] = splitMethod === "shares" || splitMethod === "ratio" ? "1" : "";
+                                  }
+                                  return next;
+                                });
+                              }
+                            }}
+                            className={`flex-row items-center gap-1.5 px-3 py-2 rounded-full border ${
+                              selected ? "bg-primary/10 border-primary" : "border-border"
+                            }`}
+                          >
+                            {selected && <Check size={14} color="hsl(var(--primary))" />}
+                            <Text className={`text-sm ${selected ? "text-primary font-medium" : "text-muted-foreground"}`}>
+                              {m.user.display_name}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+
+                  <View className="gap-2">
+                    <Text className="text-sm font-medium">{t("split_method")}</Text>
+                    <SegmentedTabs
+                      tabs={SPLIT_METHODS.map((m) => ({
+                        value: m,
+                        label: t(m),
+                      }))}
+                      value={splitMethod}
+                      onValueChange={(v) => {
+                        const method = v as (typeof SPLIT_METHODS)[number];
+                        setSplitMethod(method);
+                        if (method !== "equal") {
+                          initSplitInputs(method);
+                        } else {
+                          setSplitInputs({});
+                        }
+                      }}
+                    />
+                  </View>
+
+                  {splitMethod !== "equal" && selectedMembersList.length > 0 && (
+                    <View className="gap-3">
+                      <Text className="text-sm font-medium">{t("split_details")}</Text>
+                      {selectedMembersList.map((m) => (
+                        <View key={m.user.id} className="flex-row items-center gap-2">
                           <Text className="flex-1 text-sm" numberOfLines={1}>
                             {m.user.display_name}
                           </Text>
@@ -480,59 +613,59 @@ export default function GroupDetailScreen() {
                           </View>
                         </View>
                       ))}
-                    </ScrollView>
 
-                    {splitMethod === "exact" && amount ? (
-                      (() => {
-                        const total = Number(amount);
-                        const sum = Object.values(splitInputs).reduce((acc, v) => acc + (Number(v) || 0), 0);
-                        const diff = total - sum;
-                        const isBalanced = Math.abs(diff) < 0.01;
-                        return (
-                          <Text className={`text-sm font-medium ${isBalanced ? "text-primary" : "text-destructive"}`}>
-                            {diff >= 0 ? t("remaining") : t("exceeded")}: {Math.abs(diff).toFixed(2)}
-                          </Text>
-                        );
-                      })()
-                    ) : (splitMethod === "ratio" || splitMethod === "shares") && amount ? (
-                      (() => {
-                        const total = Number(amount);
-                        const totalShares = Object.values(splitInputs).reduce((acc, v) => acc + (Number(v) || 0), 0);
-                        return (
-                          <View className="gap-1">
-                            <Text className="text-sm text-muted-foreground">
-                              {t("total_shares_label")}: {totalShares}
+                      {splitMethod === "exact" && amount ? (
+                        (() => {
+                          const total = Number(amount);
+                          const sum = selectedMembersList.reduce((acc, m) => acc + (Number(splitInputs[m.user.id]) || 0), 0);
+                          const diff = total - sum;
+                          const isBalanced = Math.abs(diff) < 0.01;
+                          return (
+                            <Text className={`text-sm font-medium ${isBalanced ? "text-primary" : "text-destructive"}`}>
+                              {diff >= 0 ? t("remaining") : t("exceeded")}: {Math.abs(diff).toFixed(2)}
                             </Text>
-                            {totalShares > 0 && members.map((m) => {
-                              const s = Number(splitInputs[m.user.id]) || 0;
-                              const est = (total * s / totalShares).toFixed(2);
-                              return (
-                                <Text key={m.user.id} className="text-xs text-muted-foreground">
-                                  {m.user.display_name}: {groupCurrency} {est}
-                                </Text>
-                              );
-                            })}
-                          </View>
-                        );
-                      })()
-                    ) : null}
-                  </View>
-                )}
+                          );
+                        })()
+                      ) : (splitMethod === "ratio" || splitMethod === "shares") && amount ? (
+                        (() => {
+                          const total = Number(amount);
+                          const totalShares = selectedMembersList.reduce((acc, m) => acc + (Number(splitInputs[m.user.id]) || 0), 0);
+                          return (
+                            <View className="gap-1">
+                              <Text className="text-sm text-muted-foreground">
+                                {t("total_shares_label")}: {totalShares}
+                              </Text>
+                              {totalShares > 0 && selectedMembersList.map((m) => {
+                                const s = Number(splitInputs[m.user.id]) || 0;
+                                const est = (total * s / totalShares).toFixed(2);
+                                return (
+                                  <Text key={m.user.id} className="text-xs text-muted-foreground">
+                                    {m.user.display_name}: {expenseCurrency} {est}
+                                  </Text>
+                                );
+                              })}
+                            </View>
+                          );
+                        })()
+                      ) : null}
+                    </View>
+                  )}
 
-                {addError ? (
-                  <Text className="text-sm text-destructive">{addError}</Text>
-                ) : null}
+                  {addError ? (
+                    <Text className="text-sm text-destructive">{addError}</Text>
+                  ) : null}
 
-                <Button
-                  onPress={handleAddExpense}
-                  loading={adding}
-                  disabled={adding || !canSubmitExpense}
-                  size="lg"
-                  className="mt-2"
-                >
-                  {t("save")}
-                </Button>
-              </View>
+                  <Button
+                    onPress={handleAddExpense}
+                    loading={adding}
+                    disabled={adding || !canSubmitExpense}
+                    size="lg"
+                    className="mt-2"
+                  >
+                    {t("save")}
+                  </Button>
+                </View>
+              </ScrollView>
             </View>
           </View>
         </KeyboardAvoidingView>

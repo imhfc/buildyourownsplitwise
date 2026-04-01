@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel
@@ -19,6 +19,18 @@ class ExpenseCreate(BaseModel):
     split_method: str = "equal"  # equal/ratio/exact/shares
     splits: list[ExpenseSplitInput] = []
     note: str | None = None
+    expense_date: date | None = None
+
+
+class ExpenseUpdate(BaseModel):
+    description: str | None = None
+    total_amount: Decimal | None = None
+    currency: str | None = None
+    paid_by: uuid.UUID | None = None
+    split_method: str | None = None
+    splits: list[ExpenseSplitInput] | None = None
+    note: str | None = None
+    expense_date: date | None = None
 
 
 class ExpenseSplitResponse(BaseModel):
@@ -45,6 +57,7 @@ class ExpenseResponse(BaseModel):
     splits: list[ExpenseSplitResponse]
     note: str | None
     receipt_image_url: str | None
+    expense_date: date | None
     created_at: datetime
 
     model_config = {"from_attributes": True}

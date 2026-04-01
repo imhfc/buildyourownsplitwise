@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { View, FlatList, RefreshControl, Modal, Pressable, Alert, KeyboardAvoidingView, Platform, Animated } from "react-native";
+import { View, FlatList, RefreshControl, Modal, Pressable, Alert, KeyboardAvoidingView, Platform, Animated, ActivityIndicator } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Users, X, Trash2, LogOut } from "lucide-react-native";
@@ -30,7 +30,9 @@ export default function GroupsScreen() {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const [groups, setGroups] = useState<GroupItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const hasFetched = useRef(false);
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
@@ -40,11 +42,16 @@ export default function GroupsScreen() {
   const [confirmTarget, setConfirmTarget] = useState<{ item: GroupItem; action: "delete" | "leave" } | null>(null);
 
   const fetchGroups = useCallback(async () => {
+    const isFirstLoad = !hasFetched.current;
+    if (isFirstLoad) setLoading(true);
     try {
       const res = await groupsAPI.list();
       setGroups(res.data);
+      hasFetched.current = true;
     } catch (e) {
       console.error("Failed to fetch groups", e);
+    } finally {
+      if (isFirstLoad) setLoading(false);
     }
   }, []);
 
@@ -166,24 +173,30 @@ export default function GroupsScreen() {
 
   return (
     <View className="flex-1 bg-background">
-      <FlatList
-        data={groups}
-        keyExtractor={(item) => item.id}
-        renderItem={renderGroup}
-        contentContainerStyle={{ padding: 20 }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        ListEmptyComponent={
-          <EmptyState
-            icon={Users}
-            title={t("create_group")}
-            description={t("create_group_hint")}
-            actionLabel={t("create_group")}
-            onAction={() => setShowCreate(true)}
-          />
-        }
-      />
+      {loading ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" />
+        </View>
+      ) : (
+        <FlatList
+          data={groups}
+          keyExtractor={(item) => item.id}
+          renderItem={renderGroup}
+          contentContainerStyle={{ padding: 20 }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          ListEmptyComponent={
+            <EmptyState
+              icon={Users}
+              title={t("create_group")}
+              description={t("create_group_hint")}
+              actionLabel={t("create_group")}
+              onAction={() => setShowCreate(true)}
+            />
+          }
+        />
+      )}
 
       <FAB onPress={() => setShowCreate(true)} />
 

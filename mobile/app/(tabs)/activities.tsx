@@ -1,5 +1,5 @@
-import { useCallback, useState } from "react";
-import { View, FlatList, RefreshControl } from "react-native";
+import { useCallback, useRef, useState } from "react";
+import { View, FlatList, RefreshControl, ActivityIndicator } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Receipt, ArrowLeftRight, Activity } from "lucide-react-native";
@@ -68,14 +68,21 @@ function ActivityRow({ item }: { item: ActivityItem }) {
 export default function ActivitiesScreen() {
   const { t } = useTranslation();
   const [items, setItems] = useState<ActivityItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const hasFetched = useRef(false);
 
   const fetchActivities = useCallback(async () => {
+    const isFirstLoad = !hasFetched.current;
+    if (isFirstLoad) setLoading(true);
     try {
       const res = await activitiesAPI.list();
       setItems(res.data);
+      hasFetched.current = true;
     } catch {
       // silent fail — empty state shown
+    } finally {
+      if (isFirstLoad) setLoading(false);
     }
   }, []);
 
@@ -90,6 +97,14 @@ export default function ActivitiesScreen() {
     await fetchActivities();
     setRefreshing(false);
   };
+
+  if (loading) {
+    return (
+      <View className="flex-1 bg-background items-center justify-center">
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
   return (
     <FlatList

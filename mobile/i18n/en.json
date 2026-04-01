@@ -7,7 +7,6 @@
   "password": "Password",
   "display_name": "Display Name",
   "logout": "Logout",
-
   "groups": "Groups",
   "create_group": "Create Group",
   "group_name": "Group Name",
@@ -26,7 +25,6 @@
   "role_admin": "Admin",
   "role_member": "Member",
   "no_members_hint": "No members in this group",
-
   "expenses": "Expenses",
   "add_expense": "Add Expense",
   "amount": "Amount",
@@ -37,6 +35,10 @@
   "ratio": "By Ratio",
   "exact": "Exact Amount",
   "shares": "By Shares",
+  "participants": "Participants",
+  "select_all": "Select All",
+  "deselect_all": "Deselect All",
+  "at_least_one_participant": "At least one participant is required",
   "split_details": "Split Details",
   "remaining": "Remaining",
   "exceeded": "Exceeded",
@@ -44,7 +46,6 @@
   "need_positive_shares": "At least one person must have shares greater than 0",
   "total_shares_label": "Total Shares",
   "note": "Note",
-
   "settlements": "Settlements",
   "who_owes_whom": "Who Owes Whom",
   "settle_up": "Settle Up",
@@ -53,7 +54,6 @@
   "create_group_hint": "Create a group to start splitting expenses!",
   "no_expenses_hint": "No expenses yet",
   "all_balanced_hint": "All balances are settled!",
-
   "settings": "Settings",
   "language": "Language",
   "preferred_currency": "Preferred Currency",
@@ -70,11 +70,9 @@
   "scheme_slate": "Slate",
   "dark_mode": "Dark Mode",
   "light_mode": "Light Mode",
-
   "select_currency": "Select Currency",
   "search_currency": "Search currency (code or name)",
   "no_results": "No matching currencies",
-
   "save": "Save",
   "cancel": "Cancel",
   "delete": "Delete",
@@ -84,11 +82,9 @@
   "loading": "Loading...",
   "error": "Error",
   "unknown_error": "Unknown error",
-
   "or": "or",
   "sign_in_with_google": "Sign in with Google",
   "google_sign_in_failed": "Google sign-in failed",
-
   "friends": "Friends",
   "activities": "Activity",
   "account": "Account",
@@ -99,12 +95,34 @@
   "to": "to",
   "friends_coming_soon": "Friends Coming Soon",
   "friends_coming_soon_desc": "Direct expense splitting with friends is under development. Stay tuned!",
-
   "change_password": "Change Password",
   "old_password": "Current Password",
   "new_password": "New Password",
   "confirm_new_password": "Confirm New Password",
   "password_changed": "Password changed successfully",
   "password_mismatch": "Passwords do not match",
-  "wrong_old_password": "Current password is incorrect"
+  "wrong_old_password": "Current password is incorrect",
+  "display_name_required": "Display name is required",
+  "edit_display_name": "Edit Display Name",
+  "select_language": "Select Language",
+  "display_name_updated": "Display name updated",
+  "profile_update_failed": "Update failed, please try again",
+  "friends_title": "Friends",
+  "friends_list": "Friend List",
+  "pending_requests": "Pending Requests",
+  "add_friend": "Add Friend",
+  "search_by_email": "Search by email",
+  "send_request": "Send Request",
+  "request_sent": "Request sent",
+  "accept": "Accept",
+  "reject": "Reject",
+  "remove_friend": "Remove Friend",
+  "remove_friend_confirm": "Are you sure you want to remove this friend?",
+  "no_friends": "No friends yet",
+  "no_friends_desc": "Search and add your first friend",
+  "no_pending": "No pending requests",
+  "no_search_results": "No users found",
+  "friend_request_from": "Friend request from {{name}}",
+  "already_friends": "Already friends",
+  "request_pending": "Request pending"
 }

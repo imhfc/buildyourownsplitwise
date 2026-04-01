@@ -1,8 +1,8 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text
+from sqlalchemy import Date, DateTime, ForeignKey, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -24,6 +24,7 @@ class Expense(Base):
     receipt_image_url: Mapped[str | None] = mapped_column(String(500))
     ocr_data: Mapped[dict | None] = mapped_column(JSONB)
     note: Mapped[str | None] = mapped_column(Text)
+    expense_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

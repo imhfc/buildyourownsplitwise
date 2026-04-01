@@ -7,7 +7,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.exceptions import ForbiddenError, NotFoundError, ValidationError
 from app.models.user import User
-from app.schemas.expense import ExpenseCreate, ExpenseResponse
+from app.schemas.expense import ExpenseCreate, ExpenseResponse, ExpenseUpdate
 from app.services import expense_service
 from app.services.group_service import check_membership
 
@@ -63,6 +63,20 @@ async def get_expense(
         await check_membership(db, group_id, current_user.id)
         return await expense_service.get_expense_detail(db, expense_id, group_id)
     except (ForbiddenError, NotFoundError) as e:
+        _handle(e)
+
+
+@router.patch("/{expense_id}", response_model=ExpenseResponse)
+async def update_expense(
+    group_id: uuid.UUID,
+    expense_id: uuid.UUID,
+    data: ExpenseUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        return await expense_service.update_expense(db, group_id, expense_id, current_user.id, data)
+    except (ForbiddenError, NotFoundError, ValidationError) as e:
         _handle(e)
 
 

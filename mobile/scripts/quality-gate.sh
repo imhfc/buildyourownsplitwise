@@ -89,6 +89,20 @@ else
   red   "C-10 group/[id].tsx 缺少 setAddError（Modal 表單 API 錯誤必須用 inline error state 顯示，禁止用 Alert.alert）"
 fi
 
+# ── C-11：router.back() 必須搭配 canGoBack 檢查 ─────────────────────────────
+C11_FAIL=0
+for f in $(grep -rl 'router\.back()' "$MOBILE_DIR/app/" 2>/dev/null); do
+  if ! grep -q 'canGoBack' "$f" 2>/dev/null; then
+    C11_FAIL=1
+    break
+  fi
+done
+if [ "$C11_FAIL" -eq 0 ]; then
+  green "C-11 所有 router.back() 皆有 canGoBack 防護"
+else
+  red   "C-11 發現 router.back() 未搭配 canGoBack 檢查（Expo Web 無歷史時會拋 GO_BACK not handled）：$f"
+fi
+
 # ── 結果 ──────────────────────────────────────────────────────────────────────
 echo ""
 echo "=== 結果：PASS=$PASS  FAIL=$FAIL ==="

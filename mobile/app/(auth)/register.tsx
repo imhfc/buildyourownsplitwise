@@ -80,7 +80,7 @@ export default function RegisterScreen() {
 
         <Button
           variant="ghost"
-          onPress={() => router.back()}
+          onPress={() => router.canGoBack() ? router.back() : router.replace("/(auth)/login")}
           className="mt-3"
         >
           {t("login")}

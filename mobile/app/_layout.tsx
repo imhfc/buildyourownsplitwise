@@ -60,14 +60,7 @@ function InnerLayout() {
             <Stack.Screen name="(tabs)" options={{ headerShown: false, title: "返回" }} />
             <Stack.Screen
               name="group/[id]"
-              options={{
-                headerShown: true,
-                title: "",
-                headerBackTitle: "返回",
-                headerStyle: { backgroundColor: isDark ? "#09090B" : "#FFFFFF" },
-                headerTintColor: primaryColor,
-                headerShadowVisible: false,
-              }}
+              options={{ headerShown: false }}
             />
           </Stack>
           <StatusBar style={isDark ? "light" : "dark"} />

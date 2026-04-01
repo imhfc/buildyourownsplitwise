@@ -360,3 +360,5 @@ cd backend && pytest tests/
 | `useState("equal")` 期望聯合型別 | TypeScript 會將字串字面值推斷為 `string`，必須明確標注：`useState<'equal' \| 'exact' \| 'ratio' \| 'shares'>('equal')` 或用 `(typeof SPLIT_METHODS)[number]` 從常數陣列衍生型別 |
 | handler 函式在前置條件不滿足時 silent return | 若 user 為 null 或 hydration 未完成而直接 return，使用者看到的是「什麼都沒發生」；必須在 return 前 `setFormError(t("unknown_error"))` 或用 UI `disabled` 阻擋操作 |
 | `useNativeDriver: true` 硬編碼 | 使用 `Platform.OS !== "web"` 條件判斷，否則 web 環境會產生警告並 fallback 到 JS 動畫 |
+| 直接呼叫 `router.back()` 不檢查歷史 | Expo Web 上直接開啟 URL 時無導航歷史，`router.back()` 會拋出 GO_BACK not handled 錯誤；必須用 `router.canGoBack() ? router.back() : router.replace("/(tabs)")` |
+| 依賴 Stack `headerShown: true` 顯示返回按鈕 | Expo Web 上 Stack native header 渲染不可靠，需要跨平台返回按鈕的頁面必須用自訂 header 元件（`headerShown: false` + 頁面內 ChevronLeft + router.back fallback） |

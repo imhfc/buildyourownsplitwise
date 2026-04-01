@@ -158,4 +158,17 @@ export const exchangeRatesAPI = {
     api.post("/exchange-rates/convert", data),
 };
 
+// Friends
+export const friendsAPI = {
+  list: () => api.get("/friends"),
+  search: (q: string) => api.get("/friends/search", { params: { q } }),
+  getRequests: () => api.get("/friends/requests"),
+  sendRequest: (email: string) =>
+    api.post("/friends/requests", { friend_email: email }),
+  handleRequest: (id: string, action: "accept" | "reject") =>
+    api.patch(`/friends/requests/${id}`, { action }),
+  removeFriend: (friendId: string) =>
+    api.delete(`/friends/${friendId}`),
+};
+
 export default api;
