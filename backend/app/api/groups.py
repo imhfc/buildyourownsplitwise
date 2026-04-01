@@ -7,7 +7,10 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from app.models.user import User
-from app.schemas.group import AddMemberRequest, GroupCreate, GroupListResponse, GroupResponse, GroupUpdate
+from app.schemas.group import (
+    AddMemberRequest, GroupCreate, GroupListResponse, GroupResponse, GroupUpdate,
+    InviteTokenResponse, ReorderGroupsRequest, SimplifiedDebt,
+)
 from app.services import group_service
 
 router = APIRouter(prefix="/groups", tags=["groups"])
@@ -41,6 +44,8 @@ async def list_my_groups(
     db: AsyncSession = Depends(get_db),
 ):
     rows = await group_service.list_user_groups(db, current_user.id)
+    group_ids = [r.id for r in rows]
+    debts_map = await group_service.get_groups_debts(db, group_ids)
     return [
         GroupListResponse(
             id=r.id,
@@ -51,6 +56,9 @@ async def list_my_groups(
             created_at=r.created_at,
             created_by=r.created_by,
             my_role=r.my_role,
+            sort_order=r.sort_order,
+            is_settled=len(debts_map.get(r.id, [])) == 0,
+            unsettled_debts=debts_map.get(r.id, []),
         )
         for r in rows
     ]
@@ -94,6 +102,15 @@ async def delete_group(
         raise HTTPException(status_code=403, detail=e.message)
 
 
+@router.put("/reorder", status_code=status.HTTP_204_NO_CONTENT)
+async def reorder_groups(
+    data: ReorderGroupsRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await group_service.reorder_groups(db, current_user.id, data.group_ids)
+
+
 @router.post("/{group_id}/members", status_code=status.HTTP_201_CREATED)
 async def add_member(
     group_id: uuid.UUID,
@@ -119,3 +136,43 @@ async def remove_member(
         await group_service.remove_member(db, group_id, current_user.id, user_id)
     except (ForbiddenError, NotFoundError) as e:
         _handle(e)
+
+
+# ---------------------------------------------------------------------------
+# Invite link management
+# ---------------------------------------------------------------------------
+
+@router.post("/{group_id}/invite", response_model=InviteTokenResponse)
+async def create_invite(
+    group_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        return await group_service.create_invite_token(db, group_id, current_user.id)
+    except ForbiddenError as e:
+        raise HTTPException(status_code=403, detail=e.message)
+
+
+@router.delete("/{group_id}/invite", status_code=status.HTTP_204_NO_CONTENT)
+async def revoke_invite(
+    group_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await group_service.revoke_invite_token(db, group_id, current_user.id)
+    except ForbiddenError as e:
+        raise HTTPException(status_code=403, detail=e.message)
+
+
+@router.post("/{group_id}/invite/regenerate", response_model=InviteTokenResponse)
+async def regenerate_invite(
+    group_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        return await group_service.regenerate_invite_token(db, group_id, current_user.id)
+    except ForbiddenError as e:
+        raise HTTPException(status_code=403, detail=e.message)

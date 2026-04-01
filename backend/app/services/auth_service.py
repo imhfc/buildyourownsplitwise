@@ -1,56 +1,16 @@
-import hashlib
 import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import ConflictError, ForbiddenError, ValidationError
+from app.core.exceptions import ValidationError
 from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_refresh_token,
-    hash_password,
-    verify_password,
 )
 from app.models.user import User
-from app.schemas.user import UserRegister, UserUpdate
-
-
-def _gravatar_url(email: str) -> str:
-    email_hash = hashlib.md5(email.lower().strip().encode()).hexdigest()
-    return f"https://www.gravatar.com/avatar/{email_hash}?d=identicon&s=200"
-
-
-async def register_user(db: AsyncSession, data: UserRegister) -> tuple[str, str, User]:
-    """Register a new user. Returns (access_token, refresh_token, user)."""
-    existing = await db.execute(select(User).where(User.email == data.email))
-    if existing.scalar_one_or_none():
-        raise ConflictError("Email already registered")
-
-    user = User(
-        email=data.email,
-        password_hash=hash_password(data.password),
-        display_name=data.display_name,
-        avatar_url=_gravatar_url(data.email),
-    )
-    db.add(user)
-    await db.flush()
-
-    access_token = create_access_token(str(user.id))
-    refresh_token = create_refresh_token(str(user.id))
-    return access_token, refresh_token, user
-
-
-async def login_user(db: AsyncSession, email: str, password: str) -> tuple[str, str, User]:
-    """Authenticate user and return (access_token, refresh_token, user)."""
-    result = await db.execute(select(User).where(User.email == email))
-    user = result.scalar_one_or_none()
-    if not user or not user.password_hash or not verify_password(password, user.password_hash):
-        raise ValidationError("Invalid email or password")
-
-    access_token = create_access_token(str(user.id))
-    refresh_token = create_refresh_token(str(user.id))
-    return access_token, refresh_token, user
+from app.schemas.user import UserUpdate
 
 
 async def refresh_tokens(db: AsyncSession, refresh_token: str) -> tuple[str, str, User]:
@@ -75,16 +35,6 @@ async def update_user(db: AsyncSession, user: User, data: UserUpdate) -> User:
         setattr(user, field, value)
     await db.flush()
     return user
-
-
-async def change_password(db: AsyncSession, user: User, old_password: str, new_password: str) -> None:
-    """Change password for email-registered users only."""
-    if user.auth_provider != "email":
-        raise ForbiddenError("僅限 email 帳號可更改密碼")
-    if not user.password_hash or not verify_password(old_password, user.password_hash):
-        raise ValidationError("目前密碼不正確")
-    user.password_hash = hash_password(new_password)
-    await db.flush()
 
 
 async def google_login(db: AsyncSession, google_access_token: str) -> tuple[str, str, User]:
@@ -135,13 +85,16 @@ async def google_login(db: AsyncSession, google_access_token: str) -> tuple[str,
     )
     user = result.scalar_one_or_none()
 
+    if user and avatar_url:
+        user.avatar_url = avatar_url
+
     if not user and email:
         # Try to link to existing email account
         result = await db.execute(select(User).where(User.email == email))
         user = result.scalar_one_or_none()
         if user:
             user.auth_provider_id = google_id
-            if not user.avatar_url and avatar_url:
+            if avatar_url:
                 user.avatar_url = avatar_url
 
     if not user:

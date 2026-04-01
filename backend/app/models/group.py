@@ -19,6 +19,8 @@ class Group(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
+    invite_token: Mapped[str | None] = mapped_column(String(32), unique=True, index=True, nullable=True)
+    invite_token_created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     members = relationship("GroupMember", back_populates="group", cascade="all, delete-orphan")
@@ -37,6 +39,7 @@ class GroupMember(Base):
     joined_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
+    sort_order: Mapped[int] = mapped_column(default=0, server_default="0")
 
     # Relationships
     group = relationship("Group", back_populates="members")

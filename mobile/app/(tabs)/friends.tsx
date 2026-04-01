@@ -29,6 +29,8 @@ import { Card, CardContent } from "~/components/ui/card";
 import { EmptyState } from "~/components/ui/empty-state";
 import { SegmentedTabs } from "~/components/ui/tabs";
 import { FAB } from "~/components/ui/fab";
+import { Avatar } from "~/components/ui/avatar";
+import { useThemeClassName } from "~/lib/theme";
 
 interface FriendUser {
   id: string;
@@ -60,6 +62,7 @@ type TabValue = "friends" | "pending";
 
 export default function FriendsScreen() {
   const { t } = useTranslation();
+  const themeClass = useThemeClassName();
   const [tab, setTab] = useState<TabValue>("friends");
   const [friends, setFriends] = useState<FriendItem[]>([]);
   const [pending, setPending] = useState<PendingRequest[]>([]);
@@ -192,27 +195,14 @@ export default function FriendsScreen() {
     { value: "pending", label: t("pending_requests") },
   ];
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((w) => w[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
-  const renderAvatar = (name: string) => (
-    <View className="h-10 w-10 rounded-full bg-primary/10 items-center justify-center">
-      <Text className="text-sm font-semibold text-primary">
-        {getInitials(name)}
-      </Text>
-    </View>
+  const renderAvatar = (name: string, avatarUrl?: string | null) => (
+    <Avatar name={name} avatarUrl={avatarUrl} size="md" />
   );
 
   const renderFriendItem = ({ item }: { item: FriendItem }) => (
     <Card className="mb-3">
       <CardContent className="flex-row items-center p-4 gap-3">
-        {renderAvatar(item.friend.display_name)}
+        {renderAvatar(item.friend.display_name, item.friend.avatar_url)}
         <View className="flex-1">
           <Text className="text-base font-medium">{item.friend.display_name}</Text>
           {item.friend.email ? (
@@ -233,7 +223,7 @@ export default function FriendsScreen() {
   const renderPendingItem = ({ item }: { item: PendingRequest }) => (
     <Card className="mb-3">
       <CardContent className="flex-row items-center p-4 gap-3">
-        {renderAvatar(item.user.display_name)}
+        {renderAvatar(item.user.display_name, item.user.avatar_url)}
         <View className="flex-1">
           <Text className="text-sm font-medium">
             {t("friend_request_from", { name: item.user.display_name })}
@@ -279,7 +269,7 @@ export default function FriendsScreen() {
 
     return (
       <View className="flex-row items-center py-3 gap-3">
-        {renderAvatar(item.user.display_name)}
+        {renderAvatar(item.user.display_name, item.user.avatar_url)}
         <View className="flex-1">
           <Text className="text-sm font-medium">{item.user.display_name}</Text>
           {email ? <Muted className="text-xs">{email}</Muted> : null}
@@ -365,6 +355,7 @@ export default function FriendsScreen() {
         animationType="slide"
         onRequestClose={closeAddModal}
       >
+        <View className={`flex-1 ${themeClass}`}>
         <KeyboardAvoidingView
           className="flex-1 justify-end"
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -424,6 +415,7 @@ export default function FriendsScreen() {
             </View>
           </View>
         </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* Remove Friend Confirm Modal */}
@@ -433,6 +425,7 @@ export default function FriendsScreen() {
         animationType="fade"
         onRequestClose={() => setRemoveTarget(null)}
       >
+        <View className={`flex-1 ${themeClass}`}>
         <View className="flex-1 justify-center items-center bg-black/50 px-6">
           <View className="bg-background rounded-2xl p-6 w-full max-w-sm gap-4">
             <H3>{t("remove_friend")}</H3>
@@ -457,6 +450,7 @@ export default function FriendsScreen() {
               </Button>
             </View>
           </View>
+        </View>
         </View>
       </Modal>
     </View>

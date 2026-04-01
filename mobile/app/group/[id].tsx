@@ -10,9 +10,11 @@ import {
   UserMinus,
   Check,
   ChevronLeft,
+  Pencil,
+  Link,
 } from "lucide-react-native";
 import { CurrencyPicker } from "~/components/ui/currency-picker";
-import { expensesAPI, settlementsAPI, groupsAPI, authAPI, ExpenseSplitInput } from "../../services/api";
+import { expensesAPI, settlementsAPI, groupsAPI, authAPI, ExpenseSplitInput, ExpenseUpdatePayload } from "../../services/api";
 import { useAuthStore } from "../../stores/auth";
 import { Card, CardContent } from "~/components/ui/card";
 import { Text, H3, Muted } from "~/components/ui/text";
@@ -22,16 +24,29 @@ import { Badge } from "~/components/ui/badge";
 import { FAB } from "~/components/ui/fab";
 import { EmptyState } from "~/components/ui/empty-state";
 import { SegmentedTabs } from "~/components/ui/tabs";
+import { useThemeClassName } from "~/lib/theme";
+import { InviteShareModal } from "~/components/InviteShareModal";
 
 type Tab = "expenses" | "settlements" | "members";
+
+interface ExpenseSplitItem {
+  user_id: string;
+  user_display_name: string;
+  amount: string;
+  shares: string | null;
+}
 
 interface ExpenseItem {
   id: string;
   description: string;
   total_amount: string;
   currency: string;
+  paid_by: string;
   payer_display_name: string;
   split_method: string;
+  splits: ExpenseSplitItem[];
+  note: string | null;
+  expense_date: string | null;
   created_at: string;
 }
 
@@ -56,6 +71,7 @@ export default function GroupDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
+  const themeClass = useThemeClassName();
 
   const [tab, setTab] = useState<Tab>("expenses");
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
@@ -75,6 +91,7 @@ export default function GroupDetailScreen() {
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState("");
   const [splitInputs, setSplitInputs] = useState<Record<string, string>>({});
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
 
   // Add member modal
   const [showAddMember, setShowAddMember] = useState(false);
@@ -83,6 +100,7 @@ export default function GroupDetailScreen() {
   const [lookingUp, setLookingUp] = useState(false);
   const [addingMember, setAddingMember] = useState(false);
   const [lookupError, setLookupError] = useState("");
+  const [showInvite, setShowInvite] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [sugLoading, setSugLoading] = useState(false);
@@ -174,7 +192,37 @@ export default function GroupDetailScreen() {
     return true;
   })();
 
-  const handleAddExpense = async () => {
+  const openEditModal = (expense: ExpenseItem) => {
+    setEditingExpenseId(expense.id);
+    setDesc(expense.description);
+    setAmount(parseFloat(expense.total_amount).toString());
+    setExpenseCurrency(expense.currency);
+
+    const method = expense.split_method as (typeof SPLIT_METHODS)[number];
+    setSplitMethod(method);
+
+    const splitMemberIds = new Set(expense.splits.map((s) => s.user_id));
+    setSelectedMembers(splitMemberIds);
+
+    if (method !== "equal") {
+      const inputs: Record<string, string> = {};
+      expense.splits.forEach((s) => {
+        if (method === "exact") {
+          inputs[s.user_id] = parseFloat(s.amount).toString();
+        } else {
+          inputs[s.user_id] = s.shares ? parseFloat(s.shares).toString() : "1";
+        }
+      });
+      setSplitInputs(inputs);
+    } else {
+      setSplitInputs({});
+    }
+
+    setAddError("");
+    setShowAdd(true);
+  };
+
+  const handleSubmitExpense = async () => {
     setAddError("");
     if (!desc || !amount || Number(amount) <= 0 || !id || !user) return;
     if (selectedMembers.size === 0) {
@@ -185,7 +233,6 @@ export default function GroupDetailScreen() {
     let splits: ExpenseSplitInput[] | undefined;
 
     if (splitMethod === "equal") {
-      // equal 也送 splits，讓後端只分給選中的人
       splits = selectedMembersList.map((m) => ({ user_id: m.user.id }));
     } else if (splitMethod === "exact") {
       splits = selectedMembersList.map((m) => ({
@@ -211,15 +258,26 @@ export default function GroupDetailScreen() {
 
     setAdding(true);
     try {
-      await expensesAPI.create(id, {
-        description: desc,
-        total_amount: parseFloat(amount),
-        currency: expenseCurrency,
-        paid_by: user.id,
-        split_method: splitMethod,
-        splits,
-      });
+      if (editingExpenseId) {
+        await expensesAPI.update(id, editingExpenseId, {
+          description: desc,
+          total_amount: parseFloat(amount),
+          currency: expenseCurrency,
+          split_method: splitMethod,
+          splits,
+        });
+      } else {
+        await expensesAPI.create(id, {
+          description: desc,
+          total_amount: parseFloat(amount),
+          currency: expenseCurrency,
+          paid_by: user.id,
+          split_method: splitMethod,
+          splits,
+        });
+      }
       setShowAdd(false);
+      setEditingExpenseId(null);
       setDesc("");
       setAmount("");
       setSplitMethod("equal");
@@ -295,25 +353,30 @@ export default function GroupDetailScreen() {
   };
 
   const renderExpense = ({ item }: { item: ExpenseItem }) => (
-    <Card className="mb-3">
-      <CardContent className="flex-row items-center p-4 gap-3">
-        <View className="h-10 w-10 rounded-full bg-muted items-center justify-center">
-          <Receipt size={20} color="hsl(240 3.8% 46.1%)" />
-        </View>
-        <View className="flex-1">
-          <Text className="font-medium">{item.description}</Text>
-          <Muted>
-            {item.payer_display_name} {t("paid_by")}
-          </Muted>
-        </View>
-        <View className="items-end gap-1">
-          <Text className="text-lg font-bold text-primary">
-            {item.currency} {parseFloat(item.total_amount).toLocaleString()}
-          </Text>
-          <Badge variant="secondary">{t(item.split_method)}</Badge>
-        </View>
-      </CardContent>
-    </Card>
+    <Pressable onPress={() => openEditModal(item)}>
+      <Card className="mb-3">
+        <CardContent className="flex-row items-center p-4 gap-3">
+          <View className="h-10 w-10 rounded-full bg-muted items-center justify-center">
+            <Receipt size={20} color="hsl(240 3.8% 46.1%)" />
+          </View>
+          <View className="flex-1">
+            <Text className="font-medium">{item.description}</Text>
+            <Muted>
+              {item.payer_display_name} {t("paid_by")}
+            </Muted>
+          </View>
+          <View className="items-end gap-1">
+            <Text className="text-lg font-bold text-primary">
+              {item.currency} {parseFloat(item.total_amount).toLocaleString()}
+            </Text>
+            <View className="flex-row items-center gap-1.5">
+              <Badge variant="secondary">{t(item.split_method)}</Badge>
+              <Pencil size={14} color="hsl(240 3.8% 46.1%)" />
+            </View>
+          </View>
+        </CardContent>
+      </Card>
+    </Pressable>
   );
 
   const renderSuggestion = ({ item }: { item: Suggestion }) => (
@@ -417,7 +480,7 @@ export default function GroupDetailScreen() {
               title={t("add_expense")}
               description={t("no_expenses_hint")}
               actionLabel={t("add_expense")}
-              onAction={() => { setAddError(""); setSplitMethod("equal"); setSplitInputs({}); setSelectedMembers(new Set(members.map((m) => m.user.id))); setExpenseCurrency(groupCurrency); setShowAdd(true); }}
+              onAction={() => { setEditingExpenseId(null); setAddError(""); setDesc(""); setAmount(""); setSplitMethod("equal"); setSplitInputs({}); setSelectedMembers(new Set(members.map((m) => m.user.id))); setExpenseCurrency(groupCurrency); setShowAdd(true); }}
             />
           }
         />
@@ -463,18 +526,35 @@ export default function GroupDetailScreen() {
         />
       )}
 
-      {tab === "expenses" && <FAB onPress={() => { setAddError(""); setSplitMethod("equal"); setSplitInputs({}); setSelectedMembers(new Set(members.map((m) => m.user.id))); setExpenseCurrency(groupCurrency); setShowAdd(true); }} />}
+      {tab === "expenses" && <FAB onPress={() => { setEditingExpenseId(null); setAddError(""); setDesc(""); setAmount(""); setSplitMethod("equal"); setSplitInputs({}); setSelectedMembers(new Set(members.map((m) => m.user.id))); setExpenseCurrency(groupCurrency); setShowAdd(true); }} />}
       {tab === "members" && (
-        <FAB onPress={() => { setShowAddMember(true); setMemberEmail(""); setFoundUser(null); setLookupError(""); }} />
+        <>
+          <Pressable
+            onPress={() => setShowInvite(true)}
+            className="absolute bottom-24 right-5 h-12 w-12 rounded-full bg-secondary items-center justify-center shadow-lg"
+          >
+            <Link size={22} color="hsl(var(--primary))" />
+          </Pressable>
+          <FAB onPress={() => { setShowAddMember(true); setMemberEmail(""); setFoundUser(null); setLookupError(""); }} />
+        </>
       )}
+
+      <InviteShareModal
+        visible={showInvite}
+        onClose={() => setShowInvite(false)}
+        groupId={id!}
+        groupName={groupName}
+        isAdmin={isAdmin}
+      />
 
       {/* Add Expense Bottom Sheet */}
       <Modal
         visible={showAdd}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowAdd(false)}
+        onRequestClose={() => { setShowAdd(false); setEditingExpenseId(null); }}
       >
+        <View className={`flex-1 ${themeClass}`}>
         <KeyboardAvoidingView
           className="flex-1 justify-end"
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -486,8 +566,8 @@ export default function GroupDetailScreen() {
               </View>
 
               <View className="flex-row items-center justify-between mb-6">
-                <H3>{t("add_expense")}</H3>
-                <Pressable onPress={() => setShowAdd(false)}>
+                <H3>{editingExpenseId ? t("edit_expense") : t("add_expense")}</H3>
+                <Pressable onPress={() => { setShowAdd(false); setEditingExpenseId(null); }}>
                   <X size={24} color="hsl(240 3.8% 46.1%)" />
                 </Pressable>
               </View>
@@ -656,7 +736,7 @@ export default function GroupDetailScreen() {
                   ) : null}
 
                   <Button
-                    onPress={handleAddExpense}
+                    onPress={handleSubmitExpense}
                     loading={adding}
                     disabled={adding || !canSubmitExpense}
                     size="lg"
@@ -669,6 +749,7 @@ export default function GroupDetailScreen() {
             </View>
           </View>
         </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* Add Member Bottom Sheet */}
@@ -678,6 +759,7 @@ export default function GroupDetailScreen() {
         animationType="slide"
         onRequestClose={() => setShowAddMember(false)}
       >
+        <View className={`flex-1 ${themeClass}`}>
         <KeyboardAvoidingView
           className="flex-1 justify-end"
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -753,6 +835,7 @@ export default function GroupDetailScreen() {
             </View>
           </View>
         </KeyboardAvoidingView>
+        </View>
       </Modal>
     </View>
   );

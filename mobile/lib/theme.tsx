@@ -89,3 +89,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 export function useTheme() {
   return useContext(ThemeCtx);
 }
+
+/** 回传当前主题对应的 NativeWind className（含 dark + scheme-*），用于 Modal 等 portal 场景 */
+export function useThemeClassName() {
+  const { isDark, colorScheme } = useTheme();
+  const parts: string[] = [];
+  if (isDark) parts.push("dark");
+  if (colorScheme !== "blue") parts.push(`scheme-${colorScheme}`);
+  return parts.join(" ");
+}

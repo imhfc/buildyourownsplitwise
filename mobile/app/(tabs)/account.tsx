@@ -13,7 +13,6 @@ import {
   Palette,
   ChevronRight,
   Check,
-  Lock,
   X,
 } from "lucide-react-native";
 import { useAuthStore } from "../../stores/auth";
@@ -130,16 +129,6 @@ export default function AccountScreen() {
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [currencyLoading, setCurrencyLoading] = useState(false);
 
-  // Change password modal
-  const [showChangePw, setShowChangePw] = useState(false);
-  const [oldPw, setOldPw] = useState("");
-  const [newPw, setNewPw] = useState("");
-  const [confirmPw, setConfirmPw] = useState("");
-  const [pwLoading, setPwLoading] = useState(false);
-  const [pwError, setPwError] = useState<string | null>(null);
-
-  const isEmailUser = user?.auth_provider === "email";
-
   const handleLogout = () => {
     logout();
     router.replace("/(auth)/login");
@@ -200,40 +189,13 @@ export default function AccountScreen() {
     }
   };
 
-  const resetPwForm = () => {
-    setOldPw("");
-    setNewPw("");
-    setConfirmPw("");
-    setPwError(null);
-  };
-
-  const handleChangePw = async () => {
-    if (!oldPw || !newPw || !confirmPw) return;
-    if (newPw !== confirmPw) {
-      setPwError(t("password_mismatch"));
-      return;
-    }
-    setPwLoading(true);
-    setPwError(null);
-    try {
-      await authAPI.changePassword(oldPw, newPw);
-      setShowChangePw(false);
-      resetPwForm();
-    } catch (e: any) {
-      const msg = e?.response?.data?.detail || t("error");
-      setPwError(msg);
-    } finally {
-      setPwLoading(false);
-    }
-  };
-
   const iconColor = isDark ? "#A1A1AA" : "#71717A";
 
   return (
     <ScrollView className="flex-1 bg-background">
       {/* Profile Section */}
       <View className="items-center pt-8 pb-6">
-        <Avatar name={user?.display_name || "?"} size="xl" index={0} />
+        <Avatar name={user?.display_name || "?"} avatarUrl={user?.avatar_url} size="xl" index={0} />
         <Text className="mt-3 text-xl font-semibold">
           {user?.display_name}
         </Text>
@@ -323,16 +285,6 @@ export default function AccountScreen() {
               title={isDark ? t("dark_mode") : t("light_mode")}
               onPress={toggleTheme}
             />
-            {isEmailUser && (
-              <>
-                <Separator />
-                <SettingItem
-                  icon={<Lock size={18} color={iconColor} />}
-                  title={t("change_password")}
-                  onPress={() => setShowChangePw(true)}
-                />
-              </>
-            )}
           </CardContent>
         </Card>
 
@@ -486,68 +438,6 @@ export default function AccountScreen() {
         </View>
       </Modal>
 
-      {/* Change Password Modal */}
-      <Modal
-        visible={showChangePw}
-        transparent
-        animationType="slide"
-        onRequestClose={() => {
-          setShowChangePw(false);
-          resetPwForm();
-        }}
-      >
-        <KeyboardAvoidingView
-          className="flex-1 justify-end"
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-        >
-          <View className="flex-1 justify-end bg-black/50">
-            <View className="bg-background rounded-t-3xl px-5 pb-10 pt-4">
-              <View className="items-center mb-4">
-                <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
-              </View>
-              <View className="flex-row items-center justify-between mb-6">
-                <Text className="text-xl font-semibold">{t("change_password")}</Text>
-                <Pressable onPress={() => { setShowChangePw(false); resetPwForm(); }}>
-                  <X size={24} color="hsl(240 3.8% 46.1%)" />
-                </Pressable>
-              </View>
-              <View className="gap-4">
-                <Input
-                  label={t("old_password")}
-                  value={oldPw}
-                  onChangeText={setOldPw}
-                  secureTextEntry
-                  autoCapitalize="none"
-                />
-                <Input
-                  label={t("new_password")}
-                  value={newPw}
-                  onChangeText={setNewPw}
-                  secureTextEntry
-                  autoCapitalize="none"
-                />
-                <Input
-                  label={t("confirm_new_password")}
-                  value={confirmPw}
-                  onChangeText={setConfirmPw}
-                  secureTextEntry
-                  autoCapitalize="none"
-                />
-                {pwError && (
-                  <Text className="text-destructive text-sm">{pwError}</Text>
-                )}
-                <Button
-                  onPress={handleChangePw}
-                  disabled={pwLoading || !oldPw || !newPw || !confirmPw}
-                  className="mt-2"
-                >
-                  {pwLoading ? t("loading") : t("save")}
-                </Button>
-              </View>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
     </ScrollView>
   );
 }

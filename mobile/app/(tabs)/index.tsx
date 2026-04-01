@@ -1,9 +1,10 @@
-import { useCallback, useRef, useState } from "react";
-import { View, FlatList, RefreshControl, Modal, Pressable, Alert, KeyboardAvoidingView, Platform, Animated, ActivityIndicator } from "react-native";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { View, RefreshControl, Modal, Pressable, Alert, KeyboardAvoidingView, Platform, Animated, ActivityIndicator } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Users, X, Trash2, LogOut } from "lucide-react-native";
+import { Users, X, Trash2, LogOut, GripVertical, ChevronDown, ChevronRight } from "lucide-react-native";
 import { Swipeable } from "react-native-gesture-handler";
+import DraggableFlatList, { ScaleDecorator, RenderItemParams } from "react-native-draggable-flatlist";
 import { groupsAPI } from "../../services/api";
 import { useAuthStore } from "../../stores/auth";
 import { Card, CardContent } from "~/components/ui/card";
@@ -14,6 +15,16 @@ import { Badge } from "~/components/ui/badge";
 import { FAB } from "~/components/ui/fab";
 import { EmptyState } from "~/components/ui/empty-state";
 import { CurrencyPicker } from "~/components/ui/currency-picker";
+import { useThemeClassName } from "~/lib/theme";
+
+interface SimplifiedDebt {
+  from_user_id: string;
+  from_user_name: string;
+  to_user_id: string;
+  to_user_name: string;
+  amount: number;
+  currency: string;
+}
 
 interface GroupItem {
   id: string;
@@ -24,11 +35,15 @@ interface GroupItem {
   created_at: string;
   created_by: string;
   my_role: string;
+  sort_order: number;
+  is_settled: boolean;
+  unsettled_debts: SimplifiedDebt[];
 }
 
 export default function GroupsScreen() {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
+  const themeClass = useThemeClassName();
   const [groups, setGroups] = useState<GroupItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -40,6 +55,10 @@ export default function GroupsScreen() {
   const [creating, setCreating] = useState(false);
   const swipeableRefs = useRef<Map<string, Swipeable>>(new Map());
   const [confirmTarget, setConfirmTarget] = useState<{ item: GroupItem; action: "delete" | "leave" } | null>(null);
+  const [settledExpanded, setSettledExpanded] = useState(false);
+
+  const activeGroups = useMemo(() => groups.filter((g) => !g.is_settled), [groups]);
+  const settledGroups = useMemo(() => groups.filter((g) => g.is_settled), [groups]);
 
   const fetchGroups = useCallback(async () => {
     const isFirstLoad = !hasFetched.current;
@@ -85,6 +104,15 @@ export default function GroupsScreen() {
       Alert.alert(t("error"), msg);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleDragEnd = async ({ data }: { data: GroupItem[] }) => {
+    setGroups([...data, ...settledGroups]);
+    try {
+      await groupsAPI.reorder(data.map((g) => g.id));
+    } catch {
+      await fetchGroups();
     }
   };
 
@@ -143,8 +171,61 @@ export default function GroupsScreen() {
     );
   };
 
-  const renderGroup = ({ item }: { item: GroupItem }) => (
+  const renderDebtDetails = (debts: SimplifiedDebt[]) => (
+    <View className="px-4 pb-3 -mt-2 gap-1">
+      {debts.map((d, i) => (
+        <View key={i} className="flex-row items-center gap-1 pl-9">
+          <Text className="text-xs text-destructive">
+            {d.from_user_name} {t("owes")} {d.to_user_name} {d.currency} {Number(d.amount).toFixed(2)}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+
+  const renderGroup = ({ item, drag, isActive }: RenderItemParams<GroupItem>) => (
+    <ScaleDecorator>
+      <Swipeable
+        ref={(ref) => {
+          if (ref) swipeableRefs.current.set(item.id, ref);
+          else swipeableRefs.current.delete(item.id);
+        }}
+        renderRightActions={(_, dragX) => renderRightActions(item, dragX)}
+        rightThreshold={40}
+        overshootRight={false}
+        enabled={!isActive}
+      >
+        <Card
+          className="mb-3"
+          onPress={() => router.push(`/group/${item.id}`)}
+        >
+          <CardContent className="flex-row items-center justify-between p-4">
+            <Pressable
+              onLongPress={drag}
+              delayLongPress={150}
+              hitSlop={8}
+              className="justify-center mr-3"
+            >
+              <GripVertical size={20} className="text-muted-foreground" />
+            </Pressable>
+            <View className="flex-1 gap-1">
+              <H3>{item.name}</H3>
+              {item.description ? (
+                <Muted numberOfLines={1}>{item.description}</Muted>
+              ) : null}
+              <Muted>{item.member_count} {t("members")}</Muted>
+            </View>
+            <Badge>{item.default_currency}</Badge>
+          </CardContent>
+          {item.unsettled_debts.length > 0 ? renderDebtDetails(item.unsettled_debts) : null}
+        </Card>
+      </Swipeable>
+    </ScaleDecorator>
+  );
+
+  const renderSettledGroup = (item: GroupItem) => (
     <Swipeable
+      key={item.id}
       ref={(ref) => {
         if (ref) swipeableRefs.current.set(item.id, ref);
         else swipeableRefs.current.delete(item.id);
@@ -163,7 +244,7 @@ export default function GroupsScreen() {
             {item.description ? (
               <Muted numberOfLines={1}>{item.description}</Muted>
             ) : null}
-            <Muted>{item.member_count} {t("members")}</Muted>
+            <Muted className="text-green-600">{t("balanced")}</Muted>
           </View>
           <Badge>{item.default_currency}</Badge>
         </CardContent>
@@ -171,30 +252,50 @@ export default function GroupsScreen() {
     </Swipeable>
   );
 
+  const settledFooter = settledGroups.length > 0 ? (
+    <View className="mt-2">
+      <Pressable
+        className="flex-row items-center gap-2 py-3 px-1"
+        onPress={() => setSettledExpanded((v) => !v)}
+      >
+        {settledExpanded
+          ? <ChevronDown size={18} className="text-muted-foreground" />
+          : <ChevronRight size={18} className="text-muted-foreground" />}
+        <Text className="text-muted-foreground font-medium">
+          {t("settled_groups")} ({settledGroups.length})
+        </Text>
+      </Pressable>
+      {settledExpanded ? settledGroups.map(renderSettledGroup) : null}
+    </View>
+  ) : null;
+
   return (
     <View className="flex-1 bg-background">
       {loading ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" />
         </View>
+      ) : groups.length === 0 ? (
+        <View className="flex-1 items-center justify-center p-5">
+          <EmptyState
+            icon={Users}
+            title={t("create_group")}
+            description={t("create_group_hint")}
+            actionLabel={t("create_group")}
+            onAction={() => setShowCreate(true)}
+          />
+        </View>
       ) : (
-        <FlatList
-          data={groups}
+        <DraggableFlatList
+          data={activeGroups}
           keyExtractor={(item) => item.id}
           renderItem={renderGroup}
+          onDragEnd={handleDragEnd}
           contentContainerStyle={{ padding: 20 }}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
-          ListEmptyComponent={
-            <EmptyState
-              icon={Users}
-              title={t("create_group")}
-              description={t("create_group_hint")}
-              actionLabel={t("create_group")}
-              onAction={() => setShowCreate(true)}
-            />
-          }
+          ListFooterComponent={settledFooter}
         />
       )}
 
@@ -206,6 +307,7 @@ export default function GroupsScreen() {
         animationType="fade"
         onRequestClose={() => setConfirmTarget(null)}
       >
+        <View className={`flex-1 ${themeClass}`}>
         <View className="flex-1 justify-center items-center bg-black/50 px-6">
           <View className="bg-background rounded-2xl p-6 w-full max-w-sm gap-4">
             <H3>
@@ -224,6 +326,7 @@ export default function GroupsScreen() {
             </View>
           </View>
         </View>
+        </View>
       </Modal>
 
       <Modal
@@ -232,6 +335,7 @@ export default function GroupsScreen() {
         animationType="slide"
         onRequestClose={() => setShowCreate(false)}
       >
+        <View className={`flex-1 ${themeClass}`}>
         <KeyboardAvoidingView
           className="flex-1 justify-end"
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -281,6 +385,7 @@ export default function GroupsScreen() {
             </View>
           </View>
         </KeyboardAvoidingView>
+        </View>
       </Modal>
     </View>
   );

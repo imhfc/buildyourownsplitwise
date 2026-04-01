@@ -37,10 +37,11 @@ function InnerLayout() {
     const inAuthGroup = segments[0] === "(auth)";
     const inTabsGroup = segments[0] === "(tabs)";
     const inGroupPage = segments[0] === "group";
+    const inJoinPage = segments[0] === "join";
 
-    if (!isAuthenticated && !inAuthGroup) {
+    if (!isAuthenticated && !inAuthGroup && !inJoinPage) {
       router.replace("/(auth)/login");
-    } else if (isAuthenticated && !inTabsGroup && !inGroupPage) {
+    } else if (isAuthenticated && !inTabsGroup && !inGroupPage && !inJoinPage) {
       // 涵蓋 index.tsx（spinner）和 auth 頁面，都導向 tabs
       router.replace("/(tabs)");
     }
@@ -60,6 +61,10 @@ function InnerLayout() {
             <Stack.Screen name="(tabs)" options={{ headerShown: false, title: "返回" }} />
             <Stack.Screen
               name="group/[id]"
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="join/[token]"
               options={{ headerShown: false }}
             />
           </Stack>

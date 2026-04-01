@@ -1,4 +1,6 @@
+import secrets
 import uuid
+from datetime import datetime, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,7 +9,7 @@ from sqlalchemy.orm import aliased, selectinload
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from app.models.group import Group, GroupMember
 from app.models.user import User
-from app.schemas.group import GroupCreate, GroupResponse, GroupUpdate
+from app.schemas.group import GroupCreate, GroupResponse, GroupUpdate, SimplifiedDebt
 
 
 async def check_membership(
@@ -66,13 +68,84 @@ async def list_user_groups(db: AsyncSession, user_id: uuid.UUID) -> list[dict]:
             Group.created_by,
             func.count(GroupMember.id).label("member_count"),
             my_membership.role.label("my_role"),
+            my_membership.sort_order,
         )
         .join(GroupMember, Group.id == GroupMember.group_id)
         .join(my_membership, (Group.id == my_membership.group_id) & (my_membership.user_id == user_id))
-        .group_by(Group.id, my_membership.role)
-        .order_by(Group.created_at.desc())
+        .group_by(Group.id, my_membership.role, my_membership.sort_order)
+        .order_by(my_membership.sort_order.asc(), Group.created_at.desc())
     )
     return result.all()
+
+
+async def get_groups_debts(
+    db: AsyncSession, group_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, list[SimplifiedDebt]]:
+    """Calculate simplified debts for multiple groups at once."""
+    from app.services.settlement_service import calculate_balances, simplify_debts
+
+    result: dict[uuid.UUID, list[SimplifiedDebt]] = {}
+    if not group_ids:
+        return result
+
+    # Batch-load group currencies
+    group_result = await db.execute(
+        select(Group.id, Group.default_currency).where(Group.id.in_(group_ids))
+    )
+    currency_map = {row.id: row.default_currency for row in group_result.all()}
+
+    # Collect all user IDs we'll need
+    all_user_ids: set[uuid.UUID] = set()
+
+    balances_map: dict[uuid.UUID, dict[uuid.UUID, object]] = {}
+    for gid in group_ids:
+        balances = await calculate_balances(db, gid)
+        balances_map[gid] = balances
+        all_user_ids.update(balances.keys())
+
+    # Batch-load user display names
+    user_map: dict[uuid.UUID, str] = {}
+    if all_user_ids:
+        user_result = await db.execute(
+            select(User.id, User.display_name).where(User.id.in_(list(all_user_ids)))
+        )
+        user_map = {row.id: row.display_name for row in user_result.all()}
+
+    for gid in group_ids:
+        balances = balances_map[gid]
+        if not balances:
+            result[gid] = []
+            continue
+        transactions = simplify_debts(balances)
+        currency = currency_map.get(gid, "TWD")
+        result[gid] = [
+            SimplifiedDebt(
+                from_user_id=t["from"],
+                from_user_name=user_map.get(t["from"], "Unknown"),
+                to_user_id=t["to"],
+                to_user_name=user_map.get(t["to"], "Unknown"),
+                amount=t["amount"],
+                currency=currency,
+            )
+            for t in transactions
+        ]
+
+    return result
+
+
+async def reorder_groups(
+    db: AsyncSession, user_id: uuid.UUID, group_ids: list[uuid.UUID]
+) -> None:
+    """Set sort_order for user's groups based on the provided order."""
+    for idx, gid in enumerate(group_ids):
+        result = await db.execute(
+            select(GroupMember).where(
+                GroupMember.group_id == gid, GroupMember.user_id == user_id
+            )
+        )
+        membership = result.scalar_one_or_none()
+        if membership:
+            membership.sort_order = idx + 1
 
 
 async def update_group(
@@ -170,3 +243,92 @@ async def get_group_member_ids(db: AsyncSession, group_id: uuid.UUID) -> list[uu
         select(GroupMember.user_id).where(GroupMember.group_id == group_id)
     )
     return [row[0] for row in result.all()]
+
+
+# ---------------------------------------------------------------------------
+# Invite token
+# ---------------------------------------------------------------------------
+
+async def create_invite_token(
+    db: AsyncSession, group_id: uuid.UUID, user_id: uuid.UUID
+) -> dict:
+    """Generate or return existing invite token. Requires membership."""
+    await check_membership(db, group_id, user_id)
+    result = await db.execute(select(Group).where(Group.id == group_id))
+    group = result.scalar_one()
+    if not group.invite_token:
+        group.invite_token = secrets.token_hex(16)
+        group.invite_token_created_at = datetime.now(timezone.utc)
+        await db.flush()
+    return {
+        "invite_token": group.invite_token,
+        "created_at": group.invite_token_created_at,
+    }
+
+
+async def revoke_invite_token(
+    db: AsyncSession, group_id: uuid.UUID, user_id: uuid.UUID
+) -> None:
+    """Revoke invite token. Requires admin."""
+    await check_admin(db, group_id, user_id)
+    result = await db.execute(select(Group).where(Group.id == group_id))
+    group = result.scalar_one()
+    group.invite_token = None
+    group.invite_token_created_at = None
+
+
+async def regenerate_invite_token(
+    db: AsyncSession, group_id: uuid.UUID, user_id: uuid.UUID
+) -> dict:
+    """Regenerate invite token (invalidates old). Requires admin."""
+    await check_admin(db, group_id, user_id)
+    result = await db.execute(select(Group).where(Group.id == group_id))
+    group = result.scalar_one()
+    group.invite_token = secrets.token_hex(16)
+    group.invite_token_created_at = datetime.now(timezone.utc)
+    await db.flush()
+    return {
+        "invite_token": group.invite_token,
+        "created_at": group.invite_token_created_at,
+    }
+
+
+async def get_invite_info(db: AsyncSession, token: str) -> dict:
+    """Get group info from invite token."""
+    result = await db.execute(
+        select(Group).where(Group.invite_token == token)
+    )
+    group = result.scalar_one_or_none()
+    if not group:
+        raise NotFoundError("Invalid invite link")
+    member_count_result = await db.execute(
+        select(func.count(GroupMember.id)).where(GroupMember.group_id == group.id)
+    )
+    return {
+        "group_id": group.id,
+        "group_name": group.name,
+        "group_description": group.description,
+        "member_count": member_count_result.scalar(),
+    }
+
+
+async def accept_invite(
+    db: AsyncSession, token: str, user_id: uuid.UUID
+) -> uuid.UUID:
+    """Accept invite and join group. Returns group_id."""
+    result = await db.execute(
+        select(Group).where(Group.invite_token == token)
+    )
+    group = result.scalar_one_or_none()
+    if not group:
+        raise NotFoundError("Invalid invite link")
+    existing = await db.execute(
+        select(GroupMember).where(
+            GroupMember.group_id == group.id, GroupMember.user_id == user_id
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise ConflictError("Already a member of this group")
+    member = GroupMember(group_id=group.id, user_id=user_id, role="member")
+    db.add(member)
+    return group.id

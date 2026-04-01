@@ -151,13 +151,19 @@ async def update_expense(
     await check_membership(db, group_id, user_id)
     member_ids = await get_group_member_ids(db, group_id)
 
-    result = await db.execute(select(Expense).where(Expense.id == expense_id))
+    result = await db.execute(
+        select(Expense)
+        .where(Expense.id == expense_id)
+        .options(selectinload(Expense.splits))
+    )
     expense = result.scalar_one_or_none()
     if not expense:
         raise NotFoundError("Expense not found")
 
-    if expense.created_by != user_id:
-        raise ForbiddenError("Only creator can update expense")
+    # Allow any involved member (payer or split participant) to update
+    involved_user_ids = {expense.paid_by} | {s.user_id for s in expense.splits}
+    if user_id not in involved_user_ids:
+        raise ForbiddenError("Only involved members can update expense")
 
     # Update non-None fields
     if data.description is not None:

@@ -24,10 +24,12 @@ interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   hasHydrated: boolean;
+  pendingInviteToken: string | null;
   setAuth: (token: string, refreshToken: string, user: User) => void;
   setTokens: (token: string, refreshToken: string) => void;
   logout: () => void;
   updateUser: (user: Partial<User>) => void;
+  setPendingInviteToken: (token: string | null) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -38,6 +40,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
       hasHydrated: false,
+      pendingInviteToken: null,
 
       setAuth: (token, refreshToken, user) =>
         set({ token, refreshToken, user, isAuthenticated: true }),
@@ -46,10 +49,13 @@ export const useAuthStore = create<AuthState>()(
         set({ token, refreshToken }),
 
       logout: () =>
-        set({ token: null, refreshToken: null, user: null, isAuthenticated: false }),
+        set({ token: null, refreshToken: null, user: null, isAuthenticated: false, pendingInviteToken: null }),
 
       updateUser: (partial) =>
         set({ user: { ...get().user!, ...partial } }),
+
+      setPendingInviteToken: (token) =>
+        set({ pendingInviteToken: token }),
     }),
     {
       name: "auth-storage",
@@ -60,6 +66,7 @@ export const useAuthStore = create<AuthState>()(
         refreshToken: state.refreshToken,
         user: state.user,
         isAuthenticated: state.isAuthenticated,
+        pendingInviteToken: state.pendingInviteToken,
       }),
     }
   )

@@ -72,18 +72,12 @@ api.interceptors.response.use(
 
 // Auth
 export const authAPI = {
-  register: (data: { email: string; password: string; display_name: string }) =>
-    api.post("/auth/register", data),
-  login: (data: { email: string; password: string }) =>
-    api.post("/auth/login", data),
   googleLogin: (accessToken: string) =>
     api.post("/auth/google", { access_token: accessToken }),
   getMe: () => api.get("/auth/me"),
   updateMe: (data: Record<string, string>) => api.patch("/auth/me", data),
   lookupByEmail: (email: string) =>
     api.get("/auth/lookup", { params: { email } }),
-  changePassword: (old_password: string, new_password: string) =>
-    api.patch("/auth/me/password", { old_password, new_password }),
 };
 
 // Groups
@@ -99,6 +93,20 @@ export const groupsAPI = {
     api.post(`/groups/${groupId}/members`, { user_id: userId }),
   removeMember: (groupId: string, userId: string) =>
     api.delete(`/groups/${groupId}/members/${userId}`),
+  reorder: (groupIds: string[]) =>
+    api.put("/groups/reorder", { group_ids: groupIds }),
+  createInvite: (groupId: string) =>
+    api.post(`/groups/${groupId}/invite`),
+  revokeInvite: (groupId: string) =>
+    api.delete(`/groups/${groupId}/invite`),
+  regenerateInvite: (groupId: string) =>
+    api.post(`/groups/${groupId}/invite/regenerate`),
+};
+
+// Invites (receiver-side)
+export const inviteAPI = {
+  getInfo: (token: string) => api.get(`/invite/${token}`),
+  accept: (token: string) => api.post(`/invite/${token}/accept`),
 };
 
 export interface ExpenseSplitInput {
@@ -117,6 +125,16 @@ export interface ExpenseCreatePayload {
   note?: string;
 }
 
+export interface ExpenseUpdatePayload {
+  description?: string;
+  total_amount?: number;
+  currency?: string;
+  paid_by?: string;
+  split_method?: string;
+  splits?: ExpenseSplitInput[];
+  note?: string;
+}
+
 export interface SettlementCreatePayload {
   to_user: string;
   amount: number;
@@ -131,6 +149,8 @@ export const expensesAPI = {
     api.get(`/groups/${groupId}/expenses/${id}`),
   create: (groupId: string, data: ExpenseCreatePayload) =>
     api.post(`/groups/${groupId}/expenses`, data),
+  update: (groupId: string, id: string, data: ExpenseUpdatePayload) =>
+    api.patch(`/groups/${groupId}/expenses/${id}`, data),
   delete: (groupId: string, id: string) =>
     api.delete(`/groups/${groupId}/expenses/${id}`),
 };

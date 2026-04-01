@@ -1,18 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr
-
-
-class UserRegister(BaseModel):
-    email: EmailStr
-    password: str
-    display_name: str
-
-
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
+from pydantic import BaseModel
 
 
 class UserResponse(BaseModel):
@@ -50,6 +39,3 @@ class GoogleAuthRequest(BaseModel):
     access_token: str
 
 
-class PasswordChangeRequest(BaseModel):
-    old_password: str
-    new_password: str

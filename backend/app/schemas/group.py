@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
 from pydantic import BaseModel
 
@@ -38,6 +39,15 @@ class GroupResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class SimplifiedDebt(BaseModel):
+    from_user_id: uuid.UUID
+    from_user_name: str
+    to_user_id: uuid.UUID
+    to_user_name: str
+    amount: Decimal
+    currency: str
+
+
 class GroupListResponse(BaseModel):
     id: uuid.UUID
     name: str
@@ -47,9 +57,28 @@ class GroupListResponse(BaseModel):
     created_at: datetime
     created_by: uuid.UUID
     my_role: str
+    sort_order: int
+    is_settled: bool = True
+    unsettled_debts: list[SimplifiedDebt] = []
 
     model_config = {"from_attributes": True}
 
 
+class ReorderGroupsRequest(BaseModel):
+    group_ids: list[uuid.UUID]
+
+
 class AddMemberRequest(BaseModel):
     user_id: uuid.UUID
+
+
+class InviteTokenResponse(BaseModel):
+    invite_token: str
+    created_at: datetime
+
+
+class InviteInfoResponse(BaseModel):
+    group_id: uuid.UUID
+    group_name: str
+    group_description: str | None
+    member_count: int

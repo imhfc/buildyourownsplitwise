@@ -1,4 +1,4 @@
-import { View } from "react-native";
+import { View, Image } from "react-native";
 import { cn } from "~/lib/utils";
 import { Text } from "./text";
 import { getAvatarColor, getInitials } from "~/lib/constants";
@@ -23,19 +23,40 @@ const textSizeStyles: Record<AvatarSize, string> = {
 
 interface AvatarProps {
   name: string;
+  avatarUrl?: string | null;
   index?: number;
   size?: AvatarSize;
   className?: string;
 }
 
+const imageSizeMap: Record<AvatarSize, number> = {
+  xs: 24,
+  sm: 32,
+  md: 40,
+  lg: 56,
+  xl: 80,
+};
+
 export function Avatar({
   name,
+  avatarUrl,
   index = 0,
   size = "md",
   className,
 }: AvatarProps) {
   const color = getAvatarColor(index);
   const initials = getInitials(name);
+  const px = imageSizeMap[size];
+
+  if (avatarUrl) {
+    return (
+      <Image
+        source={{ uri: avatarUrl }}
+        style={{ width: px, height: px, borderRadius: px / 2 }}
+        className={className}
+      />
+    );
+  }
 
   return (
     <View

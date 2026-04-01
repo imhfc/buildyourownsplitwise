@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import NullPool
 
 from app.core.database import Base, get_db
-from app.core.security import create_access_token, hash_password
+from app.core.security import create_access_token
 from app.main import app
 from app.models.user import User
 from app.models.group import Group, GroupMember
@@ -90,13 +90,13 @@ async def client(db: AsyncSession):
 async def create_test_user(
     db: AsyncSession,
     email: str = "test@example.com",
-    password: str = "testpass123",
     display_name: str = "Test User",
 ) -> User:
     user = User(
         email=email,
-        password_hash=hash_password(password),
         display_name=display_name,
+        auth_provider="google",
+        auth_provider_id=f"google-{uuid.uuid4().hex[:8]}",
     )
     db.add(user)
     await db.flush()
@@ -116,17 +116,17 @@ def auth_header(user: User) -> dict[str, str]:
 
 @pytest_asyncio.fixture
 async def user_a(db: AsyncSession) -> User:
-    return await create_test_user(db, "alice@example.com", "pass123", "Alice")
+    return await create_test_user(db, email="alice@example.com", display_name="Alice")
 
 
 @pytest_asyncio.fixture
 async def user_b(db: AsyncSession) -> User:
-    return await create_test_user(db, "bob@example.com", "pass123", "Bob")
+    return await create_test_user(db, email="bob@example.com", display_name="Bob")
 
 
 @pytest_asyncio.fixture
 async def user_c(db: AsyncSession) -> User:
-    return await create_test_user(db, "charlie@example.com", "pass123", "Charlie")
+    return await create_test_user(db, email="charlie@example.com", display_name="Charlie")
 
 
 @pytest_asyncio.fixture
