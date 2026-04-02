@@ -14,6 +14,7 @@ load_dotenv(_env_path, override=False)
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -36,43 +37,49 @@ TEST_DATABASE_URL = os.environ.get(
     "postgresql+asyncpg://splitewise:splitewise@211.20.120.114:5433/splitewise_test",
 )
 
-engine = create_async_engine(
-    TEST_DATABASE_URL,
-    echo=False,
-    poolclass=NullPool,
-    connect_args={"statement_cache_size": 0},
-)
-TestSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+# ---------------------------------------------------------------------------
+# 建構 TRUNCATE 語句（只算一次）
+# ---------------------------------------------------------------------------
+_TRUNCATE_SQL: str | None = None
+
+
+def _build_truncate_sql() -> str:
+    table_names = [t.name for t in reversed(Base.metadata.sorted_tables)]
+    return f"TRUNCATE {', '.join(table_names)} CASCADE"
 
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
 
+engine = create_async_engine(
+    TEST_DATABASE_URL,
+    echo=False,
+    poolclass=NullPool,
+    connect_args={"statement_cache_size": 0},
+)
+
 
 @pytest_asyncio.fixture(scope="session")
 async def setup_database():
-    """確保測試 DB schema 存在。Neon 由 Alembic 管理，本機可 create_all。"""
+    """確保測試 DB schema 存在。"""
     async with engine.begin() as conn:
-        # create_all 只建立不存在的表，不會覆蓋 Alembic 管理的 schema
         await conn.run_sync(Base.metadata.create_all)
     yield
-    # 不 drop_all — schema 由 Alembic 管理
 
 
 @pytest_asyncio.fixture
 async def db(setup_database):
-    """Provide a database session. 測試後清除所有資料。"""
+    """Provide a database session. 測試後用 TRUNCATE CASCADE 清除（比逐表 DELETE 快很多）。"""
+    global _TRUNCATE_SQL
+    if _TRUNCATE_SQL is None:
+        _TRUNCATE_SQL = _build_truncate_sql()
+
     session = AsyncSession(bind=engine, expire_on_commit=False)
     yield session
     await session.close()
-    # 清除所有測試資料（按 FK 逆序 DELETE，忽略不存在的表）
     async with engine.begin() as conn:
-        for table in reversed(Base.metadata.sorted_tables):
-            try:
-                await conn.execute(table.delete())
-            except Exception:
-                pass
+        await conn.execute(text(_TRUNCATE_SQL))
 
 
 @pytest_asyncio.fixture

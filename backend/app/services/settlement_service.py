@@ -519,6 +519,9 @@ async def create_settlement(
     from_user_id: uuid.UUID,
     data: SettlementCreate,
 ) -> SettlementResponse:
+    if from_user_id == data.to_user:
+        raise ValidationError("Cannot settle with yourself")
+
     await check_membership(db, group_id, from_user_id)
     await check_membership(db, group_id, data.to_user)
 

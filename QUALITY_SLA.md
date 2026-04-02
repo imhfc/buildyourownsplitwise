@@ -107,6 +107,8 @@ pytest backend/tests/                  # SLA-5：後端測試
 | C-11 | 所有使用 `router.back()` 的檔案必須同時使用 `canGoBack` 檢查，Expo Web 上直接開啟 URL 無導航歷史會拋出 GO_BACK not handled | SLA-2 | 2026-03-31 群組頁面無法返回 |
 | C-12 | `docker-compose.yml` 中除 Caddy(80/443) 外，所有 `ports` 必須綁定 `127.0.0.1:`（如 `"127.0.0.1:5432:5432"`），禁止 `"5432:5432"` 或 `"0.0.0.0:5432:5432"` 對外開放 | SLA-5 | 2026-04-02 db/backend port 對所有網路介面開放 |
 | C-13 | `mobile/services/api.ts` 中 `settlementsAPI` 定義的所有方法（含 `confirm`、`reject`、`pending`）必須至少有一處前端呼叫點，未使用的 API 方法代表功能未完成 | SLA-5 | 2026-04-02 結清功能只做了建立，缺少確認/拒絕 UI |
+| C-14 | `group/[id].tsx` 結清按鈕（`settle_up`）只能顯示給付款方（`from_user_id === user?.id`），收款方只保留「發送提醒」按鈕。禁止用 `from_user_id \|\| to_user_id` 讓雙方都能發起結清 | SLA-5 | 2026-04-03 雙方都能按結清導致方向反轉 |
+| C-15 | `settlement_service.py` 的 `create_settlement` 必須驗證 `from_user_id != data.to_user`，禁止自己對自己結清 | SLA-5 | 2026-04-03 自我結算垃圾資料影響餘額計算 |
 
 ---
 
@@ -125,3 +127,4 @@ pytest backend/tests/                  # SLA-5：後端測試
 | 2026-04-01 | P1 | 遷移新 VM 後 HTTPS 無法連線（SSL handshake error） | Caddy 舊 volume 殘留 ACME **staging** 設定（`acme-staging-v02.api.letsencrypt.org`），staging 憑證不被瀏覽器信任；加上 DNS 傳播期間 Let's Encrypt 驗證伺服器快取舊 IP（35.206.96.99），challenge 全部失敗。解法：清除 `caddy_data`/`caddy_config` volume 後重啟，Caddy 自動用 production ACME 重新申請憑證 | — |
 | 2026-04-02 | P1 | Docker Compose db/backend port 對外開放，任何人可直連資料庫 | `docker-compose.yml` ports 未綁定 `127.0.0.1`，預設 `0.0.0.0` 對所有網路介面開放。解法：所有內部服務 ports 加 `127.0.0.1:` 前綴，僅 Caddy(80/443) 對外；VM db-test 改用 `--network host` + `PGPORT=5433`；本機透過 autossh SSH tunnel 連線 | C-12 |
 | 2026-04-02 | P1 | 結清後對方欠款未清除（活動紀錄有顯示但餘額不變） | Settlement 有 pending->confirmed 雙層確認，餘額計算只計 confirmed。前端只實作 `create`（status=pending），未實作 `confirm`/`reject` UI。`settlementsAPI.confirm()` 和 `.pending()` 在 api.ts 定義但從未被呼叫。解法：首頁新增待確認結清區塊（收款方可確認/拒絕）；建立結清後顯示「等待對方確認」提示；後端新增 reject 端點 | C-13 |
+| 2026-04-03 | P1 | 雙方都能按結清，產生方向反轉和自我結算的垃圾資料 | **雙重根因**：(1) 前端結清按鈕條件用 `from_user_id \|\| to_user_id`，收款方也能點結清，但後端 `create_settlement` 把 `current_user` 設為 `from_user` → 方向反轉；(2) 後端未驗證 `from_user != to_user`，導致自己對自己結清的紀錄寫入 DB 影響餘額。解法：前端結清按鈕限定 `from_user_id === user?.id`，收款方只保留「發送提醒」；後端新增 `from_user == to_user` 驗證；群組 tab 加 badge 顯示 pending 數量 | C-14, C-15 |

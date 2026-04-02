@@ -103,6 +103,33 @@ else
   red   "C-11 發現 router.back() 未搭配 canGoBack 檢查（Expo Web 無歷史時會拋 GO_BACK not handled）：$f"
 fi
 
+# ── C-14：group/[id].tsx 結清按鈕只能顯示給付款方 ──────────────────────────
+GROUP_FILE="$MOBILE_DIR/app/group/[id].tsx"
+if [ -f "$GROUP_FILE" ]; then
+  # 搜尋 settle_up 按鈕附近是否有 from_user_id === user 的條件守衛
+  # 如果結清按鈕的顯示條件包含 to_user_id（OR 條件讓收款方也能按），則 FAIL
+  SETTLE_BLOCK=$(grep -A2 'settle_up\|t("settle_up")' "$GROUP_FILE" 2>/dev/null || true)
+  if grep -B10 'settle_up\|t("settle_up")' "$GROUP_FILE" 2>/dev/null | grep -q 'from_user_id === user'; then
+    green "C-14 group/[id].tsx 結清按鈕限定付款方（from_user_id === user）"
+  else
+    red   "C-14 group/[id].tsx 結清按鈕未限定付款方（必須用 from_user_id === user?.id 守衛，禁止讓收款方也能發起結清）"
+  fi
+else
+  green "C-14 group/[id].tsx 不存在（跳過）"
+fi
+
+# ── C-15：settlement_service.py 必須驗證 from_user != to_user ────────────────
+SETTLE_SVC="$(cd "$MOBILE_DIR/.." && pwd)/backend/app/services/settlement_service.py"
+if [ -f "$SETTLE_SVC" ]; then
+  if grep -q 'from_user_id == data.to_user' "$SETTLE_SVC" 2>/dev/null; then
+    green "C-15 settlement_service.py 已驗證 from_user != to_user"
+  else
+    red   "C-15 settlement_service.py 缺少 from_user_id != to_user 驗證（會允許自己對自己結清）"
+  fi
+else
+  green "C-15 settlement_service.py 不存在（跳過）"
+fi
+
 # ── 結果 ──────────────────────────────────────────────────────────────────────
 echo ""
 echo "=== 結果：PASS=$PASS  FAIL=$FAIL ==="

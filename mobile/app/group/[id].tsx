@@ -733,6 +733,7 @@ export default function GroupDetailScreen() {
         )}
         {(item.from_user_id === user?.id || item.to_user_id === user?.id) && (
           <View className="flex-row gap-2">
+            {item.from_user_id === user?.id && (
             <Button
               size="sm"
               disabled={alreadyPending}
@@ -748,6 +749,7 @@ export default function GroupDetailScreen() {
             >
               {alreadyPending ? t("settlement_pending_hint") : t("settle_up")}
             </Button>
+            )}
             {item.to_user_id === user?.id && (
               <Button
                 size="sm"

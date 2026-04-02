@@ -54,3 +54,8 @@
 - **前端**：React Native + Expo + NativeWind + Zustand + i18next
 - **測試**：pytest + pytest-asyncio（後端）、Jest（前端）
 - **部署**：Docker Compose + GCP VM + GitHub Actions CI/CD
+
+## UI 設計規則（2026-04-03 回顧）
+
+- 配色/排版/動畫等視覺設計，先搜尋 MD3 / Apple HIG best practice 取得具體數值，禁止憑直覺
+- Dark mode 設計規則詳見 `project-standards.md`

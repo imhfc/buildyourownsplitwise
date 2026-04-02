@@ -7,6 +7,7 @@ import { Swipeable } from "react-native-gesture-handler";
 import DraggableFlatList, { ScaleDecorator, RenderItemParams } from "react-native-draggable-flatlist";
 import { groupsAPI, inviteAPI, settlementsAPI } from "../../services/api";
 import { useAuthStore } from "../../stores/auth";
+import { usePendingSettlementsStore } from "../../stores/pending-settlements";
 import { Card, CardContent } from "~/components/ui/card";
 import { Text, H3, Muted } from "~/components/ui/text";
 import { Button } from "~/components/ui/button";
@@ -46,6 +47,7 @@ export default function GroupsScreen() {
   const themeClass = useThemeClassName();
   const { isDark } = useTheme();
   const iconColor = isDark ? "#A1A1AA" : "#71717A";
+  const syncBadgeCount = usePendingSettlementsStore((s) => s.fetchCount);
   const [groups, setGroups] = useState<GroupItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -98,10 +100,11 @@ export default function GroupsScreen() {
     try {
       const res = await settlementsAPI.pending();
       setPendingSettlements(res.data);
+      syncBadgeCount();
     } catch {
       // silently fail
     }
-  }, []);
+  }, [syncBadgeCount]);
 
   const handleRespondSettlement = async (settlement: PendingSettlement, action: "confirm" | "reject") => {
     setRespondingSettlementId(settlement.id);
@@ -112,6 +115,7 @@ export default function GroupsScreen() {
         await settlementsAPI.reject(settlement.group_id, settlement.id);
       }
       setPendingSettlements((prev) => prev.filter((s) => s.id !== settlement.id));
+      syncBadgeCount();
       await fetchGroups();
     } catch (e: any) {
       const msg = e.response?.data?.detail || e.message || t("unknown_error");

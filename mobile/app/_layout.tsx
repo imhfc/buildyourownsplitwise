@@ -15,7 +15,7 @@ const SCHEME_CLASS: Record<string, string> = {
   green: "scheme-green",
   purple: "scheme-purple",
   warm: "scheme-warm",
-  teal: "scheme-teal",
+  coral: "scheme-coral",
   slate: "scheme-slate",
 };
 

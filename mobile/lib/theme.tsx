@@ -3,7 +3,7 @@ import { useColorScheme as useRNColorScheme } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type Theme = "light" | "dark" | "system";
-export type ColorScheme = "blue" | "green" | "purple" | "warm" | "teal" | "slate";
+export type ColorScheme = "blue" | "green" | "purple" | "warm" | "coral" | "slate";
 
 export const COLOR_SCHEMES: {
   id: ColorScheme;
@@ -14,7 +14,7 @@ export const COLOR_SCHEMES: {
   { id: "green",  labelKey: "scheme_green",  preview: { light: "#5BC5A7", dark: "#4DB899" } },
   { id: "purple", labelKey: "scheme_purple", preview: { light: "#6E4CE5", dark: "#8B6CF7" } },
   { id: "warm",   labelKey: "scheme_warm",   preview: { light: "#1B4D3E", dark: "#3D8B74" } },
-  { id: "teal",   labelKey: "scheme_teal",   preview: { light: "#0D9488", dark: "#2DD4BF" } },
+  { id: "coral",  labelKey: "scheme_coral",  preview: { light: "#D96A3E", dark: "#C08070" } },
   { id: "slate",  labelKey: "scheme_slate",  preview: { light: "#64748B", dark: "#94A3B8" } },
 ];
 

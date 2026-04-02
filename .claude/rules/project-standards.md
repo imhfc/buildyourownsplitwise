@@ -51,3 +51,15 @@ backend/app/
 - 數字輸入必須搭配 onChangeText 正規表達式過濾
 - 所有 API 呼叫需 try/catch 並顯示錯誤訊息
 - Modal 表單的 API 錯誤必須用 inline error state 顯示，禁止用 Alert.alert（Expo Web 上行為不穩定）
+
+## Dark Mode 設計規則（2026-04-03 回顧）
+
+參照 Material Design 3 / Apple HIG best practice：
+
+- 背景帶品牌色相染色（saturation 8-12%），禁止共用中性黑底 `0 0% X%`
+- Lightness 階梯：bg 5% → card 10% → secondary 13% → accent 15% → border 16%
+- Primary 色：飽和度降 20-30%（保留 50-65%），亮度升 5-10%（55-65%）
+- Foreground 亮度：86%
+- Preview hex 必須與實際 primary 一致
+- 任意兩個 scheme 色相差距 >= 30 度
+- 設計配色前先搜尋業界 best practice，禁止憑直覺

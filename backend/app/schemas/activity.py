@@ -15,6 +15,8 @@ ActivityType = Literal[
     "settlement_rejected",
     "member_added",
     "member_removed",
+    "reminder_sent",
+    "email_invitation_sent",
 ]
 
 

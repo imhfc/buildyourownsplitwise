@@ -342,6 +342,14 @@ cd backend && pytest tests/
   2. `mobile/global.css` — light/dark CSS 變數
   3. `mobile/app/_layout.tsx` — `SCHEME_CLASS` 映射
   4. `mobile/i18n/*.json`（zh-TW、en、ja）— 顯示名稱翻譯
+- **Dark mode 設計規則（參照 Material Design 3 / Apple HIG）**（2026-04-03 回顧）：
+  - 背景/卡片/邊框必須帶該 scheme 的 hue（saturation 8-12%），禁止共用中性黑底（`0 0% X%`）
+  - Lightness 階梯：bg 5% → card 10% → secondary 13% → accent 15% → border 16%
+  - Primary 色：飽和度降 20-30%（保留 50-65%），亮度升 5-10%（55-65%）
+  - Foreground 亮度：86%
+  - 任何涉及視覺配色的設計，先搜尋業界 best practice（MD3/Apple HIG），禁止憑直覺調參數
+- **Preview 色必須與實際 primary 一致** — `COLOR_SCHEMES` 的 `preview.light` / `preview.dark` 必須是該 scheme light/dark mode `--primary` 的近似 hex 值（2026-04-03 回顧）
+- **色系間色相差距 >= 30 度** — 任意兩個 scheme 的主色 hue 差距不得小於 30 度，避免視覺無法區分（2026-04-03 回顧）
 
 ### 11.4 常見錯誤清單（禁止再犯）
 
@@ -364,3 +372,10 @@ cd backend && pytest tests/
 | 直接呼叫 `router.back()` 不檢查歷史 | Expo Web 上直接開啟 URL 時無導航歷史，`router.back()` 會拋出 GO_BACK not handled 錯誤；必須用 `router.canGoBack() ? router.back() : router.replace("/(tabs)")` |
 | 依賴 Stack `headerShown: true` 顯示返回按鈕 | Expo Web 上 Stack native header 渲染不可靠，需要跨平台返回按鈕的頁面必須用自訂 header 元件（`headerShown: false` + 頁面內 ChevronLeft + router.back fallback） |
 | 後端有 status 欄位但前端只實作部分狀態轉換 | 若 model 有 status 工作流（如 pending->confirmed），前端必須實作所有狀態轉換的 UI；api.ts 中定義但未被呼叫的方法 = 功能缺口，必須補齊或移除 |
+| 有方向性的操作（A->B）讓雙方都能發起 | 結清、轉帳等有方向性的操作，按鈕只能顯示給發起方；對方只能回應（確認/拒絕/提醒），禁止用 `\|\|` 條件讓雙方都能觸發同一個 action |
+| 後端未驗證有方向性關係的兩端不是同一人 | 建立 settlement/transfer 等有方向性的資料時，後端 service 層必須驗證 `from != to`，防止前端 bug 產生自我操作的垃圾資料 |
+| 待處理項目只在深層頁面顯示，無被動通知 | 需要使用者回應的 pending 項目（結清確認、邀請等），必須有 tab badge 或首頁 banner 等被動通知機制，不能只在特定子頁面才看得到 |
+| Dark mode 配色全部共用中性黑底 `0 0% X%` | 每個 theme 的 dark mode 背景/卡片/邊框必須帶自身色相（saturation 8-12%），參照 MD3 lightness 階梯（bg 5% → card 10% → secondary 13% → accent 15% → border 16%） |
+| 憑直覺設計 dark mode 飽和度/亮度 | 先搜尋 Material Design 3 / Apple HIG best practice 取得具體數值，再依規則設計；primary 飽和度降 20-30%（保留 50-65%），亮度升 5-10% |
+| `COLOR_SCHEMES` preview 色與實際 primary 不符 | preview hex 必須是 `global.css` 中對應 scheme light/dark `--primary` 的近似值，名稱也必須反映實際色調 |
+| 兩個 scheme 色相差距 < 30 度 | 新增 scheme 前檢查所有現有 hue，任意兩者差距 >= 30 度，否則視覺無法區分 |
