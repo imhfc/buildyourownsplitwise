@@ -1,7 +1,10 @@
+import logging
 import uuid
 from collections import defaultdict
 from datetime import datetime, timezone
 from decimal import Decimal
+
+logger = logging.getLogger(__name__)
 
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -160,9 +163,27 @@ async def calculate_balances_by_currency(
     settlements = settlement_result.scalars().all()
 
     for s in settlements:
-        cur = s.currency.upper()
-        by_currency[cur][s.from_user] += s.amount
-        by_currency[cur][s.to_user] -= s.amount
+        # 換幣結算：用原始幣別/金額沖銷，確保原幣別債務歸零
+        if s.original_currency and s.original_amount:
+            cur = s.original_currency.upper()
+            by_currency[cur][s.from_user] += s.original_amount
+            by_currency[cur][s.to_user] -= s.original_amount
+        else:
+            cur = s.currency.upper()
+            by_currency[cur][s.from_user] += s.amount
+            by_currency[cur][s.to_user] -= s.amount
+
+    # 檢核點：每個幣別池內所有人的淨餘額加總必須為 0
+    for cur, balances in by_currency.items():
+        total = sum(balances.values())
+        if abs(total) > Decimal("0.02"):
+            logger.error(
+                "Balance integrity check failed: currency=%s sum=%s (expected 0)",
+                cur, total,
+            )
+            raise ValueError(
+                f"Balance integrity error: {cur} pool sums to {total}, expected 0"
+            )
 
     # 過濾掉接近零的餘額
     cleaned: dict[str, dict[uuid.UUID, Decimal]] = {}
@@ -339,8 +360,13 @@ async def calculate_pairwise_debts_by_currency(
         )
     )
     for s in settlement_result.scalars().all():
-        cur = s.currency.upper()
-        pairwise[cur][(s.from_user, s.to_user)] -= s.amount
+        # 換幣結算：用原始幣別/金額沖銷
+        if s.original_currency and s.original_amount:
+            cur = s.original_currency.upper()
+            pairwise[cur][(s.from_user, s.to_user)] -= s.original_amount
+        else:
+            cur = s.currency.upper()
+            pairwise[cur][(s.from_user, s.to_user)] -= s.amount
 
     # 淨額化每對使用者
     cleaned: dict[str, list[dict]] = {}

@@ -363,3 +363,4 @@ cd backend && pytest tests/
 | `useNativeDriver: true` 硬編碼 | 使用 `Platform.OS !== "web"` 條件判斷，否則 web 環境會產生警告並 fallback 到 JS 動畫 |
 | 直接呼叫 `router.back()` 不檢查歷史 | Expo Web 上直接開啟 URL 時無導航歷史，`router.back()` 會拋出 GO_BACK not handled 錯誤；必須用 `router.canGoBack() ? router.back() : router.replace("/(tabs)")` |
 | 依賴 Stack `headerShown: true` 顯示返回按鈕 | Expo Web 上 Stack native header 渲染不可靠，需要跨平台返回按鈕的頁面必須用自訂 header 元件（`headerShown: false` + 頁面內 ChevronLeft + router.back fallback） |
+| 後端有 status 欄位但前端只實作部分狀態轉換 | 若 model 有 status 工作流（如 pending->confirmed），前端必須實作所有狀態轉換的 UI；api.ts 中定義但未被呼叫的方法 = 功能缺口，必須補齊或移除 |

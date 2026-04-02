@@ -10,16 +10,28 @@ class UserBalance(BaseModel):
     balance: Decimal  # positive = owed to them, negative = they owe
 
 
-class GroupBalanceSummary(BaseModel):
-    group_id: uuid.UUID
-    group_name: str
+class CurrencyBalance(BaseModel):
+    """單一幣別內的所有使用者餘額"""
     currency: str
     balances: list[UserBalance]
 
 
-class OverallBalance(BaseModel):
-    total_owed_to_you: Decimal  # 別人欠你的總額
-    total_you_owe: Decimal  # 你欠別人的總額
-    net_balance: Decimal
+class GroupBalanceSummary(BaseModel):
+    """群組餘額摘要 — 按幣別分列"""
+    group_id: uuid.UUID
+    group_name: str
+    by_currency: list[CurrencyBalance]
+
+
+class CurrencyTotal(BaseModel):
+    """單一幣別的應收/應付彙總"""
     currency: str
+    owed_to_you: Decimal
+    you_owe: Decimal
+    net_balance: Decimal
+
+
+class OverallBalance(BaseModel):
+    """跨群組餘額總覽 — 按幣別分列，嚴禁跨幣別加總"""
+    totals_by_currency: list[CurrencyTotal]
     by_group: list[GroupBalanceSummary]

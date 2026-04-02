@@ -30,6 +30,7 @@ import { EmptyState } from "~/components/ui/empty-state";
 import { SegmentedTabs } from "~/components/ui/tabs";
 import { useThemeClassName } from "~/lib/theme";
 import { InviteShareModal } from "~/components/InviteShareModal";
+import { CoverImagePicker } from "~/components/ui/cover-image-picker";
 
 type Tab = "expenses" | "settlements" | "members";
 
@@ -72,11 +73,27 @@ interface Suggestion {
   currency: string;
 }
 
+interface PendingSettlement {
+  id: string;
+  from_user: string;
+  from_user_name: string;
+  to_user: string;
+  to_user_name: string;
+  amount: number;
+  currency: string;
+  status: string;
+  settled_at: string;
+}
+
+interface CurrencyBalance {
+  currency: string;
+  balances: { user_id: string; display_name: string; balance: string }[];
+}
+
 interface BalanceSummary {
   group_id: string;
   group_name: string;
-  currency: string;
-  balances: { user_id: string; display_name: string; balance: string }[];
+  by_currency: CurrencyBalance[];
 }
 
 interface Member {
@@ -124,6 +141,8 @@ export default function GroupDetailScreen() {
   const [settleAmount, setSettleAmount] = useState("");
   const [settleRate, setSettleRate] = useState<number | null>(null);
   const [converting, setConverting] = useState(false);
+  const [pendingSettlements, setPendingSettlements] = useState<PendingSettlement[]>([]);
+  const [settleSuccessMsg, setSettleSuccessMsg] = useState("");
 
   // Add member modal
   const [showAddMember, setShowAddMember] = useState(false);
@@ -201,8 +220,9 @@ export default function GroupDetailScreen() {
       Promise.all([
         settlementsAPI.suggestions(id),
         balancesAPI.group(id),
+        settlementsAPI.list(id),
       ])
-        .then(([sugRes, balRes]) => {
+        .then(([sugRes, balRes, settleRes]) => {
           // Handle SettlementSuggestionsResponse format
           const data = sugRes.data;
           if (data.mode === "by_currency" && data.by_currency) {
@@ -214,6 +234,8 @@ export default function GroupDetailScreen() {
             setSuggestions([]);
           }
           setBalances(balRes.data);
+          const pending = (settleRes.data as PendingSettlement[]).filter((s) => s.status === "pending");
+          setPendingSettlements(pending);
         })
         .catch((e) => console.error("Failed to fetch suggestions/balances", e))
         .finally(() => setSugLoading(false));
@@ -421,6 +443,7 @@ export default function GroupDetailScreen() {
           : {}),
       });
       setSettleTarget(null);
+      setSettleSuccessMsg(t("settlement_pending_hint"));
       await fetchData();
     } catch (e: any) {
       const msg = e.response?.data?.detail || e.message || t("unknown_error");
@@ -679,7 +702,12 @@ export default function GroupDetailScreen() {
     </Pressable>
   );
 
-  const renderSuggestion = ({ item }: { item: Suggestion }) => (
+  const hasPendingFor = (fromId: string, toId: string) =>
+    pendingSettlements.some((s) => s.from_user === fromId && s.to_user === toId);
+
+  const renderSuggestion = ({ item }: { item: Suggestion }) => {
+    const alreadyPending = hasPendingFor(item.from_user_id, item.to_user_id);
+    return (
     <Card className="mb-3">
       <CardContent className="p-4 gap-3">
         <View className="flex-row items-center justify-between">
@@ -700,11 +728,16 @@ export default function GroupDetailScreen() {
             {item.currency} {parseFloat(item.amount).toLocaleString()}
           </Text>
         </View>
+        {alreadyPending && (
+          <Text className="text-sm text-warning">{t("settlement_pending_hint")}</Text>
+        )}
         {(item.from_user_id === user?.id || item.to_user_id === user?.id) && (
           <View className="flex-row gap-2">
             <Button
               size="sm"
+              disabled={alreadyPending}
               onPress={() => {
+                setSettleSuccessMsg("");
                 setSettleTarget(item);
                 setSettleCurrency(item.currency);
                 setSettleAmount(item.amount);
@@ -713,7 +746,7 @@ export default function GroupDetailScreen() {
               }}
               className="flex-1"
             >
-              {t("settle_up")}
+              {alreadyPending ? t("settlement_pending_hint") : t("settle_up")}
             </Button>
             {item.to_user_id === user?.id && (
               <Button
@@ -741,7 +774,8 @@ export default function GroupDetailScreen() {
         )}
       </CardContent>
     </Card>
-  );
+    );
+  };
 
   const renderMember = ({ item }: { item: Member }) => {
     const isSelf = item.user.id === user?.id;
@@ -870,26 +904,57 @@ export default function GroupDetailScreen() {
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
             ListHeaderComponent={
-              balances ? (
-                <Card className="mb-4">
-                  <CardContent className="p-4 gap-2">
-                    <Text className="font-semibold text-sm text-muted-foreground">{t("balance_summary")}</Text>
-                    {balances.balances.map((b) => {
-                      const val = parseFloat(b.balance);
-                      const isPositive = val > 0;
-                      const isZero = Math.abs(val) < 0.01;
-                      return (
-                        <View key={b.user_id} className="flex-row items-center justify-between">
-                          <Text className="text-sm">{b.display_name}</Text>
-                          <Text className={`text-sm font-medium ${isZero ? "text-muted-foreground" : isPositive ? "text-income" : "text-destructive"}`}>
-                            {isZero ? "0" : `${isPositive ? "+" : ""}${val.toLocaleString()}`} {balances.currency}
+              <View>
+                {settleSuccessMsg ? (
+                  <View className="bg-primary/10 rounded-lg px-4 py-3 mb-4">
+                    <Text className="text-sm text-primary font-medium">{settleSuccessMsg}</Text>
+                  </View>
+                ) : null}
+                {pendingSettlements.length > 0 && (
+                  <Card className="mb-4">
+                    <CardContent className="p-4 gap-2">
+                      <Text className="font-semibold text-sm text-muted-foreground">{t("pending_settlements")}</Text>
+                      {pendingSettlements.map((s) => (
+                        <View key={s.id} className="flex-row items-center justify-between py-1">
+                          <Text className="text-sm flex-1">
+                            {s.from_user_name} → {s.to_user_name}
+                          </Text>
+                          <Text className="text-sm font-medium text-warning">
+                            {s.currency} {s.amount.toLocaleString()}
                           </Text>
                         </View>
-                      );
-                    })}
-                  </CardContent>
-                </Card>
-              ) : null
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
+                {balances && balances.by_currency.length > 0 ? (
+                  <Card className="mb-4">
+                    <CardContent className="p-4 gap-2">
+                      <Text className="font-semibold text-sm text-muted-foreground">{t("balance_summary")}</Text>
+                      {balances.by_currency.map((cb) => (
+                        <View key={cb.currency} className="gap-1">
+                          {balances.by_currency.length > 1 ? (
+                            <Text className="text-xs font-semibold text-primary mt-1">{cb.currency}</Text>
+                          ) : null}
+                          {cb.balances.map((b) => {
+                            const val = parseFloat(b.balance);
+                            const isPositive = val > 0;
+                            const isZero = Math.abs(val) < 0.01;
+                            return (
+                              <View key={b.user_id} className="flex-row items-center justify-between">
+                                <Text className="text-sm">{b.display_name}</Text>
+                                <Text className={`text-sm font-medium ${isZero ? "text-muted-foreground" : isPositive ? "text-income" : "text-destructive"}`}>
+                                  {isZero ? "0" : `${isPositive ? "+" : ""}${val.toLocaleString()}`} {cb.currency}
+                                </Text>
+                              </View>
+                            );
+                          })}
+                        </View>
+                      ))}
+                    </CardContent>
+                  </Card>
+                ) : null}
+              </View>
             }
             ListFooterComponent={
               suggestions.length > 0 ? (
@@ -1537,13 +1602,10 @@ export default function GroupDetailScreen() {
                   value={editGroupCurrency}
                   onSelect={setEditGroupCurrency}
                 />
-                <Input
+                <CoverImagePicker
                   label={t("cover_image_url")}
                   value={editCoverUrl}
-                  onChangeText={setEditCoverUrl}
-                  placeholder={t("cover_image_url_placeholder")}
-                  autoCapitalize="none"
-                  keyboardType="url"
+                  onSelect={(url) => { setEditCoverUrl(url || ""); setSettingsError(null); }}
                 />
                 {settingsError ? (
                   <Text className="text-sm text-destructive">{settingsError}</Text>

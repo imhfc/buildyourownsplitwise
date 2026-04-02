@@ -87,27 +87,23 @@ async def list_user_groups(db: AsyncSession, user_id: uuid.UUID) -> list[dict]:
 async def get_groups_debts(
     db: AsyncSession, group_ids: list[uuid.UUID]
 ) -> dict[uuid.UUID, list[SimplifiedDebt]]:
-    """Calculate simplified debts for multiple groups at once."""
-    from app.services.settlement_service import calculate_balances, simplify_debts
+    """Calculate simplified debts for multiple groups at once (per-currency, no conversion)."""
+    from app.services.settlement_service import calculate_balances_by_currency, simplify_debts
 
     result: dict[uuid.UUID, list[SimplifiedDebt]] = {}
     if not group_ids:
         return result
 
-    # Batch-load group currencies
-    group_result = await db.execute(
-        select(Group.id, Group.default_currency).where(Group.id.in_(group_ids))
-    )
-    currency_map = {row.id: row.default_currency for row in group_result.all()}
-
     # Collect all user IDs we'll need
     all_user_ids: set[uuid.UUID] = set()
 
-    balances_map: dict[uuid.UUID, dict[uuid.UUID, object]] = {}
+    # group_id -> { currency -> { user_id -> balance } }
+    group_balances: dict[uuid.UUID, dict[str, dict[uuid.UUID, object]]] = {}
     for gid in group_ids:
-        balances = await calculate_balances(db, gid)
-        balances_map[gid] = balances
-        all_user_ids.update(balances.keys())
+        by_currency = await calculate_balances_by_currency(db, gid)
+        group_balances[gid] = by_currency
+        for balances in by_currency.values():
+            all_user_ids.update(balances.keys())
 
     # Batch-load user display names
     user_map: dict[uuid.UUID, str] = {}
@@ -118,23 +114,25 @@ async def get_groups_debts(
         user_map = {row.id: row.display_name for row in user_result.all()}
 
     for gid in group_ids:
-        balances = balances_map[gid]
-        if not balances:
+        by_currency = group_balances[gid]
+        if not by_currency:
             result[gid] = []
             continue
-        transactions = simplify_debts(balances)
-        currency = currency_map.get(gid, "TWD")
-        result[gid] = [
-            SimplifiedDebt(
-                from_user_id=t["from"],
-                from_user_name=user_map.get(t["from"], "Unknown"),
-                to_user_id=t["to"],
-                to_user_name=user_map.get(t["to"], "Unknown"),
-                amount=t["amount"],
-                currency=currency,
+        debts: list[SimplifiedDebt] = []
+        for cur, balances in sorted(by_currency.items()):
+            transactions = simplify_debts(balances)
+            debts.extend(
+                SimplifiedDebt(
+                    from_user_id=t["from"],
+                    from_user_name=user_map.get(t["from"], "Unknown"),
+                    to_user_id=t["to"],
+                    to_user_name=user_map.get(t["to"], "Unknown"),
+                    amount=t["amount"],
+                    currency=cur,
+                )
+                for t in transactions
             )
-            for t in transactions
-        ]
+        result[gid] = debts
 
     return result
 

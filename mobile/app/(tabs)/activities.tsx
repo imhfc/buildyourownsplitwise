@@ -76,6 +76,7 @@ export default function ActivitiesScreen() {
   const [items, setItems] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const hasFetched = useRef(false);
   const markAsRead = useNotificationStore((s) => s.markAsRead);
 
@@ -85,9 +86,11 @@ export default function ActivitiesScreen() {
     try {
       const res = await activitiesAPI.list();
       setItems(res.data);
+      setError(null);
       hasFetched.current = true;
-    } catch {
-      // silent fail — empty state shown
+    } catch (err) {
+      console.error("[activities] fetch failed:", err);
+      setError(t("load_activities_failed"));
     } finally {
       if (isFirstLoad) setLoading(false);
     }
@@ -124,10 +127,16 @@ export default function ActivitiesScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
       ListEmptyComponent={
-        <EmptyState
-          icon={ClockCounterClockwise}
-          title={t("no_activities_hint")}
-        />
+        error ? (
+          <View className="flex-1 items-center justify-center px-6">
+            <Text className="text-destructive text-center">{error}</Text>
+          </View>
+        ) : (
+          <EmptyState
+            icon={ClockCounterClockwise}
+            title={t("no_activities_hint")}
+          />
+        )
       }
       contentContainerStyle={items.length === 0 ? { flex: 1 } : undefined}
       className="flex-1 bg-background"

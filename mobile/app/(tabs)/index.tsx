@@ -87,6 +87,9 @@ export default function GroupsScreen() {
     currency: string;
     status: string;
     settled_at: string;
+    original_currency: string | null;
+    original_amount: string | null;
+    locked_rate: string | null;
   }
   const [pendingSettlements, setPendingSettlements] = useState<PendingSettlement[]>([]);
   const [respondingSettlementId, setRespondingSettlementId] = useState<string | null>(null);
@@ -411,6 +414,22 @@ export default function GroupsScreen() {
                             {s.currency} {Number(s.amount).toLocaleString()}
                           </Text>
                         </View>
+                        {s.original_currency && s.original_amount && (
+                          <View className="bg-muted/50 rounded-lg px-3 py-2">
+                            <Text className="text-xs text-muted-foreground">
+                              {t("settlement_converted_from", {
+                                original_currency: s.original_currency,
+                                original_amount: Number(s.original_amount).toLocaleString(),
+                              })}
+                            </Text>
+                            <Text className="text-xs text-muted-foreground">
+                              {t("settlement_actual_pay", {
+                                currency: s.currency,
+                                amount: Number(s.amount).toLocaleString(),
+                              })}
+                            </Text>
+                          </View>
+                        )}
                         <View className="flex-row gap-2 mt-1">
                           <Button
                             size="sm"
