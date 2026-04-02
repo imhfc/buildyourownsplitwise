@@ -26,7 +26,7 @@ export function InviteShareModal({ visible, onClose, groupId, groupName, isAdmin
   const [error, setError] = useState("");
 
   const inviteUrl = inviteToken
-    ? `${Platform.OS === "web" ? window.location.origin : "https://byosw.duckdns.org"}/join/${inviteToken}`
+    ? `${Platform.OS === "web" ? window.location.origin : "https://byosw.duckdns.org"}/join/${inviteToken}?openExternalBrowser=1`
     : "";
 
   const fetchInvite = async () => {
