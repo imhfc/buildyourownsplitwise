@@ -19,9 +19,38 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.drop_constraint("expenses_category_id_fkey", "expenses", type_="foreignkey")
-    op.drop_column("expenses", "category_id")
-    op.drop_table("expense_categories")
+    conn = op.get_bind()
+
+    # Check if the foreign key constraint exists before dropping
+    fk_exists = conn.execute(
+        sa.text(
+            "SELECT 1 FROM information_schema.table_constraints "
+            "WHERE constraint_name = 'expenses_category_id_fkey' "
+            "AND table_name = 'expenses'"
+        )
+    ).fetchone()
+    if fk_exists:
+        op.drop_constraint("expenses_category_id_fkey", "expenses", type_="foreignkey")
+
+    # Check if the column exists before dropping
+    col_exists = conn.execute(
+        sa.text(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_name = 'expenses' AND column_name = 'category_id'"
+        )
+    ).fetchone()
+    if col_exists:
+        op.drop_column("expenses", "category_id")
+
+    # Check if the table exists before dropping
+    table_exists = conn.execute(
+        sa.text(
+            "SELECT 1 FROM information_schema.tables "
+            "WHERE table_name = 'expense_categories'"
+        )
+    ).fetchone()
+    if table_exists:
+        op.drop_table("expense_categories")
 
 
 def downgrade() -> None:

@@ -250,6 +250,7 @@ async def get_group_detail(db: AsyncSession, group_id: uuid.UUID) -> GroupRespon
         name=group.name,
         description=group.description,
         default_currency=group.default_currency,
+        cover_image_url=group.cover_image_url,
         created_by=group.created_by,
         created_at=group.created_at,
         members=[

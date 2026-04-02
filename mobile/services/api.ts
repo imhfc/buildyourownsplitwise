@@ -184,6 +184,8 @@ export const settlementsAPI = {
   pending: () => api.get("/settlements/pending"),
   pairwiseDetails: (groupId: string) =>
     api.get(`/groups/${groupId}/settlements/details`),
+  sendReminder: (groupId: string, data: { to_user: string; amount: number; currency: string }) =>
+    api.post(`/groups/${groupId}/settlements/reminders`, data),
 };
 
 // Balances

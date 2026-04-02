@@ -15,6 +15,7 @@ class Group(Base):
     name: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(String(500))
     default_currency: Mapped[str] = mapped_column(String(3), default="TWD")
+    cover_image_url: Mapped[str | None] = mapped_column(String(500))
     created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)

@@ -174,5 +174,10 @@
   "payer_amount": "Amount Paid",
   "payers_must_equal_total": "Payer amounts must equal the total amount",
   "add_payer": "Add Payer",
-  "payers": "Payers"
+  "payers": "Payers",
+  "send_reminder": "Send Reminder",
+  "reminder_sent": "Payment reminder sent",
+  "reminder_cooldown": "Already sent a reminder within 24 hours",
+  "cover_image_url": "Cover Image URL",
+  "cover_image_url_placeholder": "https://example.com/image.jpg"
 }

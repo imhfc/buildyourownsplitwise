@@ -17,6 +17,7 @@ class GroupUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
     default_currency: str | None = None
+    cover_image_url: str | None = None
 
 
 class GroupMemberResponse(BaseModel):
@@ -32,6 +33,7 @@ class GroupResponse(BaseModel):
     name: str
     description: str | None
     default_currency: str
+    cover_image_url: str | None = None
     created_by: uuid.UUID
     created_at: datetime
     members: list[GroupMemberResponse] = []

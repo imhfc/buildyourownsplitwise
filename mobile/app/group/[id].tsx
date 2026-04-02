@@ -1,5 +1,5 @@
 import { useCallback, useState, useRef } from "react";
-import { View, FlatList, RefreshControl, Modal, Pressable, KeyboardAvoidingView, Platform, Alert, ScrollView, ActivityIndicator } from "react-native";
+import { View, FlatList, RefreshControl, Modal, Pressable, KeyboardAvoidingView, Platform, Alert, ScrollView, ActivityIndicator, Image } from "react-native";
 import { useLocalSearchParams, useFocusEffect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
@@ -150,8 +150,10 @@ export default function GroupDetailScreen() {
   const [showSettings, setShowSettings] = useState(false);
   const [editGroupName, setEditGroupName] = useState("");
   const [editGroupCurrency, setEditGroupCurrency] = useState("TWD");
+  const [editCoverUrl, setEditCoverUrl] = useState("");
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
 
   // Pairwise debt details
   const [pairwiseDetails, setPairwiseDetails] = useState<Suggestion[]>([]);
@@ -188,6 +190,7 @@ export default function GroupDetailScreen() {
       setMembers(groupRes.data.members ?? []);
       if (groupRes.data.name) setGroupName(groupRes.data.name);
       if (groupRes.data.default_currency) setGroupCurrency(groupRes.data.default_currency);
+      if (groupRes.data.cover_image_url) setCoverImageUrl(groupRes.data.cover_image_url);
       hasFetched.current = true;
       if (isFirstLoad) setLoading(false);
 
@@ -669,18 +672,43 @@ export default function GroupDetailScreen() {
           </Text>
         </View>
         {(item.from_user_id === user?.id || item.to_user_id === user?.id) && (
-          <Button
-            size="sm"
-            onPress={() => {
-              setSettleTarget(item);
-              setSettleCurrency(item.currency);
-              setSettleAmount(item.amount);
-              setSettleRate(null);
-              setSettleError("");
-            }}
-          >
-            {t("settle_up")}
-          </Button>
+          <View className="flex-row gap-2">
+            <Button
+              size="sm"
+              onPress={() => {
+                setSettleTarget(item);
+                setSettleCurrency(item.currency);
+                setSettleAmount(item.amount);
+                setSettleRate(null);
+                setSettleError("");
+              }}
+              className="flex-1"
+            >
+              {t("settle_up")}
+            </Button>
+            {item.to_user_id === user?.id && (
+              <Button
+                size="sm"
+                variant="outline"
+                onPress={async () => {
+                  try {
+                    await settlementsAPI.sendReminder(id!, {
+                      to_user: item.from_user_id,
+                      amount: parseFloat(item.amount),
+                      currency: item.currency,
+                    });
+                    setAddError(t("reminder_sent"));
+                  } catch (e: any) {
+                    const msg = e.response?.data?.detail || t("reminder_cooldown");
+                    setAddError(msg);
+                  }
+                }}
+                className="flex-1"
+              >
+                {t("send_reminder")}
+              </Button>
+            )}
+          </View>
         )}
       </CardContent>
     </Card>
@@ -737,6 +765,7 @@ export default function GroupDetailScreen() {
             onPress={() => {
               setEditGroupName(groupName);
               setEditGroupCurrency(groupCurrency);
+              setEditCoverUrl(coverImageUrl || "");
               setSettingsError(null);
               setShowSettings(true);
             }}
@@ -752,6 +781,16 @@ export default function GroupDetailScreen() {
           <Link size={22} color="hsl(var(--primary))" />
         </Pressable>
       </View>
+
+      {coverImageUrl ? (
+        <View className="mx-5 mt-2 rounded-xl overflow-hidden" style={{ height: 120 }}>
+          <Image
+            source={{ uri: coverImageUrl }}
+            style={{ width: "100%", height: "100%" }}
+            resizeMode="cover"
+          />
+        </View>
+      ) : null}
 
       <SegmentedTabs
         tabs={[
@@ -1465,6 +1504,14 @@ export default function GroupDetailScreen() {
                   value={editGroupCurrency}
                   onSelect={setEditGroupCurrency}
                 />
+                <Input
+                  label={t("cover_image_url")}
+                  value={editCoverUrl}
+                  onChangeText={setEditCoverUrl}
+                  placeholder={t("cover_image_url_placeholder")}
+                  autoCapitalize="none"
+                  keyboardType="url"
+                />
                 {settingsError ? (
                   <Text className="text-sm text-destructive">{settingsError}</Text>
                 ) : null}
@@ -1477,9 +1524,11 @@ export default function GroupDetailScreen() {
                       await groupsAPI.update(id, {
                         name: editGroupName.trim(),
                         default_currency: editGroupCurrency,
+                        cover_image_url: editCoverUrl.trim() || null,
                       });
                       setGroupName(editGroupName.trim());
                       setGroupCurrency(editGroupCurrency);
+                      setCoverImageUrl(editCoverUrl.trim() || null);
                       setShowSettings(false);
                       await fetchData();
                     } catch (e: any) {

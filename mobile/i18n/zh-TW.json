@@ -174,5 +174,10 @@
   "payer_amount": "付款金額",
   "payers_must_equal_total": "付款人金額總和必須等於消費金額",
   "add_payer": "新增付款人",
-  "payers": "付款人"
+  "payers": "付款人",
+  "send_reminder": "發送提醒",
+  "reminder_sent": "已發送付款提醒",
+  "reminder_cooldown": "24 小時內已發送過提醒",
+  "cover_image_url": "封面圖片網址",
+  "cover_image_url_placeholder": "https://example.com/image.jpg"
 }

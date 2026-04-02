@@ -7,6 +7,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.exceptions import ForbiddenError, NotFoundError, ValidationError
 from app.models.user import User
+from app.schemas.reminder import ReminderCreate
 from app.schemas.settlement import SettlementCreate, SettlementResponse, SettlementSuggestionsResponse
 from app.services import settlement_service
 
@@ -92,6 +93,25 @@ async def list_settlements(
         )
     except ForbiddenError as e:
         raise HTTPException(status_code=403, detail=e.message)
+
+
+# --- 付款提醒 ---
+
+@router.post("/reminders", status_code=status.HTTP_201_CREATED)
+async def send_reminder(
+    group_id: uuid.UUID,
+    data: ReminderCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """發送付款提醒（同一對象 24 小時內最多一次）"""
+    from app.services import reminder_service
+    try:
+        return await reminder_service.create_reminder(db, group_id, current_user.id, data)
+    except ForbiddenError as e:
+        raise HTTPException(status_code=403, detail=e.message)
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=e.message)
 
 
 # --- 跨群組端點 ---

@@ -20,6 +20,7 @@ class User(Base):
     auth_provider_id: Mapped[str | None] = mapped_column(String(255))
     preferred_currency: Mapped[str] = mapped_column(String(3), default="TWD")
     locale: Mapped[str] = mapped_column(String(5), default="zh-TW")
+    push_token: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

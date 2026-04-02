@@ -174,5 +174,10 @@
   "payer_amount": "支払い金額",
   "payers_must_equal_total": "支払い金額の合計は消費金額と一致する必要があります",
   "add_payer": "支払い者を追加",
-  "payers": "支払い者"
+  "payers": "支払い者",
+  "send_reminder": "リマインダーを送信",
+  "reminder_sent": "支払いリマインダーを送信しました",
+  "reminder_cooldown": "24時間以内にリマインダーを送信済み",
+  "cover_image_url": "カバー画像URL",
+  "cover_image_url_placeholder": "https://example.com/image.jpg"
 }

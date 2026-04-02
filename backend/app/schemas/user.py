@@ -22,6 +22,7 @@ class UserUpdate(BaseModel):
     avatar_url: str | None = None
     preferred_currency: str | None = None
     locale: str | None = None
+    push_token: str | None = None
 
 
 class TokenResponse(BaseModel):
