@@ -213,5 +213,13 @@
   "settlement_confirmed": "が精算を確認しました",
   "settlement_rejected": "が精算を拒否しました",
   "settlement_converted_from": "元の金額：{{original_currency}} {{original_amount}}",
-  "settlement_actual_pay": "実際の支払い：{{currency}} {{amount}}"
+  "settlement_actual_pay": "実際の支払い：{{currency}} {{amount}}",
+  "overall_you_are_owed": "合計であなたに",
+  "overall_you_owe": "合計であなたが",
+  "overall_all_settled": "全て精算済みです",
+  "owes_you": "{{name}} があなたに",
+  "you_owe_person": "あなたが {{name}} に",
+  "you_are_owed": "受取予定",
+  "show_settled_groups": "{{count}} 件の精算済みグループを表示",
+  "hiding_settled_groups": "精算済みのグループは非表示です"
 }

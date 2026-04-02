@@ -379,3 +379,4 @@ cd backend && pytest tests/
 | 憑直覺設計 dark mode 飽和度/亮度 | 先搜尋 Material Design 3 / Apple HIG best practice 取得具體數值，再依規則設計；primary 飽和度降 20-30%（保留 50-65%），亮度升 5-10% |
 | `COLOR_SCHEMES` preview 色與實際 primary 不符 | preview hex 必須是 `global.css` 中對應 scheme light/dark `--primary` 的近似值，名稱也必須反映實際色調 |
 | 兩個 scheme 色相差距 < 30 度 | 新增 scheme 前檢查所有現有 hue，任意兩者差距 >= 30 度，否則視覺無法區分 |
+| 布林旗標只檢查「結果為零」就判定為「已完成」 | `is_settled` 等代表「完成」語意的旗標，必須同時檢查「曾經開始過」（如 `expense_count > 0`），零狀態實體（如新群組無費用）不等於已完成 |

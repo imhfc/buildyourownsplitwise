@@ -106,10 +106,10 @@ fi
 # ── C-14：group/[id].tsx 結清按鈕只能顯示給付款方 ──────────────────────────
 GROUP_FILE="$MOBILE_DIR/app/group/[id].tsx"
 if [ -f "$GROUP_FILE" ]; then
-  # 搜尋 settle_up 按鈕附近是否有 from_user_id === user 的條件守衛
-  # 如果結清按鈕的顯示條件包含 to_user_id（OR 條件讓收款方也能按），則 FAIL
-  SETTLE_BLOCK=$(grep -A2 'settle_up\|t("settle_up")' "$GROUP_FILE" 2>/dev/null || true)
-  if grep -B10 'settle_up\|t("settle_up")' "$GROUP_FILE" 2>/dev/null | grep -q 'from_user_id === user'; then
+  # 檢查策略：結清按鈕（含 settle_up 文字）前必須有 from_user_id 單獨守衛
+  # 且該守衛不能是 from_user_id || to_user_id 的 OR 條件
+  if grep -q 'from_user_id === user.*&&' "$GROUP_FILE" 2>/dev/null && \
+     ! grep -B2 't("settle_up")' "$GROUP_FILE" 2>/dev/null | grep -q 'to_user_id === user.*&&'; then
     green "C-14 group/[id].tsx 結清按鈕限定付款方（from_user_id === user）"
   else
     red   "C-14 group/[id].tsx 結清按鈕未限定付款方（必須用 from_user_id === user?.id 守衛，禁止讓收款方也能發起結清）"
@@ -128,6 +128,19 @@ if [ -f "$SETTLE_SVC" ]; then
   fi
 else
   green "C-15 settlement_service.py 不存在（跳過）"
+fi
+
+# ── C-16：group_service.py is_settled 必須同時檢查 expense_count > 0 ─────────
+GROUP_SVC="$(cd "$MOBILE_DIR/.." && pwd)/backend/app/services/group_service.py"
+GROUPS_API="$(cd "$MOBILE_DIR/.." && pwd)/backend/app/api/groups.py"
+if [ -f "$GROUP_SVC" ] && [ -f "$GROUPS_API" ]; then
+  if grep -q 'expense_count' "$GROUP_SVC" 2>/dev/null && grep -q 'expense_count > 0' "$GROUPS_API" 2>/dev/null; then
+    green "C-16 is_settled 判斷包含 expense_count > 0（零費用群組不會被標記為已結清）"
+  else
+    red   "C-16 is_settled 判斷缺少 expense_count > 0 條件（新群組會被誤判為已結清）"
+  fi
+else
+  green "C-16 group_service.py 或 groups.py 不存在（跳過）"
 fi
 
 # ── 結果 ──────────────────────────────────────────────────────────────────────

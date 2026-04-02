@@ -37,6 +37,8 @@ backend/app/
 - Schema 變更建立新 Alembic revision，禁止修改已存在的 migration
 - Service 層禁止在請求路徑中同步呼叫外部 API，外部資料（匯率等）必須透過背景排程預取存入 DB
 - 軟刪除過濾：任何涉及 `group_members` 或 `activity_logs` 的查詢，必須 join `groups` 並加 `Group.deleted_at.is_(None)`，避免回傳已刪除群組的資料（2026-04-02 回顧）
+- 有方向性的關係（settlement, transfer）建立時，service 層必須驗證兩端不是同一人（`from != to`），防止前端 bug 產生自我操作的垃圾資料（2026-04-03 回顧）
+- 代表「完成」語意的布林旗標（如 `is_settled`），必須同時檢查「曾經有過活動」（如 `expense_count > 0`），零狀態實體不等於已完成（2026-04-03 回顧）
 
 ## Docker / 部署規則
 

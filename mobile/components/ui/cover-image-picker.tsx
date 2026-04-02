@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   TextInput,
   FlatList,
+  KeyboardAvoidingView,
   Platform,
 } from "react-native";
 import { X, MagnifyingGlass, ImageSquare, Camera } from "phosphor-react-native";
@@ -188,7 +189,10 @@ export function CoverImagePicker({ value, onSelect, label }: CoverImagePickerPro
         animationType="slide"
         onRequestClose={() => setVisible(false)}
       >
-        <View className="flex-1 bg-black/50 justify-end">
+        <KeyboardAvoidingView
+          className="flex-1 bg-black/50 justify-end"
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
           <View
             className="bg-background rounded-t-2xl"
             style={{ maxHeight: "85%", paddingBottom: Platform.OS === "ios" ? 34 : 16 }}
@@ -359,7 +363,7 @@ export function CoverImagePicker({ value, onSelect, label }: CoverImagePickerPro
               </View>
             ) : null}
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { UsersThree, X, Trash, SignOut, DotsSixVertical, CaretDown, CaretRight, EnvelopeSimple, Check, CurrencyCircleDollar } from "phosphor-react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import DraggableFlatList, { ScaleDecorator, RenderItemParams } from "react-native-draggable-flatlist";
-import { groupsAPI, inviteAPI, settlementsAPI } from "../../services/api";
+import { groupsAPI, inviteAPI, settlementsAPI, balancesAPI } from "../../services/api";
 import { useAuthStore } from "../../stores/auth";
 import { usePendingSettlementsStore } from "../../stores/pending-settlements";
 import { Card, CardContent } from "~/components/ui/card";
@@ -41,6 +41,13 @@ interface GroupItem {
   unsettled_debts: SimplifiedDebt[];
 }
 
+interface CurrencyTotal {
+  currency: string;
+  owed_to_you: string;
+  you_owe: string;
+  net_balance: string;
+}
+
 export default function GroupsScreen() {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
@@ -61,6 +68,7 @@ export default function GroupsScreen() {
   const [confirmTarget, setConfirmTarget] = useState<{ item: GroupItem; action: "delete" | "leave" } | null>(null);
   const [settledExpanded, setSettledExpanded] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [overallTotals, setOverallTotals] = useState<CurrencyTotal[]>([]);
 
   // Pending email invitations
   interface PendingInvitation {
@@ -125,6 +133,15 @@ export default function GroupsScreen() {
     }
   };
 
+  const fetchOverallBalance = useCallback(async () => {
+    try {
+      const res = await balancesAPI.overall();
+      setOverallTotals(res.data.totals_by_currency);
+    } catch {
+      // silently fail
+    }
+  }, []);
+
   const fetchPendingInvitations = useCallback(async () => {
     try {
       const res = await inviteAPI.getMyPendingInvitations();
@@ -171,12 +188,13 @@ export default function GroupsScreen() {
       fetchGroups();
       fetchPendingInvitations();
       fetchPendingSettlements();
-    }, [fetchGroups, fetchPendingInvitations, fetchPendingSettlements])
+      fetchOverallBalance();
+    }, [fetchGroups, fetchPendingInvitations, fetchPendingSettlements, fetchOverallBalance])
   );
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([fetchGroups(), fetchPendingInvitations(), fetchPendingSettlements()]);
+    await Promise.all([fetchGroups(), fetchPendingInvitations(), fetchPendingSettlements(), fetchOverallBalance()]);
     setRefreshing(false);
   };
 
@@ -267,20 +285,74 @@ export default function GroupsScreen() {
     );
   };
 
-  const renderDebtDetails = (debts: SimplifiedDebt[]) => (
-    <View className="px-4 pb-3 -mt-2 gap-2">
-      {debts.map((d, i) => (
-        <View key={i} className="pl-9">
-          <Text className="text-sm text-muted-foreground">
-            {d.from_user_name} {t("owes")} {d.to_user_name}
-          </Text>
-          <Text className="text-lg font-bold text-destructive">
-            {d.currency} {Number(d.amount).toFixed(2)}
-          </Text>
-        </View>
-      ))}
-    </View>
-  );
+  // Compute per-group net balance for the current user (by currency)
+  const computeGroupNetBalance = (debts: SimplifiedDebt[]): { currency: string; net: number }[] => {
+    if (!user) return [];
+    const byCurrency: Record<string, number> = {};
+    for (const d of debts) {
+      if (!byCurrency[d.currency]) byCurrency[d.currency] = 0;
+      if (d.to_user_id === user.id) {
+        // someone owes me
+        byCurrency[d.currency] += Number(d.amount);
+      } else if (d.from_user_id === user.id) {
+        // I owe someone
+        byCurrency[d.currency] -= Number(d.amount);
+      }
+    }
+    return Object.entries(byCurrency)
+      .filter(([, net]) => Math.abs(net) >= 0.01)
+      .map(([currency, net]) => ({ currency, net }));
+  };
+
+  const renderDebtDetails = (debts: SimplifiedDebt[]) => {
+    if (!user) return null;
+    // Filter to only show debts involving current user
+    const relevantDebts = debts.filter(
+      (d) => d.from_user_id === user.id || d.to_user_id === user.id
+    );
+    if (relevantDebts.length === 0) return null;
+    return (
+      <View className="px-4 pb-3 -mt-1 gap-1">
+        {relevantDebts.map((d, i) => {
+          const owesMe = d.to_user_id === user.id;
+          const otherName = owesMe ? d.from_user_name : d.to_user_name;
+          return (
+            <View key={i} className="flex-row items-center pl-9 gap-1">
+              <Text className="text-sm text-muted-foreground">
+                {owesMe
+                  ? t("owes_you", { name: otherName })
+                  : t("you_owe_person", { name: otherName })}
+              </Text>
+              <Text className={`text-sm font-semibold ${owesMe ? "text-income" : "text-destructive"}`}>
+                {d.currency} {Number(d.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
+
+  const renderGroupBalance = (item: GroupItem) => {
+    const netBalances = computeGroupNetBalance(item.unsettled_debts);
+    if (netBalances.length === 0) {
+      return <Muted className="text-xs text-right">{t("balanced")}</Muted>;
+    }
+    return (
+      <View className="items-end">
+        {netBalances.map(({ currency, net }, i) => (
+          <View key={i} className="items-end">
+            <Text className={`text-xs ${net > 0 ? "text-income" : "text-destructive"}`}>
+              {net > 0 ? t("you_are_owed") : t("you_owe")}
+            </Text>
+            <Text className={`text-base font-bold ${net > 0 ? "text-income" : "text-destructive"}`}>
+              {currency} {Math.abs(net).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </Text>
+          </View>
+        ))}
+      </View>
+    );
+  };
 
   const renderGroup = ({ item, drag, isActive }: RenderItemParams<GroupItem>) => (
     <ScaleDecorator>
@@ -314,7 +386,7 @@ export default function GroupsScreen() {
               ) : null}
               <Muted>{item.member_count} {t("members")}</Muted>
             </View>
-            <Badge>{item.default_currency}</Badge>
+            {renderGroupBalance(item)}
           </CardContent>
           {item.unsettled_debts.length > 0 ? renderDebtDetails(item.unsettled_debts) : null}
         </Card>
@@ -334,7 +406,7 @@ export default function GroupsScreen() {
       overshootRight={false}
     >
       <Card
-        className="mb-3"
+        className="mb-3 opacity-70"
         onPress={() => router.push(`/group/${item.id}`)}
       >
         <CardContent className="flex-row items-center justify-between p-4">
@@ -343,28 +415,29 @@ export default function GroupsScreen() {
             {item.description ? (
               <Muted numberOfLines={1}>{item.description}</Muted>
             ) : null}
-            <Muted className="text-green-600">{t("balanced")}</Muted>
           </View>
-          <Badge>{item.default_currency}</Badge>
+          <Muted className="text-xs">{t("balanced")}</Muted>
         </CardContent>
       </Card>
     </Swipeable>
   );
 
   const settledFooter = settledGroups.length > 0 ? (
-    <View className="mt-2">
+    <View className="mt-4">
+      <Muted className="text-center text-xs mb-3">{t("hiding_settled_groups")}</Muted>
       <Pressable
-        className="flex-row items-center gap-2 py-3 px-1"
+        className="self-center border border-primary/30 rounded-full px-5 py-2"
         onPress={() => setSettledExpanded((v) => !v)}
       >
-        {settledExpanded
-          ? <CaretDown size={18} color={iconColor} />
-          : <CaretRight size={18} color={iconColor} />}
-        <Text className="text-muted-foreground font-medium">
-          {t("settled_groups")} ({settledGroups.length})
+        <Text className="text-primary font-medium text-sm">
+          {settledExpanded
+            ? t("settled_groups")
+            : t("show_settled_groups", { count: settledGroups.length })}
         </Text>
       </Pressable>
-      {settledExpanded ? settledGroups.map(renderSettledGroup) : null}
+      {settledExpanded ? (
+        <View className="mt-3">{settledGroups.map(renderSettledGroup)}</View>
+      ) : null}
     </View>
   ) : null;
 
@@ -396,6 +469,31 @@ export default function GroupsScreen() {
           }
           ListHeaderComponent={
             <>
+              {overallTotals.length > 0 ? (
+                <View className="mb-4">
+                  {overallTotals.map((ct, i) => {
+                    const net = Number(ct.net_balance);
+                    const isPositive = net > 0;
+                    const isZero = Math.abs(net) < 0.01;
+                    return (
+                      <View key={i} className="flex-row items-baseline gap-1">
+                        <Text className="text-lg font-medium text-foreground">
+                          {isZero
+                            ? t("overall_all_settled")
+                            : isPositive
+                              ? t("overall_you_are_owed")
+                              : t("overall_you_owe")}
+                        </Text>
+                        {!isZero && (
+                          <Text className={`text-xl font-bold ${isPositive ? "text-income" : "text-destructive"}`}>
+                            {ct.currency} {Math.abs(net).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </Text>
+                        )}
+                      </View>
+                    );
+                  })}
+                </View>
+              ) : null}
               {pendingSettlements.length > 0 ? (
                 <View className="mb-4">
                   <Muted className="mb-2 text-sm font-medium">{t("pending_settlements")}</Muted>

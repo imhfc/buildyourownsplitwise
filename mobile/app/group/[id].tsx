@@ -196,6 +196,34 @@ export default function GroupDetailScreen() {
     }
   }, [id]);
 
+  const refreshSettlements = useCallback(async () => {
+    if (!id) return;
+    setSugLoading(true);
+    try {
+      const [sugRes, balRes, settleRes] = await Promise.all([
+        settlementsAPI.suggestions(id),
+        balancesAPI.group(id),
+        settlementsAPI.list(id),
+      ]);
+      const data = sugRes.data;
+      if (data.mode === "by_currency" && data.by_currency) {
+        const flat = data.by_currency.flatMap((g: { suggestions: Suggestion[] }) => g.suggestions);
+        setSuggestions(flat);
+      } else if (data.mode === "unified" && data.unified) {
+        setSuggestions(data.unified.suggestions);
+      } else {
+        setSuggestions([]);
+      }
+      setBalances(balRes.data);
+      const pending = (settleRes.data as PendingSettlement[]).filter((s) => s.status === "pending");
+      setPendingSettlements(pending);
+    } catch (e) {
+      console.error("Failed to fetch suggestions/balances", e);
+    } finally {
+      setSugLoading(false);
+    }
+  }, [id]);
+
   const fetchData = useCallback(async () => {
     if (!id) return;
     const isFirstLoad = !hasFetched.current;
@@ -215,35 +243,13 @@ export default function GroupDetailScreen() {
       if (isFirstLoad) setLoading(false);
 
       // Phase 2: settlement suggestions + balances + email invitations -- load in background
-      setSugLoading(true);
       fetchEmailInvitations();
-      Promise.all([
-        settlementsAPI.suggestions(id),
-        balancesAPI.group(id),
-        settlementsAPI.list(id),
-      ])
-        .then(([sugRes, balRes, settleRes]) => {
-          // Handle SettlementSuggestionsResponse format
-          const data = sugRes.data;
-          if (data.mode === "by_currency" && data.by_currency) {
-            const flat = data.by_currency.flatMap((g: { suggestions: Suggestion[] }) => g.suggestions);
-            setSuggestions(flat);
-          } else if (data.mode === "unified" && data.unified) {
-            setSuggestions(data.unified.suggestions);
-          } else {
-            setSuggestions([]);
-          }
-          setBalances(balRes.data);
-          const pending = (settleRes.data as PendingSettlement[]).filter((s) => s.status === "pending");
-          setPendingSettlements(pending);
-        })
-        .catch((e) => console.error("Failed to fetch suggestions/balances", e))
-        .finally(() => setSugLoading(false));
+      refreshSettlements();
     } catch (e) {
       console.error("Failed to fetch group data", e);
       if (isFirstLoad) setLoading(false);
     }
-  }, [id, fetchEmailInvitations]);
+  }, [id, fetchEmailInvitations, refreshSettlements]);
 
   useFocusEffect(
     useCallback(() => {
@@ -864,7 +870,12 @@ export default function GroupDetailScreen() {
           { value: "members", label: t("members") },
         ]}
         value={tab}
-        onValueChange={(v) => setTab(v as Tab)}
+        onValueChange={(v) => {
+          setTab(v as Tab);
+          if (v === "settlements") {
+            refreshSettlements();
+          }
+        }}
         className="mx-5 mt-4"
       />
 

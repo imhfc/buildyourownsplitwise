@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   TextInput,
   View,
@@ -132,7 +134,10 @@ export function CurrencyPicker({
           setSearch("");
         }}
       >
-        <View className="flex-1 justify-end bg-black/50">
+        <KeyboardAvoidingView
+          className="flex-1 justify-end bg-black/50"
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
           <View className="bg-background rounded-t-2xl max-h-[75%]">
             {/* Header */}
             <View className="px-5 pt-4 pb-2">
@@ -187,7 +192,7 @@ export function CurrencyPicker({
               }
             />
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

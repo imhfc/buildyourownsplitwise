@@ -35,6 +35,11 @@ jobs:
           SECRET_KEY=${{ secrets.SECRET_KEY }}
           GOOGLE_CLIENT_IDS=${{ vars.GOOGLE_CLIENT_IDS }}
           ALLOWED_ORIGINS=${{ vars.ALLOWED_ORIGINS }}
+          SMTP_HOST=smtp.gmail.com
+          SMTP_PORT=587
+          SMTP_USER=${{ vars.SMTP_USER }}
+          SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM_EMAIL=${{ vars.SMTP_FROM_EMAIL }}
           EOF
           sed -i 's/^[[:space:]]*//' .env
           # 移除空值行（vars 未設定時不寫入，讓 docker-compose 用預設值）

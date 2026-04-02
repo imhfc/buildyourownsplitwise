@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload
 
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
+from app.models.expense import Expense
 from app.models.group import Group, GroupMember
 from app.models.user import User
 from app.schemas.group import GroupCreate, GroupResponse, GroupUpdate, SimplifiedDebt
@@ -63,6 +64,13 @@ async def create_group(
 
 async def list_user_groups(db: AsyncSession, user_id: uuid.UUID) -> list[dict]:
     my_membership = aliased(GroupMember)
+    expense_count_subq = (
+        select(func.count(Expense.id))
+        .where(Expense.group_id == Group.id, Expense.deleted_at.is_(None))
+        .correlate(Group)
+        .scalar_subquery()
+        .label("expense_count")
+    )
     result = await db.execute(
         select(
             Group.id,
@@ -74,6 +82,7 @@ async def list_user_groups(db: AsyncSession, user_id: uuid.UUID) -> list[dict]:
             func.count(GroupMember.id).label("member_count"),
             my_membership.role.label("my_role"),
             my_membership.sort_order,
+            expense_count_subq,
         )
         .where(Group.deleted_at.is_(None))
         .join(GroupMember, Group.id == GroupMember.group_id)

@@ -59,7 +59,7 @@ async def list_my_groups(
             created_by=r.created_by,
             my_role=r.my_role,
             sort_order=r.sort_order,
-            is_settled=len(debts_map.get(r.id, [])) == 0,
+            is_settled=len(debts_map.get(r.id, [])) == 0 and r.expense_count > 0,
             unsettled_debts=debts_map.get(r.id, []),
         )
         for r in rows
