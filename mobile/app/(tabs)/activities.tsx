@@ -19,7 +19,8 @@ type ActivityType =
   | "member_added"
   | "member_removed"
   | "reminder_sent"
-  | "email_invitation_sent";
+  | "email_invitation_sent"
+  | "email_invitation_cancelled";
 
 interface ActivityItem {
   type: ActivityType;
@@ -63,6 +64,7 @@ function getActivityStyle(type: ActivityType, isDark: boolean) {
     case "reminder_sent":
       return { color: "#f59e0b", bg: isDark ? "rgba(245,158,11,0.15)" : "#fef3c7" };
     case "email_invitation_sent":
+    case "email_invitation_cancelled":
       return { color: "#6366f1", bg: isDark ? "rgba(99,102,241,0.15)" : "#e0e7ff" };
   }
 }
@@ -80,7 +82,9 @@ function ActivityIcon({ type, color }: { type: ActivityType; color: string }) {
     case "member_added": return <UserPlus {...props} />;
     case "member_removed": return <UserMinus {...props} />;
     case "reminder_sent": return <BellRinging {...props} />;
-    case "email_invitation_sent": return <EnvelopeSimple {...props} />;
+    case "email_invitation_sent":
+    case "email_invitation_cancelled":
+      return <EnvelopeSimple {...props} />;
   }
 }
 
@@ -102,6 +106,7 @@ function buildDescription(item: ActivityItem, t: (key: string) => string): strin
     case "reminder_sent":
       return `${item.actor_name} ${action}，${t("in_group")} ${item.group_name}`;
     case "email_invitation_sent":
+    case "email_invitation_cancelled":
       return `${item.actor_name} ${action}，${t("in_group")} ${item.group_name}`;
   }
 }

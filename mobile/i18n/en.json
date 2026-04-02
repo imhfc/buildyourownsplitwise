@@ -98,6 +98,7 @@
   "member_added": "joined the group",
   "member_removed": "was removed from the group",
   "email_invitation_sent": "sent an invitation",
+  "email_invitation_cancelled": "cancelled an invitation",
   "in_group": "in",
   "to": "to",
   "friends_coming_soon": "Friends Coming Soon",

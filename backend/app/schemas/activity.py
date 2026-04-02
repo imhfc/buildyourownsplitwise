@@ -17,6 +17,7 @@ ActivityType = Literal[
     "member_removed",
     "reminder_sent",
     "email_invitation_sent",
+    "email_invitation_cancelled",
 ]
 
 

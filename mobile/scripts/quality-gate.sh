@@ -143,6 +143,26 @@ else
   green "C-16 group_service.py 或 groups.py 不存在（跳過）"
 fi
 
+# ── C-17：log_activity action 值必須全部存在於 ActivityType Literal ──────────
+BACKEND_DIR="$(cd "$MOBILE_DIR/.." && pwd)/backend"
+SCHEMA_FILE="$BACKEND_DIR/app/schemas/activity.py"
+if [ -f "$SCHEMA_FILE" ]; then
+  # 從所有 service 檔案中擷取 log_activity 的 action 參數值
+  MISSING=""
+  for action_val in $(grep -roh 'action="[^"]*"' "$BACKEND_DIR/app/services/" 2>/dev/null | sed 's/action="//;s/"//' | sort -u); do
+    if ! grep -q "\"$action_val\"" "$SCHEMA_FILE" 2>/dev/null; then
+      MISSING="$MISSING $action_val"
+    fi
+  done
+  if [ -z "$MISSING" ]; then
+    green "C-17 所有 log_activity action 值皆已定義在 ActivityType Literal"
+  else
+    red   "C-17 以下 action 值在 service 中使用但未定義在 ActivityType Literal:$MISSING（會導致活動列表 500）"
+  fi
+else
+  green "C-17 schemas/activity.py 不存在（跳過）"
+fi
+
 # ── 結果 ──────────────────────────────────────────────────────────────────────
 echo ""
 echo "=== 結果：PASS=$PASS  FAIL=$FAIL ==="

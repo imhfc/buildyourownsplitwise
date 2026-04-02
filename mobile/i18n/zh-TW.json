@@ -98,6 +98,7 @@
   "member_added": "加入了群組",
   "member_removed": "被移出群組",
   "email_invitation_sent": "發送了邀請",
+  "email_invitation_cancelled": "取消了邀請",
   "in_group": "在群組",
   "to": "給",
   "friends_coming_soon": "朋友功能即將推出",

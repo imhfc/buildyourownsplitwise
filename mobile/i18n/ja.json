@@ -98,6 +98,7 @@
   "member_added": "がグループに参加しました",
   "member_removed": "がグループから除外されました",
   "email_invitation_sent": "が招待を送信しました",
+  "email_invitation_cancelled": "が招待をキャンセルしました",
   "in_group": "グループ：",
   "to": "に",
   "friends_coming_soon": "友達機能は近日公開",
