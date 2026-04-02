@@ -26,7 +26,7 @@ interface BadgeProps {
 
 export function Badge({ variant = "secondary", className, children }: BadgeProps) {
   return (
-    <View className={cn("rounded-full px-2.5 py-0.5", variantStyles[variant], className)}>
+    <View className={cn("rounded-md px-2.5 py-0.5", variantStyles[variant], className)}>
       <Text className={cn("text-xs font-medium", textStyles[variant])}>{children}</Text>
     </View>
   );

@@ -4,8 +4,6 @@ import {
   Platform,
   Animated,
   Easing,
-  StyleSheet,
-  type DimensionValue,
 } from "react-native";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -16,74 +14,6 @@ import { Text } from "~/components/ui/text";
 import { Button } from "~/components/ui/button";
 
 const USE_NATIVE = Platform.OS !== "web";
-
-/* ────────────────────────────────────────────
-   Floating decorative orb
-   ──────────────────────────────────────────── */
-
-function Orb({
-  size,
-  top,
-  left,
-  delay,
-  range,
-  speed,
-  targetOpacity,
-}: {
-  size: number;
-  top: DimensionValue;
-  left: DimensionValue;
-  delay: number;
-  range: number;
-  speed: number;
-  targetOpacity: number;
-}) {
-  const ty = useRef(new Animated.Value(0)).current;
-  const fade = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(fade, {
-      toValue: targetOpacity,
-      duration: 1200,
-      delay,
-      useNativeDriver: USE_NATIVE,
-    }).start();
-
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(ty, {
-          toValue: -range,
-          duration: speed,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: USE_NATIVE,
-        }),
-        Animated.timing(ty, {
-          toValue: range,
-          duration: speed,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: USE_NATIVE,
-        }),
-      ])
-    ).start();
-  }, []);
-
-  return (
-    <Animated.View
-      style={{
-        position: "absolute",
-        top,
-        left,
-        opacity: fade,
-        transform: [{ translateY: ty }],
-      }}
-    >
-      <View
-        className="bg-primary rounded-full"
-        style={{ width: size, height: size }}
-      />
-    </Animated.View>
-  );
-}
 
 /* ────────────────────────────────────────────
    Stagger fade-in wrapper
@@ -227,16 +157,6 @@ export default function LoginScreen() {
 
   return (
     <View className="flex-1 bg-background">
-      {/* Decorative floating orbs */}
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Orb size={140} top="4%"  left="65%" delay={0}   range={18} speed={3200} targetOpacity={0.07} />
-        <Orb size={90}  top="15%" left="5%"  delay={400} range={12} speed={2800} targetOpacity={0.06} />
-        <Orb size={180} top="50%" left="75%" delay={700} range={14} speed={3600} targetOpacity={0.04} />
-        <Orb size={70}  top="70%" left="3%"  delay={200} range={10} speed={2400} targetOpacity={0.08} />
-        <Orb size={110} top="35%" left="85%" delay={500} range={16} speed={3000} targetOpacity={0.05} />
-        <Orb size={50}  top="85%" left="50%" delay={300} range={8}  speed={2600} targetOpacity={0.06} />
-      </View>
-
       <View
         className="flex-1 justify-center px-8"
         style={{ maxWidth: 420, alignSelf: "center", width: "100%" }}
@@ -255,12 +175,12 @@ export default function LoginScreen() {
             </View>
 
             {/* App name */}
-            <Text className="text-5xl font-extrabold text-primary tracking-widest">
+            <Text className="text-4xl font-bold text-primary tracking-[0.2em]">
               {t("app_name")}
             </Text>
 
             {/* Decorative line */}
-            <View className="bg-primary/20 rounded-full mt-4 mb-3" style={{ width: 48, height: 3 }} />
+            <View className="bg-border mt-4 mb-3" style={{ width: 48, height: 2 }} />
 
             {/* Subtitle */}
             <Text className="text-base text-muted-foreground text-center px-4 leading-6">
@@ -272,7 +192,7 @@ export default function LoginScreen() {
         {/* ── Error banner ── */}
         {error ? (
           <FadeUp delay={0}>
-            <View className="border border-destructive rounded-xl px-4 py-3 mb-4">
+            <View className="border border-destructive rounded-lg px-4 py-3 mb-4">
               <Text className="text-destructive text-sm text-center">
                 {error}
               </Text>

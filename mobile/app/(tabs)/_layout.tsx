@@ -39,16 +39,23 @@ export default function TabsLayout() {
         tabBarActiveTintColor: activeTint,
         tabBarInactiveTintColor: inactiveTint,
         tabBarStyle: {
-          backgroundColor: isDark ? "#09090B" : "#FFFFFF",
-          borderTopColor: isDark ? "#27272A" : "#E4E4E7",
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 4,
+          backgroundColor: isDark ? "#101318" : "#FFFFFF",
+          borderTopColor: isDark ? "#1F2937" : "#E4E4E7",
+          height: 52,
+          paddingBottom: 4,
+          paddingTop: 2,
+        },
+        tabBarIconStyle: {
+          marginBottom: -2,
+        },
+        tabBarLabelStyle: {
+          fontSize: 10,
+          marginTop: -2,
         },
         headerStyle: {
-          backgroundColor: isDark ? "#09090B" : "#FFFFFF",
+          backgroundColor: isDark ? "#101318" : "#FFFFFF",
         },
-        headerTintColor: isDark ? "#FAFAFA" : "#09090B",
+        headerTintColor: isDark ? "#FAFAFA" : "#101318",
         headerShadowVisible: false,
       }}
     >
@@ -56,8 +63,8 @@ export default function TabsLayout() {
         name="friends"
         options={{
           title: t("friends"),
-          tabBarIcon: ({ color, size }) => (
-            <UserPlus size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <UserPlus size={22} color={color} />
           ),
         }}
       />
@@ -65,8 +72,8 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: t("groups"),
-          tabBarIcon: ({ color, size }) => (
-            <Users size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Users size={22} color={color} />
           ),
         }}
       />
@@ -74,8 +81,8 @@ export default function TabsLayout() {
         name="activities"
         options={{
           title: t("activities"),
-          tabBarIcon: ({ color, size }) => (
-            <Activity size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Activity size={22} color={color} />
           ),
           tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
           tabBarBadgeStyle: {
@@ -94,8 +101,8 @@ export default function TabsLayout() {
         name="account"
         options={{
           title: t("account"),
-          tabBarIcon: ({ color, size }) => (
-            <User size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <User size={22} color={color} />
           ),
         }}
       />

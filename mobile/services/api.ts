@@ -123,6 +123,7 @@ export interface ExpenseCreatePayload {
   split_method?: "equal" | "exact" | "ratio" | "shares";
   splits?: ExpenseSplitInput[];
   note?: string;
+  category_id?: string;
 }
 
 export interface ExpenseUpdatePayload {
@@ -133,6 +134,7 @@ export interface ExpenseUpdatePayload {
   split_method?: string;
   splits?: ExpenseSplitInput[];
   note?: string;
+  category_id?: string;
 }
 
 export interface SettlementCreatePayload {
@@ -162,6 +164,24 @@ export const settlementsAPI = {
   list: (groupId: string) => api.get(`/groups/${groupId}/settlements`),
   create: (groupId: string, data: SettlementCreatePayload) =>
     api.post(`/groups/${groupId}/settlements`, data),
+  confirm: (groupId: string, settlementId: string) =>
+    api.patch(`/groups/${groupId}/settlements/${settlementId}/confirm`),
+  pending: () => api.get("/settlements/pending"),
+};
+
+// Categories
+export const categoriesAPI = {
+  list: (groupId?: string) =>
+    api.get("/categories", { params: groupId ? { group_id: groupId } : {} }),
+  create: (data: { name: string; icon?: string; color?: string; group_id?: string }) =>
+    api.post("/categories", data),
+  delete: (id: string) => api.delete(`/categories/${id}`),
+};
+
+// Balances
+export const balancesAPI = {
+  overall: () => api.get("/balances"),
+  group: (groupId: string) => api.get(`/balances/groups/${groupId}`),
 };
 
 // Activities

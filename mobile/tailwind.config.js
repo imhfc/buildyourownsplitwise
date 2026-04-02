@@ -45,9 +45,9 @@ module.exports = {
         warning: "hsl(var(--warning))",
       },
       borderRadius: {
-        lg: "12px",
+        lg: "10px",
         md: "8px",
-        sm: "6px",
+        sm: "4px",
       },
     },
   },

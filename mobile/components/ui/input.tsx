@@ -25,7 +25,7 @@ export function Input({
       ) : null}
       <TextInput
         className={cn(
-          "h-12 rounded-xl border border-input bg-background px-4 text-base text-foreground",
+          "h-12 rounded-lg border border-input bg-background px-4 text-base text-foreground",
           "focus:border-ring",
           error && "border-destructive",
           className

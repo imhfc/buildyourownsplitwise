@@ -16,7 +16,7 @@ interface TabsProps {
 
 export function SegmentedTabs({ tabs, value, onValueChange, className }: TabsProps) {
   return (
-    <View className={cn("flex-row rounded-xl bg-muted p-1", className)}>
+    <View className={cn("flex-row rounded-lg bg-muted p-1", className)}>
       {tabs.map((tab) => {
         const isActive = tab.value === value;
         return (
@@ -24,8 +24,8 @@ export function SegmentedTabs({ tabs, value, onValueChange, className }: TabsPro
             key={tab.value}
             onPress={() => onValueChange(tab.value)}
             className={cn(
-              "flex-1 items-center justify-center rounded-lg py-2",
-              isActive && "bg-background shadow-sm"
+              "flex-1 items-center justify-center rounded-md py-2",
+              isActive && "bg-background"
             )}
           >
             <Text

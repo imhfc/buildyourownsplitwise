@@ -38,7 +38,7 @@ export function Skeleton({ className }: SkeletonProps) {
 
 export function CardSkeleton() {
   return (
-    <View className="rounded-2xl border border-border bg-card p-4 gap-3">
+    <View className="rounded-xl border border-border bg-card p-5 gap-3">
       <View className="flex-row items-center gap-3">
         <Skeleton className="h-10 w-10 rounded-full" />
         <View className="flex-1 gap-2">

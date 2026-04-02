@@ -361,7 +361,7 @@ export default function FriendsScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <View className="flex-1 justify-end bg-black/50">
-            <View className="bg-background rounded-t-3xl px-5 pb-10 pt-4 max-h-[80%]">
+            <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4 max-h-[80%]">
               <View className="items-center mb-4">
                 <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
               </View>
@@ -427,7 +427,7 @@ export default function FriendsScreen() {
       >
         <View className={`flex-1 ${themeClass}`}>
         <View className="flex-1 justify-center items-center bg-black/50 px-6">
-          <View className="bg-background rounded-2xl p-6 w-full max-w-sm gap-4">
+          <View className="bg-background rounded-xl p-6 w-full max-w-sm gap-4">
             <H3>{t("remove_friend")}</H3>
             <Text className="text-muted-foreground">
               {t("remove_friend_confirm")}

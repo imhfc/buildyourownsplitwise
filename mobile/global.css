@@ -7,7 +7,7 @@
      Default: 經典信任藍 (blue)
      =========================== */
   :root {
-    --background: 0 0% 100%;
+    --background: 220 14% 98%;
     --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
     --card-foreground: 240 10% 3.9%;
@@ -33,24 +33,24 @@
   }
 
   .dark {
-    --background: 240 10% 3.9%;
+    --background: 220 15% 7%;
     --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
+    --card: 220 13% 10%;
     --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
+    --popover: 220 13% 10%;
     --popover-foreground: 0 0% 98%;
     --primary: 213 94% 68%;
-    --primary-foreground: 240 10% 3.9%;
-    --secondary: 240 3.7% 15.9%;
+    --primary-foreground: 220 15% 7%;
+    --secondary: 220 10% 14%;
     --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
+    --muted: 220 10% 14%;
+    --muted-foreground: 220 10% 55%;
+    --accent: 220 10% 14%;
     --accent-foreground: 0 0% 98%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
+    --border: 220 10% 16%;
+    --input: 220 10% 16%;
     --ring: 213 94% 68%;
     --income: 160 60% 45%;
     --expense: 0 72% 51%;
@@ -212,160 +212,7 @@
   }
 
   /* ===========================
-     方案五：火焰紅 (red)
-     =========================== */
-  .scheme-red {
-    --primary: 0 84% 60%;
-    --primary-foreground: 0 0% 100%;
-    --ring: 0 84% 60%;
-    --background: 0 20% 98%;
-    --foreground: 0 15% 12%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 15% 12%;
-    --secondary: 0 15% 94%;
-    --secondary-foreground: 0 15% 12%;
-    --muted: 0 15% 94%;
-    --muted-foreground: 0 10% 45%;
-    --accent: 0 15% 94%;
-    --accent-foreground: 0 15% 12%;
-    --border: 0 12% 89%;
-    --input: 0 12% 89%;
-    --income: 160 84% 39%;
-    --expense: 0 84% 60%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --settled: 220 9% 46%;
-    --warning: 38 92% 50%;
-  }
-
-  .dark.scheme-red {
-    --primary: 0 72% 65%;
-    --primary-foreground: 0 0% 100%;
-    --ring: 0 72% 65%;
-    --background: 0 20% 6%;
-    --foreground: 0 10% 95%;
-    --card: 0 15% 10%;
-    --card-foreground: 0 10% 95%;
-    --secondary: 0 12% 15%;
-    --secondary-foreground: 0 10% 95%;
-    --muted: 0 12% 15%;
-    --muted-foreground: 0 10% 55%;
-    --accent: 0 12% 15%;
-    --accent-foreground: 0 10% 95%;
-    --border: 0 12% 15%;
-    --input: 0 12% 15%;
-    --income: 160 60% 45%;
-    --expense: 0 72% 51%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
-    --settled: 220 9% 46%;
-    --warning: 38 80% 50%;
-  }
-
-  /* ===========================
-     方案六：活力橘 (orange)
-     =========================== */
-  .scheme-orange {
-    --primary: 25 95% 53%;
-    --primary-foreground: 0 0% 100%;
-    --ring: 25 95% 53%;
-    --background: 30 50% 97%;
-    --foreground: 25 30% 12%;
-    --card: 0 0% 100%;
-    --card-foreground: 25 30% 12%;
-    --secondary: 30 20% 93%;
-    --secondary-foreground: 25 30% 12%;
-    --muted: 30 20% 93%;
-    --muted-foreground: 25 15% 45%;
-    --accent: 30 20% 93%;
-    --accent-foreground: 25 30% 12%;
-    --border: 30 15% 88%;
-    --input: 30 15% 88%;
-    --income: 160 84% 39%;
-    --expense: 0 84% 60%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --settled: 220 9% 46%;
-    --warning: 38 92% 50%;
-  }
-
-  .dark.scheme-orange {
-    --primary: 25 90% 60%;
-    --primary-foreground: 0 0% 100%;
-    --ring: 25 90% 60%;
-    --background: 25 20% 6%;
-    --foreground: 25 10% 95%;
-    --card: 25 15% 10%;
-    --card-foreground: 25 10% 95%;
-    --secondary: 25 12% 15%;
-    --secondary-foreground: 25 10% 95%;
-    --muted: 25 12% 15%;
-    --muted-foreground: 25 10% 55%;
-    --accent: 25 12% 15%;
-    --accent-foreground: 25 10% 95%;
-    --border: 25 12% 15%;
-    --input: 25 12% 15%;
-    --income: 160 60% 45%;
-    --expense: 0 72% 51%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
-    --settled: 220 9% 46%;
-    --warning: 38 80% 50%;
-  }
-
-  /* ===========================
-     方案七：玫瑰粉 (rose)
-     =========================== */
-  .scheme-rose {
-    --primary: 350 89% 60%;
-    --primary-foreground: 0 0% 100%;
-    --ring: 350 89% 60%;
-    --background: 350 20% 97%;
-    --foreground: 350 20% 12%;
-    --card: 0 0% 100%;
-    --card-foreground: 350 20% 12%;
-    --secondary: 350 15% 93%;
-    --secondary-foreground: 350 20% 12%;
-    --muted: 350 15% 93%;
-    --muted-foreground: 350 10% 45%;
-    --accent: 350 15% 93%;
-    --accent-foreground: 350 20% 12%;
-    --border: 350 12% 89%;
-    --input: 350 12% 89%;
-    --income: 160 84% 39%;
-    --expense: 0 84% 60%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --settled: 220 9% 46%;
-    --warning: 38 92% 50%;
-  }
-
-  .dark.scheme-rose {
-    --primary: 350 80% 65%;
-    --primary-foreground: 0 0% 100%;
-    --ring: 350 80% 65%;
-    --background: 350 15% 6%;
-    --foreground: 350 10% 95%;
-    --card: 350 12% 10%;
-    --card-foreground: 350 10% 95%;
-    --secondary: 350 10% 15%;
-    --secondary-foreground: 350 10% 95%;
-    --muted: 350 10% 15%;
-    --muted-foreground: 350 10% 55%;
-    --accent: 350 10% 15%;
-    --accent-foreground: 350 10% 95%;
-    --border: 350 10% 15%;
-    --input: 350 10% 15%;
-    --income: 160 60% 45%;
-    --expense: 0 72% 51%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
-    --settled: 220 9% 46%;
-    --warning: 38 80% 50%;
-  }
-
-  /* ===========================
-     方案八：清澈青藍 (teal)
+     方案五：清澈青藍 (teal)
      =========================== */
   .scheme-teal {
     --primary: 174 72% 40%;
@@ -416,58 +263,7 @@
   }
 
   /* ===========================
-     方案九：琥珀金 (amber)
-     =========================== */
-  .scheme-amber {
-    --primary: 38 92% 50%;
-    --primary-foreground: 38 100% 10%;
-    --ring: 38 92% 50%;
-    --background: 40 50% 97%;
-    --foreground: 38 30% 12%;
-    --card: 0 0% 100%;
-    --card-foreground: 38 30% 12%;
-    --secondary: 38 25% 93%;
-    --secondary-foreground: 38 30% 12%;
-    --muted: 38 25% 93%;
-    --muted-foreground: 38 15% 45%;
-    --accent: 38 25% 93%;
-    --accent-foreground: 38 30% 12%;
-    --border: 38 20% 88%;
-    --input: 38 20% 88%;
-    --income: 160 84% 39%;
-    --expense: 0 84% 60%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --settled: 220 9% 46%;
-    --warning: 38 92% 50%;
-  }
-
-  .dark.scheme-amber {
-    --primary: 38 85% 55%;
-    --primary-foreground: 38 100% 10%;
-    --ring: 38 85% 55%;
-    --background: 38 20% 6%;
-    --foreground: 38 10% 95%;
-    --card: 38 15% 10%;
-    --card-foreground: 38 10% 95%;
-    --secondary: 38 12% 15%;
-    --secondary-foreground: 38 10% 95%;
-    --muted: 38 12% 15%;
-    --muted-foreground: 38 10% 55%;
-    --accent: 38 12% 15%;
-    --accent-foreground: 38 10% 95%;
-    --border: 38 12% 15%;
-    --input: 38 12% 15%;
-    --income: 160 60% 45%;
-    --expense: 0 72% 51%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
-    --settled: 220 9% 46%;
-    --warning: 38 80% 50%;
-  }
-
-  /* ===========================
-     方案十：石板灰 (slate)
+     方案六：石板灰 (slate)
      =========================== */
   .scheme-slate {
     --primary: 215 20% 47%;

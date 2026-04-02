@@ -8,7 +8,9 @@
 
 - 測試 DB：Neon serverless PostgreSQL（`TEST_DATABASE_URL` 環境變數，定義在 `backend/.env`）
 - 不需要本機 Docker db-test
-- conftest.py 會自動偵測 Neon（`neon.tech` in URL）並使用 `NullPool` + `statement_cache_size=0`
+- conftest.py 透過 `dotenv.load_dotenv` 自動載入 `backend/.env`，不需手動 export 環境變數
+- conftest.py 使用 `NullPool` + `statement_cache_size=0`（Neon 和本機 Docker 皆適用）
+- `setup_database` fixture 只做 `create_all`（不 drop），schema 由 Alembic 管理
 
 ### 執行步驟
 

@@ -11,7 +11,7 @@ export function FAB({ className, icon, ...props }: FABProps) {
   return (
     <Pressable
       className={cn(
-        "absolute bottom-6 right-5 h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-lg active:scale-95",
+        "absolute bottom-6 right-5 h-14 w-14 items-center justify-center rounded-xl bg-primary shadow-md active:scale-[0.97]",
         className
       )}
       {...props}

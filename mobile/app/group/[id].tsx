@@ -14,7 +14,7 @@ import {
   Link,
 } from "lucide-react-native";
 import { CurrencyPicker } from "~/components/ui/currency-picker";
-import { expensesAPI, settlementsAPI, groupsAPI, authAPI, ExpenseSplitInput, ExpenseUpdatePayload } from "../../services/api";
+import { expensesAPI, settlementsAPI, groupsAPI, authAPI, categoriesAPI, balancesAPI, ExpenseSplitInput, ExpenseUpdatePayload } from "../../services/api";
 import { useAuthStore } from "../../stores/auth";
 import { Card, CardContent } from "~/components/ui/card";
 import { Text, H3, Muted } from "~/components/ui/text";
@@ -47,6 +47,8 @@ interface ExpenseItem {
   splits: ExpenseSplitItem[];
   note: string | null;
   expense_date: string | null;
+  category_id: string | null;
+  category_name: string | null;
   created_at: string;
 }
 
@@ -57,6 +59,21 @@ interface Suggestion {
   to_user_name: string;
   amount: string;
   currency: string;
+}
+
+interface CategoryItem {
+  id: string;
+  name: string;
+  icon: string | null;
+  color: string | null;
+  is_default: boolean;
+}
+
+interface BalanceSummary {
+  group_id: string;
+  group_name: string;
+  currency: string;
+  balances: { user_id: string; display_name: string; balance: string }[];
 }
 
 interface Member {
@@ -92,6 +109,14 @@ export default function GroupDetailScreen() {
   const [addError, setAddError] = useState("");
   const [splitInputs, setSplitInputs] = useState<Record<string, string>>({});
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+
+  // Balance & settlement
+  const [balances, setBalances] = useState<BalanceSummary | null>(null);
+  const [settleTarget, setSettleTarget] = useState<Suggestion | null>(null);
+  const [settling, setSettling] = useState(false);
+  const [settleError, setSettleError] = useState("");
 
   // Add member modal
   const [showAddMember, setShowAddMember] = useState(false);
@@ -113,23 +138,40 @@ export default function GroupDetailScreen() {
     const isFirstLoad = !hasFetched.current;
     if (isFirstLoad) setLoading(true);
     try {
-      // Phase 1: group info + expenses (fast) -- render immediately
-      const [expRes, groupRes] = await Promise.all([
+      // Phase 1: group info + expenses + categories (fast) -- render immediately
+      const [expRes, groupRes, catRes] = await Promise.all([
         expensesAPI.list(id),
         groupsAPI.get(id),
+        categoriesAPI.list(id),
       ]);
       setExpenses(expRes.data);
       setMembers(groupRes.data.members ?? []);
+      setCategories(catRes.data);
       if (groupRes.data.name) setGroupName(groupRes.data.name);
       if (groupRes.data.default_currency) setGroupCurrency(groupRes.data.default_currency);
       hasFetched.current = true;
       if (isFirstLoad) setLoading(false);
 
-      // Phase 2: settlement suggestions (slow) -- load in background
+      // Phase 2: settlement suggestions + balances (slow) -- load in background
       setSugLoading(true);
-      settlementsAPI.suggestions(id)
-        .then((sugRes) => setSuggestions(sugRes.data))
-        .catch((e) => console.error("Failed to fetch suggestions", e))
+      Promise.all([
+        settlementsAPI.suggestions(id),
+        balancesAPI.group(id),
+      ])
+        .then(([sugRes, balRes]) => {
+          // Handle SettlementSuggestionsResponse format
+          const data = sugRes.data;
+          if (data.mode === "by_currency" && data.by_currency) {
+            const flat = data.by_currency.flatMap((g: { suggestions: Suggestion[] }) => g.suggestions);
+            setSuggestions(flat);
+          } else if (data.mode === "unified" && data.unified) {
+            setSuggestions(data.unified.suggestions);
+          } else {
+            setSuggestions([]);
+          }
+          setBalances(balRes.data);
+        })
+        .catch((e) => console.error("Failed to fetch suggestions/balances", e))
         .finally(() => setSugLoading(false));
     } catch (e) {
       console.error("Failed to fetch group data", e);
@@ -218,8 +260,29 @@ export default function GroupDetailScreen() {
       setSplitInputs({});
     }
 
+    setSelectedCategoryId(expense.category_id ?? null);
     setAddError("");
     setShowAdd(true);
+  };
+
+  const handleSettleUp = async (suggestion: Suggestion) => {
+    if (!id || !user) return;
+    setSettling(true);
+    setSettleError("");
+    try {
+      await settlementsAPI.create(id, {
+        to_user: suggestion.to_user_id,
+        amount: parseFloat(suggestion.amount),
+        currency: suggestion.currency,
+      });
+      setSettleTarget(null);
+      await fetchData();
+    } catch (e: any) {
+      const msg = e.response?.data?.detail || e.message || t("unknown_error");
+      setSettleError(msg);
+    } finally {
+      setSettling(false);
+    }
   };
 
   const handleSubmitExpense = async () => {
@@ -265,6 +328,7 @@ export default function GroupDetailScreen() {
           currency: expenseCurrency,
           split_method: splitMethod,
           splits,
+          category_id: selectedCategoryId ?? undefined,
         });
       } else {
         await expensesAPI.create(id, {
@@ -274,6 +338,7 @@ export default function GroupDetailScreen() {
           paid_by: user.id,
           split_method: splitMethod,
           splits,
+          category_id: selectedCategoryId ?? undefined,
         });
       }
       setShowAdd(false);
@@ -282,6 +347,7 @@ export default function GroupDetailScreen() {
       setAmount("");
       setSplitMethod("equal");
       setSplitInputs({});
+      setSelectedCategoryId(null);
       await fetchData();
     } catch (e: any) {
       const msg = e.response?.data?.detail || e.message || t("unknown_error");
@@ -363,6 +429,7 @@ export default function GroupDetailScreen() {
             <Text className="font-medium">{item.description}</Text>
             <Muted>
               {item.payer_display_name} {t("paid_by")}
+              {item.category_name ? ` / ${item.category_name}` : ""}
             </Muted>
           </View>
           <View className="items-end gap-1">
@@ -381,23 +448,33 @@ export default function GroupDetailScreen() {
 
   const renderSuggestion = ({ item }: { item: Suggestion }) => (
     <Card className="mb-3">
-      <CardContent className="flex-row items-center justify-between p-4">
-        <View className="flex-1">
-          <Text>
-            <Text className="font-bold text-destructive">
-              {item.from_user_name}
+      <CardContent className="p-4 gap-3">
+        <View className="flex-row items-center justify-between">
+          <View className="flex-1">
+            <Text>
+              <Text className="font-bold text-destructive">
+                {item.from_user_name}
+              </Text>
+              {"  "}
+              {t("owes")}
+              {"  "}
+              <Text className="font-bold text-income">
+                {item.to_user_name}
+              </Text>
             </Text>
-            {"  "}
-            {t("owes")}
-            {"  "}
-            <Text className="font-bold text-income">
-              {item.to_user_name}
-            </Text>
+          </View>
+          <Text className="text-lg font-bold text-primary">
+            {item.currency} {parseFloat(item.amount).toLocaleString()}
           </Text>
         </View>
-        <Text className="text-lg font-bold text-primary">
-          {item.currency} {parseFloat(item.amount).toLocaleString()}
-        </Text>
+        {(item.from_user_id === user?.id || item.to_user_id === user?.id) && (
+          <Button
+            size="sm"
+            onPress={() => { setSettleTarget(item); setSettleError(""); }}
+          >
+            {t("settle_up")}
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
@@ -486,7 +563,7 @@ export default function GroupDetailScreen() {
               title={t("add_expense")}
               description={t("no_expenses_hint")}
               actionLabel={t("add_expense")}
-              onAction={() => { setEditingExpenseId(null); setAddError(""); setDesc(""); setAmount(""); setSplitMethod("equal"); setSplitInputs({}); setSelectedMembers(new Set(members.map((m) => m.user.id))); setExpenseCurrency(groupCurrency); setShowAdd(true); }}
+              onAction={() => { setEditingExpenseId(null); setAddError(""); setDesc(""); setAmount(""); setSplitMethod("equal"); setSplitInputs({}); setSelectedMembers(new Set(members.map((m) => m.user.id))); setExpenseCurrency(groupCurrency); setSelectedCategoryId(null); setShowAdd(true); }}
             />
           }
         />
@@ -503,6 +580,28 @@ export default function GroupDetailScreen() {
             contentContainerStyle={{ padding: 20 }}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            ListHeaderComponent={
+              balances ? (
+                <Card className="mb-4">
+                  <CardContent className="p-4 gap-2">
+                    <Text className="font-semibold text-sm text-muted-foreground">{t("balance_summary")}</Text>
+                    {balances.balances.map((b) => {
+                      const val = parseFloat(b.balance);
+                      const isPositive = val > 0;
+                      const isZero = Math.abs(val) < 0.01;
+                      return (
+                        <View key={b.user_id} className="flex-row items-center justify-between">
+                          <Text className="text-sm">{b.display_name}</Text>
+                          <Text className={`text-sm font-medium ${isZero ? "text-muted-foreground" : isPositive ? "text-income" : "text-destructive"}`}>
+                            {isZero ? "0" : `${isPositive ? "+" : ""}${val.toLocaleString()}`} {balances.currency}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+              ) : null
             }
             ListEmptyComponent={
               <EmptyState
@@ -532,7 +631,7 @@ export default function GroupDetailScreen() {
         />
       )}
 
-      {tab === "expenses" && <FAB onPress={() => { setEditingExpenseId(null); setAddError(""); setDesc(""); setAmount(""); setSplitMethod("equal"); setSplitInputs({}); setSelectedMembers(new Set(members.map((m) => m.user.id))); setExpenseCurrency(groupCurrency); setShowAdd(true); }} />}
+      {tab === "expenses" && <FAB onPress={() => { setEditingExpenseId(null); setAddError(""); setDesc(""); setAmount(""); setSplitMethod("equal"); setSplitInputs({}); setSelectedMembers(new Set(members.map((m) => m.user.id))); setExpenseCurrency(groupCurrency); setSelectedCategoryId(null); setShowAdd(true); }} />}
       {tab === "members" && (
         <FAB onPress={() => { setShowAddMember(true); setMemberEmail(""); setFoundUser(null); setLookupError(""); }} />
       )}
@@ -558,7 +657,7 @@ export default function GroupDetailScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <View className="flex-1 justify-end bg-black/50">
-            <View className="bg-background rounded-t-3xl px-5 pb-10 pt-4">
+            <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4">
               <View className="items-center mb-4">
                 <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
               </View>
@@ -601,6 +700,40 @@ export default function GroupDetailScreen() {
                       />
                     </View>
                   </View>
+
+                  {/* Category picker */}
+                  {categories.length > 0 && (
+                    <View className="gap-2">
+                      <Text className="text-sm font-medium">{t("category")}</Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                        <View className="flex-row gap-2">
+                          <Pressable
+                            onPress={() => setSelectedCategoryId(null)}
+                            className={`px-3 py-2 rounded-full border ${
+                              !selectedCategoryId ? "bg-primary/10 border-primary" : "border-border"
+                            }`}
+                          >
+                            <Text className={`text-sm ${!selectedCategoryId ? "text-primary font-medium" : "text-muted-foreground"}`}>
+                              {t("no_category")}
+                            </Text>
+                          </Pressable>
+                          {categories.map((cat) => (
+                            <Pressable
+                              key={cat.id}
+                              onPress={() => setSelectedCategoryId(cat.id)}
+                              className={`px-3 py-2 rounded-full border ${
+                                selectedCategoryId === cat.id ? "bg-primary/10 border-primary" : "border-border"
+                              }`}
+                            >
+                              <Text className={`text-sm ${selectedCategoryId === cat.id ? "text-primary font-medium" : "text-muted-foreground"}`}>
+                                {cat.icon ? `${cat.icon} ` : ""}{cat.name}
+                              </Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      </ScrollView>
+                    </View>
+                  )}
 
                   {/* Participants */}
                   <View className="gap-2">
@@ -763,7 +896,7 @@ export default function GroupDetailScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <View className="flex-1 justify-end bg-black/50">
-            <View className="bg-background rounded-t-3xl px-5 pb-10 pt-4">
+            <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4">
               <View className="items-center mb-4">
                 <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
               </View>
@@ -833,6 +966,52 @@ export default function GroupDetailScreen() {
             </View>
           </View>
         </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      {/* Settle Up Confirmation Modal */}
+      <Modal
+        visible={!!settleTarget}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSettleTarget(null)}
+      >
+        <View className={`flex-1 ${themeClass}`}>
+          <View className="flex-1 justify-center items-center bg-black/50 px-6">
+            <View className="bg-background rounded-xl px-5 py-6 w-full max-w-sm">
+              <H3 className="mb-4">{t("settle_up_confirm")}</H3>
+              {settleTarget && (
+                <Text className="text-base mb-4">
+                  {t("settle_up_confirm_msg", {
+                    from: settleTarget.from_user_name,
+                    amount: `${settleTarget.currency} ${parseFloat(settleTarget.amount).toLocaleString()}`,
+                    to: settleTarget.to_user_name,
+                  })}
+                </Text>
+              )}
+              {settleError ? (
+                <Text className="text-sm text-destructive mb-3">{settleError}</Text>
+              ) : null}
+              <View className="flex-row gap-3">
+                <Button
+                  variant="outline"
+                  onPress={() => setSettleTarget(null)}
+                  className="flex-1"
+                  disabled={settling}
+                >
+                  {t("cancel")}
+                </Button>
+                <Button
+                  onPress={() => settleTarget && handleSettleUp(settleTarget)}
+                  loading={settling}
+                  disabled={settling}
+                  className="flex-1"
+                >
+                  {t("confirm")}
+                </Button>
+              </View>
+            </View>
+          </View>
         </View>
       </Modal>
     </View>

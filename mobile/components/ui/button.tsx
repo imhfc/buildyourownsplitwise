@@ -10,10 +10,10 @@ type Variant = "default" | "secondary" | "outline" | "destructive" | "ghost";
 type Size = "default" | "sm" | "lg" | "icon";
 
 const variantStyles: Record<Variant, string> = {
-  default: "bg-primary active:opacity-80",
-  secondary: "bg-secondary active:opacity-80",
+  default: "bg-primary active:opacity-90",
+  secondary: "bg-secondary active:opacity-90",
   outline: "border border-input bg-background active:bg-accent",
-  destructive: "bg-destructive active:opacity-80",
+  destructive: "bg-destructive active:opacity-90",
   ghost: "active:bg-accent",
 };
 
@@ -63,7 +63,7 @@ export function Button({
   return (
     <Pressable
       className={cn(
-        "flex-row items-center justify-center rounded-xl",
+        "flex-row items-center justify-center rounded-lg",
         variantStyles[variant],
         sizeStyles[size],
         isDisabled && "opacity-50",
@@ -82,7 +82,7 @@ export function Button({
       {typeof children === "string" ? (
         <Text
           className={cn(
-            "font-semibold",
+            "font-medium",
             variantTextStyles[variant],
             sizeTextStyles[size],
             textClassName

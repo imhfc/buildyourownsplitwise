@@ -36,6 +36,7 @@ backend/app/
 - 所有操作使用 async/await + asyncpg
 - Schema 變更建立新 Alembic revision，禁止修改已存在的 migration
 - Service 層禁止在請求路徑中同步呼叫外部 API，外部資料（匯率等）必須透過背景排程預取存入 DB
+- 軟刪除過濾：任何涉及 `group_members` 或 `activity_logs` 的查詢，必須 join `groups` 並加 `Group.deleted_at.is_(None)`，避免回傳已刪除群組的資料（2026-04-02 回顧）
 
 ## Mobile 規範
 

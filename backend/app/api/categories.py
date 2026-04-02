@@ -41,7 +41,10 @@ async def create_category(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    return await category_service.create_category(db, current_user.id, data)
+    try:
+        return await category_service.create_category(db, current_user.id, data)
+    except (ForbiddenError, NotFoundError, ValidationError) as e:
+        _handle(e)
 
 
 @router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT)

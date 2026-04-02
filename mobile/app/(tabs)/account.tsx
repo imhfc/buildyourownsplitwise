@@ -312,7 +312,7 @@ export default function AccountScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <View className="flex-1 justify-end bg-black/50">
-            <View className="bg-background rounded-t-3xl px-5 pb-10 pt-4">
+            <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4">
               <View className="items-center mb-4">
                 <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
               </View>
@@ -354,7 +354,7 @@ export default function AccountScreen() {
         onRequestClose={() => setShowLangPicker(false)}
       >
         <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-background rounded-t-3xl px-5 pb-10 pt-4">
+          <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4">
             <View className="items-center mb-4">
               <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
             </View>
@@ -400,7 +400,7 @@ export default function AccountScreen() {
         onRequestClose={() => setShowCurrencyModal(false)}
       >
         <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-background rounded-t-3xl px-5 pb-10 pt-4">
+          <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4">
             <View className="items-center mb-4">
               <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
             </View>

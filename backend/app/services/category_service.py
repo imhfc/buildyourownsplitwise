@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import ForbiddenError, NotFoundError, ValidationError
 from app.models.category import ExpenseCategory
 from app.schemas.category import CategoryCreate
+from app.services.group_service import check_membership
 
 
 async def list_categories(
@@ -24,7 +25,9 @@ async def list_categories(
 async def create_category(
     db: AsyncSession, user_id: uuid.UUID, data: CategoryCreate
 ) -> ExpenseCategory:
-    """建立群組自訂分類。"""
+    """建立群組自訂分類。需驗證使用者為群組成員。"""
+    if data.group_id:
+        await check_membership(db, data.group_id, user_id)
     category = ExpenseCategory(
         name=data.name,
         icon=data.icon,

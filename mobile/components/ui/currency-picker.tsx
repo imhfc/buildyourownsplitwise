@@ -116,7 +116,7 @@ export function CurrencyPicker({
       ) : null}
 
       <Pressable
-        className="h-12 rounded-xl border border-input bg-background px-4 flex-row items-center justify-between"
+        className="h-12 rounded-lg border border-input bg-background px-4 flex-row items-center justify-between"
         onPress={() => setVisible(true)}
       >
         <Text className="text-base text-foreground">{selectedLabel}</Text>
@@ -133,7 +133,7 @@ export function CurrencyPicker({
         }}
       >
         <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-background rounded-t-3xl max-h-[75%]">
+          <View className="bg-background rounded-t-2xl max-h-[75%]">
             {/* Header */}
             <View className="px-5 pt-4 pb-2">
               <View className="items-center mb-3">
@@ -152,7 +152,7 @@ export function CurrencyPicker({
               </View>
 
               {/* Search */}
-              <View className="flex-row items-center h-11 rounded-xl border border-input bg-background px-3 mb-2">
+              <View className="flex-row items-center h-11 rounded-lg border border-input bg-background px-3 mb-2">
                 <Search size={18} color="hsl(240 3.8% 46.1%)" />
                 <TextInput
                   ref={searchRef}
