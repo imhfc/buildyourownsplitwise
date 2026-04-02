@@ -218,3 +218,16 @@ async def list_email_invitations(
         return await email_invitation_service.list_group_invitations(db, group_id, current_user.id)
     except ForbiddenError as e:
         raise HTTPException(status_code=403, detail=e.message)
+
+
+@router.delete("/{group_id}/email-invitations/{invitation_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def cancel_email_invitation(
+    group_id: uuid.UUID,
+    invitation_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await email_invitation_service.cancel_invitation(db, group_id, invitation_id, current_user.id)
+    except (ForbiddenError, NotFoundError, ConflictError) as e:
+        _handle(e)

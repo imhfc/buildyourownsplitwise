@@ -1062,9 +1062,21 @@ export default function GroupDetailScreen() {
                             {t("invited_by", { name: inv.inviter_name })}
                           </Muted>
                         </View>
-                        <Badge variant="secondary">
-                          {t("pending")}
-                        </Badge>
+                        <Pressable
+                          onPress={async () => {
+                            if (!id) return;
+                            try {
+                              await groupsAPI.cancelEmailInvitation(id, inv.id);
+                              fetchEmailInvitations();
+                            } catch (e: any) {
+                              const msg = e.response?.data?.detail || e.message || t("unknown_error");
+                              Alert.alert(t("error"), msg);
+                            }
+                          }}
+                          className="p-2"
+                        >
+                          <X size={18} color="hsl(0 84.2% 60.2%)" weight="bold" />
+                        </Pressable>
                       </CardContent>
                     </Card>
                   ))}

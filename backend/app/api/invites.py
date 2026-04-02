@@ -55,6 +55,41 @@ async def get_my_pending_invitations(
     return await email_invitation_service.get_pending_for_user(db, current_user.email)
 
 
+@router.get("/email/by-token/{token}", response_model=PendingInvitationResponse)
+async def get_email_invite_by_token(
+    token: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        return await email_invitation_service.get_by_token(db, token)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=e.message)
+    except ConflictError as e:
+        raise HTTPException(status_code=400, detail=e.message)
+
+
+@router.post("/email/by-token/{token}/respond")
+async def respond_to_invitation_by_token(
+    token: str,
+    data: EmailInvitationAction,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if not current_user.email:
+        raise HTTPException(status_code=400, detail="No email associated with your account")
+    try:
+        return await email_invitation_service.respond_by_token(
+            db, token, current_user.id, current_user.email, data.action,
+        )
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=e.message)
+    except ForbiddenError as e:
+        raise HTTPException(status_code=403, detail=e.message)
+    except (ConflictError, ValidationError) as e:
+        raise HTTPException(status_code=400, detail=e.message)
+
+
 @router.post("/email/{invitation_id}/respond")
 async def respond_to_invitation(
     invitation_id: uuid.UUID,

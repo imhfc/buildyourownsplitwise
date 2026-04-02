@@ -136,7 +136,11 @@ export default function LoginScreen() {
         const pending = useAuthStore.getState().pendingInviteToken;
         if (pending) {
           useAuthStore.getState().setPendingInviteToken(null);
-          router.replace(`/join/${pending}`);
+          if (pending.startsWith("email:")) {
+            router.replace(`/invite/email/${pending.slice(6)}`);
+          } else {
+            router.replace(`/join/${pending}`);
+          }
         } else {
           router.replace("/(tabs)");
         }

@@ -105,6 +105,8 @@ export const groupsAPI = {
     api.post(`/groups/${groupId}/email-invitations`, { email }),
   listEmailInvitations: (groupId: string) =>
     api.get(`/groups/${groupId}/email-invitations`),
+  cancelEmailInvitation: (groupId: string, invitationId: string) =>
+    api.delete(`/groups/${groupId}/email-invitations/${invitationId}`),
 };
 
 // Invites (receiver-side)
@@ -114,6 +116,10 @@ export const inviteAPI = {
   getMyPendingInvitations: () => api.get("/invite/email/pending"),
   respondToInvitation: (id: string, action: "accept" | "decline") =>
     api.post(`/invite/email/${id}/respond`, { action }),
+  getEmailInviteByToken: (token: string) =>
+    api.get(`/invite/email/by-token/${token}`),
+  respondToEmailInviteByToken: (token: string, action: "accept" | "decline") =>
+    api.post(`/invite/email/by-token/${token}/respond`, { action }),
 };
 
 export interface ExpenseSplitInput {

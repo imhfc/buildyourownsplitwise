@@ -262,6 +262,132 @@ async def respond(
     raise ValidationError("Invalid action")
 
 
+async def cancel_invitation(
+    db: AsyncSession,
+    group_id: uuid.UUID,
+    invitation_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> None:
+    """Cancel a pending email invitation (only inviter or group admin can cancel)."""
+    await check_membership(db, group_id, user_id)
+
+    result = await db.execute(
+        select(EmailInvitation).where(
+            EmailInvitation.id == invitation_id,
+            EmailInvitation.group_id == group_id,
+        )
+    )
+    invitation = result.scalar_one_or_none()
+    if not invitation:
+        raise NotFoundError("Invitation not found")
+
+    if invitation.status != "pending":
+        raise ConflictError(f"Cannot cancel invitation with status '{invitation.status}'")
+
+    # Only inviter or group admin can cancel
+    if invitation.inviter_id != user_id:
+        admin_result = await db.execute(
+            select(GroupMember).where(
+                GroupMember.group_id == group_id,
+                GroupMember.user_id == user_id,
+                GroupMember.role == "admin",
+            )
+        )
+        if not admin_result.scalar_one_or_none():
+            raise ForbiddenError("Only the inviter or group admin can cancel this invitation")
+
+    invitation.status = "cancelled"
+    invitation.responded_at = datetime.now(timezone.utc)
+
+    await log_activity(
+        db, group_id=group_id, actor_id=user_id, action="email_invitation_cancelled",
+        target_type="email_invitation", target_id=invitation.id, extra_name=invitation.email,
+    )
+
+
+async def get_by_token(
+    db: AsyncSession,
+    token: str,
+) -> PendingInvitationResponse:
+    """Look up an email invitation by its token (for email link click flow)."""
+    now = datetime.now(timezone.utc)
+
+    result = await db.execute(
+        select(
+            EmailInvitation,
+            Group.name.label("group_name"),
+            Group.description.label("group_description"),
+            User.display_name.label("inviter_name"),
+        )
+        .join(Group, EmailInvitation.group_id == Group.id)
+        .join(User, EmailInvitation.inviter_id == User.id)
+        .where(
+            EmailInvitation.token == token,
+            Group.deleted_at.is_(None),
+        )
+    )
+    row = result.one_or_none()
+    if not row:
+        raise NotFoundError("Invitation not found")
+
+    inv, group_name, group_description, inviter_name = row
+
+    # Check expiry
+    if inv.status == "pending" and inv.expires_at <= now:
+        inv.status = "expired"
+
+    if inv.status != "pending":
+        raise ConflictError(f"Invitation is {inv.status}")
+
+    # Get member count
+    count_result = await db.execute(
+        select(func.count(GroupMember.id)).where(GroupMember.group_id == inv.group_id)
+    )
+    member_count = count_result.scalar() or 0
+
+    return PendingInvitationResponse(
+        id=inv.id,
+        group_id=inv.group_id,
+        group_name=group_name,
+        group_description=group_description,
+        inviter_name=inviter_name,
+        member_count=member_count,
+        created_at=inv.created_at,
+        expires_at=inv.expires_at,
+    )
+
+
+async def respond_by_token(
+    db: AsyncSession,
+    token: str,
+    user_id: uuid.UUID,
+    user_email: str,
+    action: str,
+) -> dict:
+    """Accept or decline an email invitation by its token."""
+    email = _normalize_email(user_email)
+    now = datetime.now(timezone.utc)
+
+    result = await db.execute(
+        select(EmailInvitation).where(EmailInvitation.token == token)
+    )
+    invitation = result.scalar_one_or_none()
+    if not invitation:
+        raise NotFoundError("Invitation not found")
+
+    if invitation.email != email:
+        raise ForbiddenError("This invitation is not for your email")
+
+    if invitation.status != "pending":
+        raise ConflictError(f"Invitation already {invitation.status}")
+
+    if invitation.expires_at <= now:
+        invitation.status = "expired"
+        raise ConflictError("Invitation has expired")
+
+    return await respond(db, invitation.id, user_id, user_email, action)
+
+
 async def count_pending(db: AsyncSession, user_email: str) -> int:
     """Count pending invitations for an email address."""
     if not user_email:
