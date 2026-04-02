@@ -8,6 +8,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ThemeProvider as NavThemeProvider, DarkTheme, DefaultTheme } from "@react-navigation/native";
 import { ThemeProvider, useTheme, COLOR_SCHEMES } from "~/lib/theme";
 import { useAuthStore } from "../stores/auth";
+import { registerForPushNotifications, setupNotificationHandlers } from "~/lib/notifications";
 
 const SCHEME_CLASS: Record<string, string> = {
   blue: "",
@@ -42,6 +43,14 @@ function InnerLayout() {
       router.replace("/(tabs)");
     }
   }, [isAuthenticated, hasHydrated, segments]);
+
+  // Push 通知註冊（登入後）
+  useEffect(() => {
+    if (isAuthenticated && hasHydrated) {
+      setupNotificationHandlers();
+      registerForPushNotifications().catch(() => {});
+    }
+  }, [isAuthenticated, hasHydrated]);
 
   return (
     <NavThemeProvider value={isDark ? DarkTheme : DefaultTheme}>

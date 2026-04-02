@@ -43,41 +43,60 @@ CURRENCY_MAP: dict[str, tuple[str, str]] = {
 }
 
 
-async def fetch_rates_from_api() -> dict[str, Decimal]:
+async def fetch_rates_from_api() -> tuple[dict[str, Decimal], dict[str, Decimal]]:
     """
     Fetch exchange rates from tw.rter.info (台銀匯率 API).
-    Returns a dict mapping currency pair to rate, e.g. {"USDTWD": Decimal("32.5"), ...}
 
-    The API returns JSON like:
-    {
-        "USDTWD": {"Exrate": 32.5, "UTC": "2024-01-01 00:00:00"},
-        "EURTWD": {"Exrate": 35.2, "UTC": "2024-01-01 00:00:00"},
-        ...
-    }
+    API 回傳格式為 USD 基準（如 USDTWD、USDTHB、USDJPY），
+    只有 USDTWD 結尾是 TWD，其餘都是 USDXXX。
+
+    Returns:
+        (twd_rates, usd_rates):
+        - twd_rates: {"USDTWD": Decimal("31.95")}  — 結尾為 TWD 的對
+        - usd_rates: {"USDTHB": Decimal("32.7"), ...} — USD 基準的對（不含 USDTWD）
     """
     async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.get(settings.EXCHANGE_RATE_API_URL)
         resp.raise_for_status()
         data = resp.json()
 
-    rates = {}
+    twd_rates: dict[str, Decimal] = {}
+    usd_rates: dict[str, Decimal] = {}
+
     for pair, info in data.items():
-        if "Exrate" in info and pair.endswith("TWD"):
-            rate_value = info["Exrate"]
-            if rate_value and float(rate_value) > 0:
-                rates[pair] = Decimal(str(rate_value))
-    return rates
+        if "Exrate" not in info:
+            continue
+        rate_value = info["Exrate"]
+        if not rate_value or float(rate_value) <= 0:
+            continue
+
+        rate_decimal = Decimal(str(rate_value))
+
+        if pair.endswith("TWD"):
+            twd_rates[pair] = rate_decimal
+        elif pair.startswith("USD") and len(pair) == 6:
+            target_cur = pair[3:]
+            if target_cur in CURRENCY_MAP:
+                usd_rates[pair] = rate_decimal
+
+    return twd_rates, usd_rates
 
 
 async def refresh_rates(db: AsyncSession) -> list[ExchangeRate]:
-    """Fetch latest rates from API and store in DB."""
-    raw_rates = await fetch_rates_from_api()
+    """
+    Fetch latest rates from API and store in DB.
+
+    除了直接存入 USDTWD，還會利用 USDTWD 和 USDXXX 計算出
+    所有 XXX→TWD 的匯率（交叉匯率），讓結算時可以直接查到。
+    """
+    twd_rates, usd_rates = await fetch_rates_from_api()
     now = datetime.now(timezone.utc)
     saved = []
 
-    for pair, rate in raw_rates.items():
-        source_currency = pair[:3]  # e.g. "USD" from "USDTWD"
-        target_currency = pair[3:]  # e.g. "TWD"
+    # 1. 直接存入結尾為 TWD 的匯率對（USDTWD）
+    for pair, rate in twd_rates.items():
+        source_currency = pair[:3]
+        target_currency = pair[3:]
 
         exchange_rate = ExchangeRate(
             source_currency=source_currency,
@@ -88,6 +107,24 @@ async def refresh_rates(db: AsyncSession) -> list[ExchangeRate]:
         )
         db.add(exchange_rate)
         saved.append(exchange_rate)
+
+    # 2. 透過 USDTWD 計算 XXX→TWD 交叉匯率
+    #    XXXTWD = USDTWD / USDXXX
+    usd_twd_rate = twd_rates.get("USDTWD")
+    if usd_twd_rate:
+        for pair, usd_xxx_rate in usd_rates.items():
+            xxx = pair[3:]  # e.g. "THB" from "USDTHB"
+            xxx_twd_rate = round(usd_twd_rate / usd_xxx_rate, 8)
+
+            exchange_rate = ExchangeRate(
+                source_currency=xxx,
+                target_currency="TWD",
+                rate=xxx_twd_rate,
+                source="taiwan_bank",
+                fetched_at=now,
+            )
+            db.add(exchange_rate)
+            saved.append(exchange_rate)
 
     await db.flush()
     return saved

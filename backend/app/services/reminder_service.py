@@ -62,6 +62,10 @@ async def create_reminder(
     from_result = await db.execute(select(User.display_name).where(User.id == from_user_id))
     from_name = from_result.scalar_one_or_none() or "Unknown"
 
+    # 發送 Push 通知
+    from app.services.push_service import notify_reminder
+    await notify_reminder(db, data.to_user, from_name, data.amount, data.currency, group_id)
+
     return ReminderResponse(
         id=reminder.id,
         group_id=group_id,

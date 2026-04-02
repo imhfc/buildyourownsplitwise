@@ -179,5 +179,6 @@
   "reminder_sent": "Payment reminder sent",
   "reminder_cooldown": "Already sent a reminder within 24 hours",
   "cover_image_url": "Cover Image URL",
-  "cover_image_url_placeholder": "https://example.com/image.jpg"
+  "cover_image_url_placeholder": "https://example.com/image.jpg",
+  "approx_preferred": "Approx. {{currency}} {{amount}}"
 }

@@ -6,6 +6,6 @@ services:
       POSTGRES_PASSWORD: splitewise
       POSTGRES_DB: splitewise_test
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     tmpfs:
       - /var/lib/postgresql/data  # 記憶體內跑，測試完不留資料

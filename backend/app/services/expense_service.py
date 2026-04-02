@@ -139,6 +139,17 @@ async def create_expense(
         description=data.description, amount=data.total_amount, currency=expense_currency,
     )
 
+    # Push 通知所有參與者（排除建立者自己）
+    from app.services.push_service import notify_expense_added
+    from app.models.user import User
+    creator_result = await db.execute(select(User.display_name).where(User.id == user_id))
+    creator_name = creator_result.scalar_one_or_none() or "Unknown"
+    notified_ids = {s["user_id"] for s in splits} - {user_id}
+    for uid in notified_ids:
+        await notify_expense_added(
+            db, uid, creator_name, data.description, data.total_amount, expense_currency, group_id,
+        )
+
     return await get_expense_detail(db, expense.id)
 
 

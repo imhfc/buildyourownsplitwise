@@ -179,5 +179,6 @@
   "reminder_sent": "已發送付款提醒",
   "reminder_cooldown": "24 小時內已發送過提醒",
   "cover_image_url": "封面圖片網址",
-  "cover_image_url_placeholder": "https://example.com/image.jpg"
+  "cover_image_url_placeholder": "https://example.com/image.jpg",
+  "approx_preferred": "約 {{currency}} {{amount}}"
 }

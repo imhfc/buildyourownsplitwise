@@ -1,4 +1,4 @@
-import { useCallback, useState, useRef } from "react";
+import { useCallback, useState, useRef, useEffect } from "react";
 import { View, FlatList, RefreshControl, Modal, Pressable, KeyboardAvoidingView, Platform, Alert, ScrollView, ActivityIndicator, Image } from "react-native";
 import { useLocalSearchParams, useFocusEffect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -112,6 +112,7 @@ export default function GroupDetailScreen() {
   const [addError, setAddError] = useState("");
   const [splitInputs, setSplitInputs] = useState<Record<string, string>>({});
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  const [convertedHint, setConvertedHint] = useState("");
   const [multiPayer, setMultiPayer] = useState(false);
   const [payerInputs, setPayerInputs] = useState<Record<string, string>>({});
   // Balance & settlement
@@ -227,6 +228,34 @@ export default function GroupDetailScreen() {
       fetchData();
     }, [fetchData])
   );
+
+  // Debounced preferred currency conversion hint
+  const preferredCurrency = user?.preferred_currency ?? "TWD";
+  useEffect(() => {
+    if (!amount || Number(amount) <= 0 || expenseCurrency === preferredCurrency) {
+      setConvertedHint("");
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await exchangeRatesAPI.convert({
+          from_currency: expenseCurrency,
+          to_currency: preferredCurrency,
+          amount: Number(amount),
+        });
+        const converted = Number(res.data.converted_amount);
+        setConvertedHint(
+          t("approx_preferred", {
+            currency: preferredCurrency,
+            amount: converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          })
+        );
+      } catch {
+        setConvertedHint("");
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [amount, expenseCurrency, preferredCurrency, t]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -1036,6 +1065,10 @@ export default function GroupDetailScreen() {
                       />
                     </View>
                   </View>
+
+                  {convertedHint ? (
+                    <Text className="text-xs text-muted-foreground -mt-2">{convertedHint}</Text>
+                  ) : null}
 
                   {/* Payer mode toggle */}
                   <View className="gap-2">

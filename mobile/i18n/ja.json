@@ -179,5 +179,6 @@
   "reminder_sent": "支払いリマインダーを送信しました",
   "reminder_cooldown": "24時間以内にリマインダーを送信済み",
   "cover_image_url": "カバー画像URL",
-  "cover_image_url_placeholder": "https://example.com/image.jpg"
+  "cover_image_url_placeholder": "https://example.com/image.jpg",
+  "approx_preferred": "約 {{currency}} {{amount}}"
 }

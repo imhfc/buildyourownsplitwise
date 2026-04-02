@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: splitewise
       POSTGRES_DB: splitewise
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 
@@ -19,14 +19,14 @@ services:
       POSTGRES_PASSWORD: splitewise
       POSTGRES_DB: splitewise_test
     ports:
-      - "${DB_TEST_PORT:-5433}:5432"
+      - "127.0.0.1:${DB_TEST_PORT:-5433}:5432"
     tmpfs:
       - /var/lib/postgresql/data
 
   backend:
     build: ./backend
     ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://splitewise:splitewise@db:5432/splitewise}
       SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}

@@ -1,7 +1,8 @@
 import { Pressable, View, Platform, type PressableProps, type ViewProps, type ViewStyle } from "react-native";
 import { cn } from "~/lib/utils";
+import { useTheme } from "~/lib/theme";
 
-const cardShadow: ViewStyle = Platform.select({
+const lightShadow: ViewStyle = Platform.select({
   web: {
     boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
   } as any,
@@ -14,20 +15,32 @@ const cardShadow: ViewStyle = Platform.select({
   },
 }) ?? {};
 
+const darkShadow: ViewStyle = Platform.select({
+  web: {
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)",
+  } as any,
+  default: {},
+}) ?? {};
+
 interface CardProps extends PressableProps {
   className?: string;
   children: React.ReactNode;
 }
 
 export function Card({ className, children, onPress, ...props }: CardProps) {
+  const { isDark } = useTheme();
+  const shadow = isDark ? darkShadow : lightShadow;
+  const borderCls = isDark ? "border border-border" : "";
+
   if (onPress) {
     return (
       <Pressable
         className={cn(
           "rounded-xl bg-card",
+          borderCls,
           className
         )}
-        style={cardShadow}
+        style={shadow}
         onPress={onPress}
         {...props}
       >
@@ -40,9 +53,10 @@ export function Card({ className, children, onPress, ...props }: CardProps) {
     <View
       className={cn(
         "rounded-xl bg-card",
+        borderCls,
         className
       )}
-      style={cardShadow}
+      style={shadow}
     >
       {children}
     </View>

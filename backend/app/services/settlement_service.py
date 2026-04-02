@@ -523,6 +523,12 @@ async def create_settlement(
     )
 
     user_map = await _load_user_names(db, [from_user_id, data.to_user])
+
+    # Push 通知收款方
+    from app.services.push_service import notify_settlement
+    from_name = user_map.get(from_user_id, "Unknown")
+    await notify_settlement(db, data.to_user, from_name, data.amount, data.currency, group_id)
+
     return _build_response(settlement, user_map)
 
 
