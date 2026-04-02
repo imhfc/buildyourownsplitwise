@@ -27,9 +27,12 @@ class Settings(BaseSettings):
     # CORS — 逗號分隔，生產環境應設為實際網域，例如 https://app.example.com
     ALLOWED_ORIGINS: str = "*"
 
-    # SendGrid
-    SENDGRID_API_KEY: str = ""
-    SENDGRID_FROM_EMAIL: str = "noreply@byosw.duckdns.org"
+    # SMTP (Gmail)
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = ""
 
     # Frontend URL (for email invitation links)
     FRONTEND_URL: str = "https://byosw.duckdns.org"

@@ -1,10 +1,26 @@
+import asyncio
 import logging
-
-import httpx
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _send_smtp(to_email: str, subject: str, html_content: str) -> None:
+    """Blocking SMTP send — runs in a thread via asyncio.to_thread."""
+    msg = MIMEMultipart("alternative")
+    msg["From"] = f"{settings.APP_NAME} <{settings.SMTP_FROM_EMAIL}>"
+    msg["To"] = to_email
+    msg["Subject"] = subject
+    msg.attach(MIMEText(html_content, "html", "utf-8"))
+
+    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as server:
+        server.starttls()
+        server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+        server.send_message(msg)
 
 
 async def send_invitation_email(
@@ -13,9 +29,9 @@ async def send_invitation_email(
     group_name: str,
     invite_token: str,
 ) -> None:
-    """Send group invitation email via SendGrid API."""
-    if not settings.SENDGRID_API_KEY:
-        logger.info("SendGrid API key not configured, skipping email to %s", to_email)
+    """Send group invitation email via Gmail SMTP."""
+    if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
+        logger.info("SMTP not configured, skipping email to %s", to_email)
         return
 
     invite_url = f"{settings.FRONTEND_URL}/invite/email/{invite_token}"
@@ -42,27 +58,10 @@ async def send_invitation_email(
     </div>
     """
 
+    subject = f"{inviter_name} 邀請你加入「{group_name}」分帳群組"
+
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(
-                "https://api.sendgrid.com/v3/mail/send",
-                headers={
-                    "Authorization": f"Bearer {settings.SENDGRID_API_KEY}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "personalizations": [{"to": [{"email": to_email}]}],
-                    "from": {
-                        "email": settings.SENDGRID_FROM_EMAIL,
-                        "name": settings.APP_NAME,
-                    },
-                    "subject": f"{inviter_name} 邀請你加入「{group_name}」分帳群組",
-                    "content": [{"type": "text/html", "value": html_content}],
-                },
-            )
-            if resp.status_code >= 400:
-                logger.error("SendGrid API error: %s %s", resp.status_code, resp.text)
-            else:
-                logger.info("Invitation email sent to %s", to_email)
-    except httpx.HTTPError as e:
+        await asyncio.to_thread(_send_smtp, to_email, subject, html_content)
+        logger.info("Invitation email sent to %s", to_email)
+    except Exception as e:
         logger.error("Failed to send invitation email to %s: %s", to_email, e)
