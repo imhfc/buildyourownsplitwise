@@ -38,6 +38,12 @@ backend/app/
 - Service 層禁止在請求路徑中同步呼叫外部 API，外部資料（匯率等）必須透過背景排程預取存入 DB
 - 軟刪除過濾：任何涉及 `group_members` 或 `activity_logs` 的查詢，必須 join `groups` 並加 `Group.deleted_at.is_(None)`，避免回傳已刪除群組的資料（2026-04-02 回顧）
 
+## Docker / 部署規則
+
+- `docker-compose.yml` 中除 Caddy(80/443) 外，所有 `ports` 必須綁定 `127.0.0.1:`，禁止對外開放內部服務（2026-04-02 回顧）
+- VM 上有 UFW 防火牆時，Docker port mapping 可能與 iptables 衝突，優先使用 `--network host` + 自訂 `PGPORT`（2026-04-02 回顧）
+- 本機連 VM 內部服務一律透過 SSH tunnel（autossh + launchd），禁止對外開放 port（2026-04-02 回顧）
+
 ## Mobile 規範
 
 - 所有使用者可見文字必須透過 i18n 的 `t()` 函式

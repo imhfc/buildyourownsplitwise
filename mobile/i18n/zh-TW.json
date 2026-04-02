@@ -180,5 +180,15 @@
   "reminder_cooldown": "24 小時內已發送過提醒",
   "cover_image_url": "封面圖片網址",
   "cover_image_url_placeholder": "https://example.com/image.jpg",
-  "approx_preferred": "約 {{currency}} {{amount}}"
+  "approx_preferred": "約 {{currency}} {{amount}}",
+  "pending_settlements": "待確認結清",
+  "settlement_from": "{{name}} 向你結清",
+  "settlement_in_group": "群組：{{group}}",
+  "confirm_settlement": "確認結清",
+  "reject_settlement": "拒絕結清",
+  "settlement_confirmed_success": "結清已確認",
+  "settlement_rejected_success": "結清已拒絕",
+  "settlement_pending_hint": "已送出結清請求，等待對方確認",
+  "settlement_confirmed": "已確認結算",
+  "settlement_rejected": "已拒絕結算"
 }

@@ -105,6 +105,7 @@ pytest backend/tests/                  # SLA-5：後端測試
 | C-9 | `app/_layout.tsx` redirect 邏輯必須涵蓋已登入用戶不在任何路由群組的情境（需包含 `inTabsGroup` 與 `inGroupPage` 判斷，避免從 root index 卡住，也避免在 `group/[id]` 時錯誤導回 tabs） | SLA-2 | 2026-03-28 isAuthenticated=true 在 root index 時兩個條件都不成立 → 永遠不跳轉 |
 | C-10 | `app/group/[id].tsx` 的 Modal 表單 API 錯誤必須用 inline error state 顯示（必須有 `setAddError`），禁止用 `Alert.alert` 顯示 API 錯誤 | SLA-3 | 2026-03-30 新增消費失敗時錯誤訊息無聲消失 |
 | C-11 | 所有使用 `router.back()` 的檔案必須同時使用 `canGoBack` 檢查，Expo Web 上直接開啟 URL 無導航歷史會拋出 GO_BACK not handled | SLA-2 | 2026-03-31 群組頁面無法返回 |
+| C-12 | `docker-compose.yml` 中除 Caddy(80/443) 外，所有 `ports` 必須綁定 `127.0.0.1:`（如 `"127.0.0.1:5432:5432"`），禁止 `"5432:5432"` 或 `"0.0.0.0:5432:5432"` 對外開放 | SLA-5 | 2026-04-02 db/backend port 對所有網路介面開放 |
 
 ---
 
@@ -121,3 +122,4 @@ pytest backend/tests/                  # SLA-5：後端測試
 | 2026-03-30 | P1 | 無法新增消費（按「儲存」後無任何反應） | **雙重根因**：(1) 前端 `handleAddExpense` catch 區塊用 `Alert.alert` 顯示錯誤，Expo Web 上行為不穩定，錯誤訊息無聲消失；(2) 後端 `create_expense` 端點只捕捉 `ForbiddenError` 和 `ValidationError`，未捕捉 `NotFoundError`（匯率查詢失敗時），導致 500 Internal Server Error | C-10 |
 | 2026-03-31 | P1 | 群組詳情頁無法返回上一頁 | **雙重根因**：(1) Expo Web 上 Stack navigator 的 native header（`headerShown: true`）不渲染返回按鈕；(2) 改用 `router.back()` 後，Web 直接開啟 URL 時無導航歷史，拋出 GO_BACK not handled 錯誤 | C-11 |
 | 2026-04-01 | P1 | 遷移新 VM 後 HTTPS 無法連線（SSL handshake error） | Caddy 舊 volume 殘留 ACME **staging** 設定（`acme-staging-v02.api.letsencrypt.org`），staging 憑證不被瀏覽器信任；加上 DNS 傳播期間 Let's Encrypt 驗證伺服器快取舊 IP（35.206.96.99），challenge 全部失敗。解法：清除 `caddy_data`/`caddy_config` volume 後重啟，Caddy 自動用 production ACME 重新申請憑證 | — |
+| 2026-04-02 | P1 | Docker Compose db/backend port 對外開放，任何人可直連資料庫 | `docker-compose.yml` ports 未綁定 `127.0.0.1`，預設 `0.0.0.0` 對所有網路介面開放。解法：所有內部服務 ports 加 `127.0.0.1:` 前綴，僅 Caddy(80/443) 對外；VM db-test 改用 `--network host` + `PGPORT=5433`；本機透過 autossh SSH tunnel 連線 | C-12 |

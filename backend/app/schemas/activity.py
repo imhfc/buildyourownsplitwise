@@ -11,6 +11,8 @@ ActivityType = Literal[
     "expense_updated",
     "expense_deleted",
     "settlement_created",
+    "settlement_confirmed",
+    "settlement_rejected",
     "member_added",
     "member_removed",
 ]

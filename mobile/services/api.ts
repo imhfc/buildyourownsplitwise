@@ -181,6 +181,8 @@ export const settlementsAPI = {
     api.post(`/groups/${groupId}/settlements`, data),
   confirm: (groupId: string, settlementId: string) =>
     api.patch(`/groups/${groupId}/settlements/${settlementId}/confirm`),
+  reject: (groupId: string, settlementId: string) =>
+    api.patch(`/groups/${groupId}/settlements/${settlementId}/reject`),
   pending: () => api.get("/settlements/pending"),
   pairwiseDetails: (groupId: string) =>
     api.get(`/groups/${groupId}/settlements/details`),

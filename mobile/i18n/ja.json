@@ -180,5 +180,15 @@
   "reminder_cooldown": "24時間以内にリマインダーを送信済み",
   "cover_image_url": "カバー画像URL",
   "cover_image_url_placeholder": "https://example.com/image.jpg",
-  "approx_preferred": "約 {{currency}} {{amount}}"
+  "approx_preferred": "約 {{currency}} {{amount}}",
+  "pending_settlements": "確認待ちの精算",
+  "settlement_from": "{{name}} があなたに精算しました",
+  "settlement_in_group": "グループ：{{group}}",
+  "confirm_settlement": "確認",
+  "reject_settlement": "拒否",
+  "settlement_confirmed_success": "精算を確認しました",
+  "settlement_rejected_success": "精算を拒否しました",
+  "settlement_pending_hint": "精算リクエスト送信済み、確認待ち",
+  "settlement_confirmed": "が精算を確認しました",
+  "settlement_rejected": "が精算を拒否しました"
 }

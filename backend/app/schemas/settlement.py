@@ -60,6 +60,7 @@ class SettlementCreate(BaseModel):
 class SettlementResponse(BaseModel):
     id: uuid.UUID
     group_id: uuid.UUID
+    group_name: str | None = None
     from_user: uuid.UUID
     from_user_name: str
     to_user: uuid.UUID

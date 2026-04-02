@@ -80,6 +80,25 @@ async def confirm_settlement(
         raise HTTPException(status_code=400, detail=e.message)
 
 
+@router.patch("/{settlement_id}/reject", response_model=SettlementResponse)
+async def reject_settlement(
+    group_id: uuid.UUID,
+    settlement_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        return await settlement_service.reject_settlement(
+            db, group_id, settlement_id, current_user.id,
+        )
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=e.message)
+    except ForbiddenError as e:
+        raise HTTPException(status_code=403, detail=e.message)
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=e.message)
+
+
 @router.get("", response_model=list[SettlementResponse])
 async def list_settlements(
     group_id: uuid.UUID,

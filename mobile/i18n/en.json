@@ -180,5 +180,15 @@
   "reminder_cooldown": "Already sent a reminder within 24 hours",
   "cover_image_url": "Cover Image URL",
   "cover_image_url_placeholder": "https://example.com/image.jpg",
-  "approx_preferred": "Approx. {{currency}} {{amount}}"
+  "approx_preferred": "Approx. {{currency}} {{amount}}",
+  "pending_settlements": "Pending Settlements",
+  "settlement_from": "{{name}} settled up with you",
+  "settlement_in_group": "Group: {{group}}",
+  "confirm_settlement": "Confirm",
+  "reject_settlement": "Reject",
+  "settlement_confirmed_success": "Settlement confirmed",
+  "settlement_rejected_success": "Settlement rejected",
+  "settlement_pending_hint": "Settlement request sent, waiting for confirmation",
+  "settlement_confirmed": "confirmed a settlement",
+  "settlement_rejected": "rejected a settlement"
 }

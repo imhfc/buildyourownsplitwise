@@ -573,6 +573,45 @@ async def confirm_settlement(
 
 
 # ---------------------------------------------------------------------------
+# 拒絕結算（收款方操作）
+# ---------------------------------------------------------------------------
+
+async def reject_settlement(
+    db: AsyncSession,
+    group_id: uuid.UUID,
+    settlement_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> SettlementResponse:
+    result = await db.execute(
+        select(Settlement).where(
+            Settlement.id == settlement_id,
+            Settlement.group_id == group_id,
+        )
+    )
+    settlement = result.scalar_one_or_none()
+    if not settlement:
+        raise NotFoundError("Settlement not found")
+
+    if settlement.to_user != user_id:
+        raise ForbiddenError("Only the payee can reject a settlement")
+
+    if settlement.status != "pending":
+        raise ValidationError(f"Settlement is already {settlement.status}")
+
+    settlement.status = "rejected"
+    await db.flush()
+
+    await log_activity(
+        db, group_id=group_id, actor_id=user_id, action="settlement_rejected",
+        target_type="settlement", target_id=settlement.id,
+        amount=settlement.amount, currency=settlement.currency,
+    )
+
+    user_map = await _load_user_names(db, [settlement.from_user, settlement.to_user])
+    return _build_response(settlement, user_map)
+
+
+# ---------------------------------------------------------------------------
 # 列出結算（群組內，支援 status filter）
 # ---------------------------------------------------------------------------
 
@@ -629,7 +668,11 @@ async def list_pending_settlements(
     result = await db.execute(
         select(Settlement)
         .where(Settlement.to_user == user_id, Settlement.status == "pending")
-        .options(selectinload(Settlement.payer), selectinload(Settlement.payee))
+        .options(
+            selectinload(Settlement.payer),
+            selectinload(Settlement.payee),
+            selectinload(Settlement.group),
+        )
         .order_by(Settlement.settled_at.desc())
     )
     settlements = result.scalars().all()
@@ -638,6 +681,7 @@ async def list_pending_settlements(
         SettlementResponse(
             id=s.id,
             group_id=s.group_id,
+            group_name=s.group.name if s.group else None,
             from_user=s.from_user,
             from_user_name=s.payer.display_name,
             to_user=s.to_user,

@@ -7,6 +7,7 @@ import { Text, Muted } from "~/components/ui/text";
 import { EmptyState } from "~/components/ui/empty-state";
 import { activitiesAPI } from "../../services/api";
 import { useNotificationStore } from "~/stores/notification";
+import { useTheme } from "~/lib/theme";
 
 interface ActivityItem {
   type: "expense_added" | "settlement_created";
@@ -35,8 +36,12 @@ function formatRelativeTime(isoString: string): string {
 
 function ActivityRow({ item }: { item: ActivityItem }) {
   const { t } = useTranslation();
+  const { isDark } = useTheme();
   const isExpense = item.type === "expense_added";
   const iconColor = isExpense ? "#22c55e" : "#3b82f6";
+  const iconBg = isExpense
+    ? (isDark ? "rgba(34,197,94,0.15)" : "#dcfce7")
+    : (isDark ? "rgba(59,130,246,0.15)" : "#dbeafe");
 
   const description = isExpense
     ? `${item.actor_name} ${t("expense_added")}「${item.description}」${t("in_group")} ${item.group_name}`
@@ -46,7 +51,7 @@ function ActivityRow({ item }: { item: ActivityItem }) {
     <View className="flex-row items-start px-5 py-3 gap-3">
       <View
         className="mt-0.5 h-9 w-9 rounded-full items-center justify-center"
-        style={{ backgroundColor: isExpense ? "#dcfce7" : "#dbeafe" }}
+        style={{ backgroundColor: iconBg }}
       >
         {isExpense
           ? <Receipt size={18} color={iconColor} weight="regular" />

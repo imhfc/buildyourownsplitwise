@@ -2,10 +2,10 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { View, RefreshControl, Modal, Pressable, KeyboardAvoidingView, Platform, Animated, ActivityIndicator } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { UsersThree, X, Trash, SignOut, DotsSixVertical, CaretDown, CaretRight, EnvelopeSimple, Check } from "phosphor-react-native";
+import { UsersThree, X, Trash, SignOut, DotsSixVertical, CaretDown, CaretRight, EnvelopeSimple, Check, CurrencyCircleDollar } from "phosphor-react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import DraggableFlatList, { ScaleDecorator, RenderItemParams } from "react-native-draggable-flatlist";
-import { groupsAPI, inviteAPI } from "../../services/api";
+import { groupsAPI, inviteAPI, settlementsAPI } from "../../services/api";
 import { useAuthStore } from "../../stores/auth";
 import { Card, CardContent } from "~/components/ui/card";
 import { Text, H3, Muted } from "~/components/ui/text";
@@ -74,6 +74,50 @@ export default function GroupsScreen() {
   const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
   const [respondingId, setRespondingId] = useState<string | null>(null);
 
+  // Pending settlements
+  interface PendingSettlement {
+    id: string;
+    group_id: string;
+    group_name: string | null;
+    from_user: string;
+    from_user_name: string;
+    to_user: string;
+    to_user_name: string;
+    amount: string;
+    currency: string;
+    status: string;
+    settled_at: string;
+  }
+  const [pendingSettlements, setPendingSettlements] = useState<PendingSettlement[]>([]);
+  const [respondingSettlementId, setRespondingSettlementId] = useState<string | null>(null);
+
+  const fetchPendingSettlements = useCallback(async () => {
+    try {
+      const res = await settlementsAPI.pending();
+      setPendingSettlements(res.data);
+    } catch {
+      // silently fail
+    }
+  }, []);
+
+  const handleRespondSettlement = async (settlement: PendingSettlement, action: "confirm" | "reject") => {
+    setRespondingSettlementId(settlement.id);
+    try {
+      if (action === "confirm") {
+        await settlementsAPI.confirm(settlement.group_id, settlement.id);
+      } else {
+        await settlementsAPI.reject(settlement.group_id, settlement.id);
+      }
+      setPendingSettlements((prev) => prev.filter((s) => s.id !== settlement.id));
+      await fetchGroups();
+    } catch (e: any) {
+      const msg = e.response?.data?.detail || e.message || t("unknown_error");
+      setFormError(msg);
+    } finally {
+      setRespondingSettlementId(null);
+    }
+  };
+
   const fetchPendingInvitations = useCallback(async () => {
     try {
       const res = await inviteAPI.getMyPendingInvitations();
@@ -119,12 +163,13 @@ export default function GroupsScreen() {
     useCallback(() => {
       fetchGroups();
       fetchPendingInvitations();
-    }, [fetchGroups, fetchPendingInvitations])
+      fetchPendingSettlements();
+    }, [fetchGroups, fetchPendingInvitations, fetchPendingSettlements])
   );
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([fetchGroups(), fetchPendingInvitations()]);
+    await Promise.all([fetchGroups(), fetchPendingInvitations(), fetchPendingSettlements()]);
     setRefreshing(false);
   };
 
@@ -343,48 +388,97 @@ export default function GroupsScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
           ListHeaderComponent={
-            pendingInvitations.length > 0 ? (
-              <View className="mb-4">
-                <Muted className="mb-2 text-sm font-medium">{t("pending_invitations")}</Muted>
-                {pendingInvitations.map((inv) => (
-                  <Card key={inv.id} className="mb-2">
-                    <CardContent className="p-4 gap-2">
-                      <View className="flex-row items-center gap-3">
-                        <View className="h-10 w-10 rounded-full bg-primary/10 items-center justify-center">
-                          <EnvelopeSimple size={20} color="hsl(240 3.8% 46.1%)" weight="regular" />
+            <>
+              {pendingSettlements.length > 0 ? (
+                <View className="mb-4">
+                  <Muted className="mb-2 text-sm font-medium">{t("pending_settlements")}</Muted>
+                  {pendingSettlements.map((s) => (
+                    <Card key={s.id} className="mb-2">
+                      <CardContent className="p-4 gap-2">
+                        <View className="flex-row items-center gap-3">
+                          <View className="h-10 w-10 rounded-full bg-income/10 items-center justify-center">
+                            <CurrencyCircleDollar size={20} color="hsl(142 71% 45%)" weight="regular" />
+                          </View>
+                          <View className="flex-1">
+                            <Text className="font-medium">
+                              {t("settlement_from", { name: s.from_user_name })}
+                            </Text>
+                            <Muted className="text-xs">
+                              {s.group_name ? t("settlement_in_group", { group: s.group_name }) : ""}
+                            </Muted>
+                          </View>
+                          <Text className="text-lg font-bold text-primary">
+                            {s.currency} {Number(s.amount).toLocaleString()}
+                          </Text>
                         </View>
-                        <View className="flex-1">
-                          <Text className="font-medium">{inv.group_name}</Text>
-                          <Muted className="text-xs">
-                            {t("invited_by", { name: inv.inviter_name })} · {inv.member_count} {t("members_count")}
-                          </Muted>
+                        <View className="flex-row gap-2 mt-1">
+                          <Button
+                            size="sm"
+                            className="flex-1"
+                            onPress={() => handleRespondSettlement(s, "confirm")}
+                            loading={respondingSettlementId === s.id}
+                            disabled={respondingSettlementId !== null}
+                          >
+                            {t("confirm_settlement")}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1"
+                            onPress={() => handleRespondSettlement(s, "reject")}
+                            disabled={respondingSettlementId !== null}
+                          >
+                            {t("reject_settlement")}
+                          </Button>
                         </View>
-                      </View>
-                      <View className="flex-row gap-2 mt-1">
-                        <Button
-                          size="sm"
-                          className="flex-1"
-                          onPress={() => handleRespondInvitation(inv.id, "accept")}
-                          loading={respondingId === inv.id}
-                          disabled={respondingId === inv.id}
-                        >
-                          {t("accept_invitation")}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1"
-                          onPress={() => handleRespondInvitation(inv.id, "decline")}
-                          disabled={respondingId === inv.id}
-                        >
-                          {t("decline_invitation")}
-                        </Button>
-                      </View>
-                    </CardContent>
-                  </Card>
-                ))}
-              </View>
-            ) : null
+                      </CardContent>
+                    </Card>
+                  ))}
+                </View>
+              ) : null}
+              {pendingInvitations.length > 0 ? (
+                <View className="mb-4">
+                  <Muted className="mb-2 text-sm font-medium">{t("pending_invitations")}</Muted>
+                  {pendingInvitations.map((inv) => (
+                    <Card key={inv.id} className="mb-2">
+                      <CardContent className="p-4 gap-2">
+                        <View className="flex-row items-center gap-3">
+                          <View className="h-10 w-10 rounded-full bg-primary/10 items-center justify-center">
+                            <EnvelopeSimple size={20} color="hsl(240 3.8% 46.1%)" weight="regular" />
+                          </View>
+                          <View className="flex-1">
+                            <Text className="font-medium">{inv.group_name}</Text>
+                            <Muted className="text-xs">
+                              {t("invited_by", { name: inv.inviter_name })} · {inv.member_count} {t("members_count")}
+                            </Muted>
+                          </View>
+                        </View>
+                        <View className="flex-row gap-2 mt-1">
+                          <Button
+                            size="sm"
+                            className="flex-1"
+                            onPress={() => handleRespondInvitation(inv.id, "accept")}
+                            loading={respondingId === inv.id}
+                            disabled={respondingId === inv.id}
+                          >
+                            {t("accept_invitation")}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1"
+                            onPress={() => handleRespondInvitation(inv.id, "decline")}
+                            disabled={respondingId === inv.id}
+                          >
+                            {t("decline_invitation")}
+                          </Button>
+                        </View>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </View>
+              ) : null}
+            </>
           }
           ListFooterComponent={settledFooter}
         />

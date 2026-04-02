@@ -236,7 +236,7 @@ export default function FriendsScreen() {
           <Pressable
             onPress={() => handleRespond(item.id, "accept")}
             disabled={respondingTo === item.id}
-            className="h-9 w-9 rounded-full bg-green-100 items-center justify-center"
+            className="h-9 w-9 rounded-full bg-income/15 items-center justify-center"
           >
             {respondingTo === item.id ? (
               <ActivityIndicator size="small" color="#22c55e" />
@@ -247,7 +247,7 @@ export default function FriendsScreen() {
           <Pressable
             onPress={() => handleRespond(item.id, "reject")}
             disabled={respondingTo === item.id}
-            className="h-9 w-9 rounded-full bg-red-100 items-center justify-center"
+            className="h-9 w-9 rounded-full bg-destructive/15 items-center justify-center"
           >
             <XCircle size={18} color="#ef4444" />
           </Pressable>

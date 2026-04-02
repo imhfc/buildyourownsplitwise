@@ -16,7 +16,7 @@ import {
   X,
 } from "phosphor-react-native";
 import { useAuthStore } from "../../stores/auth";
-import { useTheme, COLOR_SCHEMES, type ColorScheme } from "~/lib/theme";
+import { useTheme, useThemeClassName, COLOR_SCHEMES, type ColorScheme } from "~/lib/theme";
 import i18n from "../../i18n";
 import { Text, Muted } from "~/components/ui/text";
 import { Button } from "~/components/ui/button";
@@ -80,6 +80,7 @@ export default function AccountScreen() {
   const { t } = useTranslation();
   const { user, logout, updateUser } = useAuthStore();
   const { isDark, toggleTheme, colorScheme, setColorScheme } = useTheme();
+  const themeClass = useThemeClassName();
 
   // Color scheme picker
   const [showSchemePicker, setShowSchemePicker] = useState(false);
@@ -258,6 +259,7 @@ export default function AccountScreen() {
           setNameError(null);
         }}
       >
+        <View className={`flex-1 ${themeClass}`}>
         <KeyboardAvoidingView
           className="flex-1 justify-end"
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -295,6 +297,7 @@ export default function AccountScreen() {
             </View>
           </View>
         </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* Language Picker Modal */}
@@ -304,6 +307,7 @@ export default function AccountScreen() {
         animationType="slide"
         onRequestClose={() => setShowLangPicker(false)}
       >
+        <View className={`flex-1 ${themeClass}`}>
         <View className="flex-1 justify-end bg-black/50">
           <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4">
             <View className="items-center mb-4">
@@ -341,6 +345,7 @@ export default function AccountScreen() {
             </View>
           </View>
         </View>
+        </View>
       </Modal>
 
       {/* Color Scheme Picker Modal */}
@@ -350,6 +355,7 @@ export default function AccountScreen() {
         animationType="slide"
         onRequestClose={() => setShowSchemePicker(false)}
       >
+        <View className={`flex-1 ${themeClass}`}>
         <View className="flex-1 justify-end bg-black/50">
           <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4">
             <View className="items-center mb-4">
@@ -403,6 +409,7 @@ export default function AccountScreen() {
             </View>
           </View>
         </View>
+        </View>
       </Modal>
 
       {/* Currency Picker Modal */}
@@ -412,6 +419,7 @@ export default function AccountScreen() {
         animationType="slide"
         onRequestClose={() => setShowCurrencyModal(false)}
       >
+        <View className={`flex-1 ${themeClass}`}>
         <View className="flex-1 justify-end bg-black/50">
           <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4">
             <View className="items-center mb-4">
@@ -448,6 +456,7 @@ export default function AccountScreen() {
               ))}
             </ScrollView>
           </View>
+        </View>
         </View>
       </Modal>
 
