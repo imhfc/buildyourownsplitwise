@@ -12,6 +12,17 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  db-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: splitewise
+      POSTGRES_PASSWORD: splitewise
+      POSTGRES_DB: splitewise_test
+    ports:
+      - "${DB_TEST_PORT:-5433}:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+
   backend:
     build: ./backend
     ports:

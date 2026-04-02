@@ -28,17 +28,14 @@ from app.models.friendship import Friendship  # noqa: F401
 from app.models.activity_log import ActivityLog, ActivityRead  # noqa: F401
 
 # ---------------------------------------------------------------------------
-# 使用真實 PostgreSQL 進行測試（Neon serverless 或本機 Docker）
-# Neon 需要 NullPool + statement_cache_size=0 以避免連線衝突
+# 使用真實 PostgreSQL 進行測試（prod VM 或本機 Docker）
+# NullPool + statement_cache_size=0 避免 asyncpg 連線狀態衝突
 # ---------------------------------------------------------------------------
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL",
-    "postgresql+asyncpg://splitewise:splitewise@localhost:5433/splitewise_test",
+    "postgresql+asyncpg://splitewise:splitewise@211.20.120.114:5433/splitewise_test",
 )
 
-_is_neon = "neon.tech" in TEST_DATABASE_URL
-
-# NullPool + statement_cache_size=0 避免 asyncpg 連線狀態衝突（Neon 和本機 Docker 皆適用）
 engine = create_async_engine(
     TEST_DATABASE_URL,
     echo=False,
