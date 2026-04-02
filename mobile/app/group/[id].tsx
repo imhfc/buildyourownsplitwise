@@ -4,15 +4,15 @@ import { useLocalSearchParams, useFocusEffect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
   Receipt,
-  ArrowLeftRight,
+  ArrowsLeftRight,
   X,
-  Users,
+  UsersThree,
   UserMinus,
   Check,
-  ChevronLeft,
-  Pencil,
+  CaretLeft,
+  PencilSimple,
   Link,
-} from "lucide-react-native";
+} from "phosphor-react-native";
 import { CurrencyPicker } from "~/components/ui/currency-picker";
 import { expensesAPI, settlementsAPI, groupsAPI, authAPI, categoriesAPI, balancesAPI, ExpenseSplitInput, ExpenseUpdatePayload } from "../../services/api";
 import { useAuthStore } from "../../stores/auth";
@@ -438,7 +438,7 @@ export default function GroupDetailScreen() {
             </Text>
             <View className="flex-row items-center gap-1.5">
               <Badge variant="secondary">{t(item.split_method)}</Badge>
-              <Pencil size={14} color="hsl(240 3.8% 46.1%)" />
+              <PencilSimple size={14} color="hsl(240 3.8% 46.1%)" weight="regular" />
             </View>
           </View>
         </CardContent>
@@ -487,7 +487,7 @@ export default function GroupDetailScreen() {
       <Card className="mb-3">
         <CardContent className="flex-row items-center p-4 gap-3">
           <View className="h-10 w-10 rounded-full bg-muted items-center justify-center">
-            <Users size={20} color="hsl(240 3.8% 46.1%)" />
+            <UsersThree size={20} color="hsl(240 3.8% 46.1%)" weight="regular" />
           </View>
           <View className="flex-1">
             <Text className="font-medium">
@@ -519,7 +519,7 @@ export default function GroupDetailScreen() {
           onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)")}
           className="flex-row items-center p-2 -ml-1"
         >
-          <ChevronLeft size={24} color="hsl(var(--primary))" />
+          <CaretLeft size={24} color="hsl(var(--primary))" weight="regular" />
           <Text className="text-primary text-base">{t("groups")}</Text>
         </Pressable>
         <Text className="flex-1 text-lg font-semibold text-foreground text-center" numberOfLines={1}>
@@ -605,7 +605,7 @@ export default function GroupDetailScreen() {
             }
             ListEmptyComponent={
               <EmptyState
-                icon={ArrowLeftRight}
+                icon={ArrowsLeftRight}
                 title={t("balanced")}
                 description={t("all_balanced_hint")}
               />
@@ -623,7 +623,7 @@ export default function GroupDetailScreen() {
           }
           ListEmptyComponent={
             <EmptyState
-              icon={Users}
+              icon={UsersThree}
               title={t("members")}
               description={t("no_members_hint")}
             />
@@ -943,7 +943,7 @@ export default function GroupDetailScreen() {
                   <Card>
                     <CardContent className="flex-row items-center p-4 gap-3">
                       <View className="h-10 w-10 rounded-full bg-muted items-center justify-center">
-                        <Users size={20} color="hsl(240 3.8% 46.1%)" />
+                        <UsersThree size={20} color="hsl(240 3.8% 46.1%)" weight="regular" />
                       </View>
                       <View className="flex-1">
                         <Text className="font-medium">{foundUser.display_name}</Text>

@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { View, FlatList, RefreshControl, ActivityIndicator } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Receipt, ArrowLeftRight, Activity } from "lucide-react-native";
+import { Receipt, ArrowsLeftRight, ClockCounterClockwise } from "phosphor-react-native";
 import { Text, Muted } from "~/components/ui/text";
 import { EmptyState } from "~/components/ui/empty-state";
 import { activitiesAPI } from "../../services/api";
@@ -49,8 +49,8 @@ function ActivityRow({ item }: { item: ActivityItem }) {
         style={{ backgroundColor: isExpense ? "#dcfce7" : "#dbeafe" }}
       >
         {isExpense
-          ? <Receipt size={18} color={iconColor} />
-          : <ArrowLeftRight size={18} color={iconColor} />
+          ? <Receipt size={18} color={iconColor} weight="regular" />
+          : <ArrowsLeftRight size={18} color={iconColor} weight="regular" />
         }
       </View>
       <View className="flex-1">
@@ -120,7 +120,7 @@ export default function ActivitiesScreen() {
       }
       ListEmptyComponent={
         <EmptyState
-          icon={Activity}
+          icon={ClockCounterClockwise}
           title={t("no_activities_hint")}
         />
       }

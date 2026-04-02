@@ -149,7 +149,7 @@ export default function LoginScreen() {
 
   const handleGoogleLogin = () => {
     if (!GOOGLE_CLIENT_ID) {
-      setError("Google Client ID not configured");
+      setError(t("google_sign_in_failed"));
       return;
     }
     window.location.href = buildGoogleOAuthUrl();
@@ -175,7 +175,7 @@ export default function LoginScreen() {
             </View>
 
             {/* App name */}
-            <Text className="text-4xl font-bold text-primary tracking-[0.2em]">
+            <Text className="text-3xl font-bold text-primary tracking-[0.35em]">
               {t("app_name")}
             </Text>
 

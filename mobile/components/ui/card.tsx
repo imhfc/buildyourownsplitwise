@@ -1,5 +1,18 @@
-import { Pressable, View, type PressableProps, type ViewProps } from "react-native";
+import { Pressable, View, Platform, type PressableProps, type ViewProps, type ViewStyle } from "react-native";
 import { cn } from "~/lib/utils";
+
+const cardShadow: ViewStyle = Platform.select({
+  web: {
+    boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+  } as any,
+  default: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+}) ?? {};
 
 interface CardProps extends PressableProps {
   className?: string;
@@ -11,9 +24,10 @@ export function Card({ className, children, onPress, ...props }: CardProps) {
     return (
       <Pressable
         className={cn(
-          "rounded-xl border border-border bg-card",
+          "rounded-xl bg-card",
           className
         )}
+        style={cardShadow}
         onPress={onPress}
         {...props}
       >
@@ -25,9 +39,10 @@ export function Card({ className, children, onPress, ...props }: CardProps) {
   return (
     <View
       className={cn(
-        "rounded-xl border border-border bg-card",
+        "rounded-xl bg-card",
         className
       )}
+      style={cardShadow}
     >
       {children}
     </View>

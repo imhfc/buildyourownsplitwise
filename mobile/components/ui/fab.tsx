@@ -1,6 +1,6 @@
 import { Pressable, type PressableProps } from "react-native";
 import { cn } from "~/lib/utils";
-import { Plus } from "lucide-react-native";
+import { Plus } from "phosphor-react-native";
 
 interface FABProps extends PressableProps {
   className?: string;

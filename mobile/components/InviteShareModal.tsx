@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View, Modal, Pressable, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
-import { X, Copy, Share2, RefreshCw, Trash2 } from "lucide-react-native";
+import { X, Copy, ShareNetwork, ArrowsClockwise, Trash } from "phosphor-react-native";
 import { groupsAPI } from "../services/api";
 import { Text, H3, Muted } from "~/components/ui/text";
 import { Button } from "~/components/ui/button";
@@ -144,7 +144,7 @@ export function InviteShareModal({ visible, onClose, groupId, groupName, isAdmin
 
                   <Button onPress={handleShareToLine}>
                     <View className="flex-row items-center gap-2">
-                      <Share2 size={16} color="hsl(var(--primary-foreground))" />
+                      <ShareNetwork size={16} color="hsl(var(--primary-foreground))" weight="regular" />
                       <Text className="text-primary-foreground font-semibold">{t("share_to_line")}</Text>
                     </View>
                   </Button>
@@ -158,7 +158,7 @@ export function InviteShareModal({ visible, onClose, groupId, groupName, isAdmin
                         className="flex-1"
                       >
                         <View className="flex-row items-center gap-2">
-                          <RefreshCw size={14} color="hsl(var(--foreground))" />
+                          <ArrowsClockwise size={14} color="hsl(var(--foreground))" weight="regular" />
                           <Text className="text-sm">{t("regenerate_invite")}</Text>
                         </View>
                       </Button>
@@ -169,7 +169,7 @@ export function InviteShareModal({ visible, onClose, groupId, groupName, isAdmin
                         className="flex-1"
                       >
                         <View className="flex-row items-center gap-2">
-                          <Trash2 size={14} color="#fff" />
+                          <Trash size={14} color="#fff" weight="regular" />
                           <Text className="text-destructive-foreground text-sm">{t("revoke_invite")}</Text>
                         </View>
                       </Button>

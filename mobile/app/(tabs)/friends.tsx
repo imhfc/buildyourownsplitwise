@@ -13,14 +13,14 @@ import { useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
   UserPlus,
-  Users,
+  UsersThree,
   X,
   Clock,
   Check,
   XCircle,
-  Search,
+  MagnifyingGlass,
   UserMinus,
-} from "lucide-react-native";
+} from "phosphor-react-native";
 import { friendsAPI } from "../../services/api";
 import { Text, H3, Muted } from "~/components/ui/text";
 import { Button } from "~/components/ui/button";
@@ -321,7 +321,7 @@ export default function FriendsScreen() {
           }
           ListEmptyComponent={
             <EmptyState
-              icon={Users}
+              icon={UsersThree}
               title={t("no_friends")}
               description={t("no_friends_desc")}
               actionLabel={t("add_friend")}
@@ -391,7 +391,7 @@ export default function FriendsScreen() {
                   disabled={searching || !searchEmail.trim()}
                   className="self-start"
                 >
-                  <Search size={18} color="white" />
+                  <MagnifyingGlass size={18} color="white" weight="regular" />
                 </Button>
               </View>
 

@@ -6,7 +6,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Check, ChevronDown, Search, X } from "lucide-react-native";
+import { Check, CaretDown, MagnifyingGlass, X } from "phosphor-react-native";
 import { useTranslation } from "react-i18next";
 import { exchangeRatesAPI } from "../../services/api";
 import { cn } from "~/lib/utils";
@@ -120,7 +120,7 @@ export function CurrencyPicker({
         onPress={() => setVisible(true)}
       >
         <Text className="text-base text-foreground">{selectedLabel}</Text>
-        <ChevronDown size={18} color="hsl(240 3.8% 46.1%)" />
+        <CaretDown size={18} color="hsl(240 3.8% 46.1%)" weight="regular" />
       </Pressable>
 
       <Modal
@@ -153,7 +153,7 @@ export function CurrencyPicker({
 
               {/* Search */}
               <View className="flex-row items-center h-11 rounded-lg border border-input bg-background px-3 mb-2">
-                <Search size={18} color="hsl(240 3.8% 46.1%)" />
+                <MagnifyingGlass size={18} color="hsl(240 3.8% 46.1%)" weight="regular" />
                 <TextInput
                   ref={searchRef}
                   className="flex-1 ml-2 text-base text-foreground"

@@ -1,7 +1,8 @@
 import { useCallback, useEffect } from "react";
+import { Platform } from "react-native";
 import { Tabs, useFocusEffect, usePathname } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { UserPlus, Users, Activity, User } from "lucide-react-native";
+import { UserPlus, SquaresFour, ClockCounterClockwise, UserCircle } from "phosphor-react-native";
 import { useTheme, COLOR_SCHEMES } from "~/lib/theme";
 import { useNotificationStore } from "~/stores/notification";
 import { useAuthStore } from "~/stores/auth";
@@ -33,6 +34,19 @@ export default function TabsLayout() {
     return () => clearInterval(interval);
   }, [isAuthenticated, fetchUnreadCount]);
 
+  const tabBarShadow = Platform.select({
+    web: {
+      boxShadow: "0 -1px 6px rgba(0,0,0,0.04)",
+    } as any,
+    default: {
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: -1 },
+      shadowOpacity: 0.04,
+      shadowRadius: 6,
+      elevation: 3,
+    },
+  });
+
   return (
     <Tabs
       screenOptions={{
@@ -40,10 +54,11 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: inactiveTint,
         tabBarStyle: {
           backgroundColor: isDark ? "#101318" : "#FFFFFF",
-          borderTopColor: isDark ? "#1F2937" : "#E4E4E7",
+          borderTopWidth: 0,
           height: 52,
           paddingBottom: 4,
           paddingTop: 2,
+          ...tabBarShadow,
         },
         tabBarIconStyle: {
           marginBottom: -2,
@@ -63,8 +78,8 @@ export default function TabsLayout() {
         name="friends"
         options={{
           title: t("friends"),
-          tabBarIcon: ({ color }) => (
-            <UserPlus size={22} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <UserPlus size={22} color={color} weight={focused ? "fill" : "regular"} />
           ),
         }}
       />
@@ -72,8 +87,8 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: t("groups"),
-          tabBarIcon: ({ color }) => (
-            <Users size={22} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <SquaresFour size={22} color={color} weight={focused ? "fill" : "regular"} />
           ),
         }}
       />
@@ -81,8 +96,8 @@ export default function TabsLayout() {
         name="activities"
         options={{
           title: t("activities"),
-          tabBarIcon: ({ color }) => (
-            <Activity size={22} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <ClockCounterClockwise size={22} color={color} weight={focused ? "fill" : "regular"} />
           ),
           tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
           tabBarBadgeStyle: {
@@ -101,8 +116,8 @@ export default function TabsLayout() {
         name="account"
         options={{
           title: t("account"),
-          tabBarIcon: ({ color }) => (
-            <User size={22} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <UserCircle size={22} color={color} weight={focused ? "fill" : "regular"} />
           ),
         }}
       />

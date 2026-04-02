@@ -3,18 +3,18 @@ import { View, Pressable, ScrollView, Modal, KeyboardAvoidingView, Platform } fr
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
-  User,
-  Mail,
+  UserCircle,
+  Envelope,
   Globe,
-  DollarSign,
-  LogOut,
+  CurrencyDollar,
+  SignOut,
   Moon,
   Sun,
   Palette,
-  ChevronRight,
+  CaretRight,
   Check,
   X,
-} from "lucide-react-native";
+} from "phosphor-react-native";
 import { useAuthStore } from "../../stores/auth";
 import { useTheme, COLOR_SCHEMES, type ColorScheme } from "~/lib/theme";
 import i18n from "../../i18n";
@@ -70,43 +70,8 @@ function SettingItem({ icon, title, value, onPress, rightElement }: SettingItemP
         {value ? <Muted>{value}</Muted> : null}
       </View>
       {rightElement ?? (onPress ? (
-        <ChevronRight size={20} color="hsl(240 3.8% 46.1%)" />
+        <CaretRight size={20} color="#71717A" />
       ) : null)}
-    </Pressable>
-  );
-}
-
-function ColorSchemeOption({
-  scheme,
-  isSelected,
-  onPress,
-  isDark,
-  label,
-}: {
-  scheme: (typeof COLOR_SCHEMES)[number];
-  isSelected: boolean;
-  onPress: () => void;
-  isDark: boolean;
-  label: string;
-}) {
-  const previewColor = isDark ? scheme.preview.dark : scheme.preview.light;
-
-  return (
-    <Pressable
-      className={`flex-1 items-center p-2 rounded-xl border-2 ${
-        isSelected ? "border-primary bg-primary/10" : "border-border bg-card"
-      }`}
-      onPress={onPress}
-    >
-      <View
-        style={{ backgroundColor: previewColor, width: 28, height: 28, borderRadius: 14 }}
-        className="mb-1 items-center justify-center"
-      >
-        {isSelected && <Check size={14} color="#fff" />}
-      </View>
-      <Text className={`text-xs font-medium ${isSelected ? "text-primary" : ""}`}>
-        {label}
-      </Text>
     </Pressable>
   );
 }
@@ -115,6 +80,9 @@ export default function AccountScreen() {
   const { t } = useTranslation();
   const { user, logout, updateUser } = useAuthStore();
   const { isDark, toggleTheme, colorScheme, setColorScheme } = useTheme();
+
+  // Color scheme picker
+  const [showSchemePicker, setShowSchemePicker] = useState(false);
 
   // Display name modal
   const [showEditName, setShowEditName] = useState(false);
@@ -202,52 +170,34 @@ export default function AccountScreen() {
         <Muted>{user?.email}</Muted>
       </View>
 
-      {/* Color Scheme Picker */}
-      <View className="px-5 mb-4">
-        <Card>
-          <CardContent className="p-4">
-            <View className="flex-row items-center mb-3">
-              <View className="h-9 w-9 items-center justify-center rounded-lg bg-muted mr-3">
-                <Palette size={18} color={iconColor} />
-              </View>
-              <Text className="text-base font-medium">{t("color_scheme")}</Text>
-            </View>
-            <View className="gap-2">
-              <View className="flex-row gap-2">
-                {COLOR_SCHEMES.slice(0, 5).map((scheme) => (
-                  <ColorSchemeOption
-                    key={scheme.id}
-                    scheme={scheme}
-                    isSelected={colorScheme === scheme.id}
-                    onPress={() => setColorScheme(scheme.id as ColorScheme)}
-                    isDark={isDark}
-                    label={t(scheme.labelKey)}
-                  />
-                ))}
-              </View>
-              <View className="flex-row gap-2">
-                {COLOR_SCHEMES.slice(5, 10).map((scheme) => (
-                  <ColorSchemeOption
-                    key={scheme.id}
-                    scheme={scheme}
-                    isSelected={colorScheme === scheme.id}
-                    onPress={() => setColorScheme(scheme.id as ColorScheme)}
-                    isDark={isDark}
-                    label={t(scheme.labelKey)}
-                  />
-                ))}
-              </View>
-            </View>
-          </CardContent>
-        </Card>
-      </View>
-
       {/* Settings Card */}
       <View className="px-5">
         <Card>
           <CardContent className="p-4 gap-0">
             <SettingItem
-              icon={<User size={18} color={iconColor} />}
+              icon={<Palette size={18} color={iconColor} />}
+              title={t("color_scheme")}
+              value={t(COLOR_SCHEMES.find((s) => s.id === colorScheme)?.labelKey || "scheme_blue")}
+              onPress={() => setShowSchemePicker(true)}
+              rightElement={
+                <View className="flex-row items-center gap-2">
+                  <View
+                    style={{
+                      backgroundColor: isDark
+                        ? (COLOR_SCHEMES.find((s) => s.id === colorScheme)?.preview.dark || "#60A5FA")
+                        : (COLOR_SCHEMES.find((s) => s.id === colorScheme)?.preview.light || "#3B82F6"),
+                      width: 20,
+                      height: 20,
+                      borderRadius: 10,
+                    }}
+                  />
+                  <CaretRight size={20} color={iconColor} weight="regular" />
+                </View>
+              }
+            />
+            <Separator />
+            <SettingItem
+              icon={<UserCircle size={18} color={iconColor} weight="regular" />}
               title={t("display_name")}
               value={user?.display_name}
               onPress={() => {
@@ -258,7 +208,7 @@ export default function AccountScreen() {
             />
             <Separator />
             <SettingItem
-              icon={<Mail size={18} color={iconColor} />}
+              icon={<Envelope size={18} color={iconColor} weight="regular" />}
               title={t("email")}
               value={user?.email || "-"}
             />
@@ -271,7 +221,7 @@ export default function AccountScreen() {
             />
             <Separator />
             <SettingItem
-              icon={<DollarSign size={18} color={iconColor} />}
+              icon={<CurrencyDollar size={18} color={iconColor} weight="regular" />}
               title={t("preferred_currency")}
               value={getCurrencyDisplayName(user?.preferred_currency || "TWD")}
               onPress={() => setShowCurrencyModal(true)}
@@ -289,9 +239,10 @@ export default function AccountScreen() {
         </Card>
 
         <Button
-          variant="destructive"
+          variant="ghost"
           onPress={handleLogout}
-          className="mt-6 mb-8"
+          className="mt-6 mb-8 bg-muted"
+          textClassName="text-destructive"
         >
           {t("logout")}
         </Button>
@@ -319,7 +270,7 @@ export default function AccountScreen() {
               <View className="flex-row items-center justify-between mb-6">
                 <Text className="text-xl font-semibold">{t("edit_display_name")}</Text>
                 <Pressable onPress={() => { setShowEditName(false); setNameError(null); }}>
-                  <X size={24} color="hsl(240 3.8% 46.1%)" />
+                  <X size={24} color={iconColor} />
                 </Pressable>
               </View>
               <View className="gap-4">
@@ -361,7 +312,7 @@ export default function AccountScreen() {
             <View className="flex-row items-center justify-between mb-6">
               <Text className="text-xl font-semibold">{t("select_language")}</Text>
               <Pressable onPress={() => setShowLangPicker(false)}>
-                <X size={24} color="hsl(240 3.8% 46.1%)" />
+                <X size={24} color={iconColor} />
               </Pressable>
             </View>
             <View className="gap-3">
@@ -392,6 +343,68 @@ export default function AccountScreen() {
         </View>
       </Modal>
 
+      {/* Color Scheme Picker Modal */}
+      <Modal
+        visible={showSchemePicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowSchemePicker(false)}
+      >
+        <View className="flex-1 justify-end bg-black/50">
+          <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4">
+            <View className="items-center mb-4">
+              <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+            </View>
+            <View className="flex-row items-center justify-between mb-6">
+              <Text className="text-xl font-semibold">{t("color_scheme")}</Text>
+              <Pressable onPress={() => setShowSchemePicker(false)}>
+                <X size={24} color={iconColor} />
+              </Pressable>
+            </View>
+            <View className="gap-3">
+              {COLOR_SCHEMES.map((scheme) => {
+                const isSelected = colorScheme === scheme.id;
+                const previewColor = isDark ? scheme.preview.dark : scheme.preview.light;
+                return (
+                  <Pressable
+                    key={scheme.id}
+                    className={`flex-row items-center p-3 rounded-lg border ${
+                      isSelected
+                        ? "border-primary bg-primary/10"
+                        : "border-border bg-muted/50"
+                    }`}
+                    onPress={() => {
+                      setColorScheme(scheme.id as ColorScheme);
+                      setShowSchemePicker(false);
+                    }}
+                  >
+                    <View
+                      style={{
+                        backgroundColor: previewColor,
+                        width: 24,
+                        height: 24,
+                        borderRadius: 12,
+                      }}
+                      className="mr-3"
+                    />
+                    <Text
+                      className={`flex-1 font-medium ${
+                        isSelected ? "text-primary" : ""
+                      }`}
+                    >
+                      {t(scheme.labelKey)}
+                    </Text>
+                    {isSelected && (
+                      <Check size={20} color="hsl(var(--color-primary))" />
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Currency Picker Modal */}
       <Modal
         visible={showCurrencyModal}
@@ -407,7 +420,7 @@ export default function AccountScreen() {
             <View className="flex-row items-center justify-between mb-6">
               <Text className="text-xl font-semibold">{t("select_currency")}</Text>
               <Pressable onPress={() => setShowCurrencyModal(false)}>
-                <X size={24} color="hsl(240 3.8% 46.1%)" />
+                <X size={24} color={iconColor} />
               </Pressable>
             </View>
             <ScrollView className="gap-2 max-h-96">

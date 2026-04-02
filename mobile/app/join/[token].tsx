@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { View, ActivityIndicator } from "react-native";
 import { useLocalSearchParams, router, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Users, ChevronLeft, AlertCircle } from "lucide-react-native";
+import { UsersThree, CaretLeft, WarningCircle } from "phosphor-react-native";
 import { inviteAPI } from "../../services/api";
 import { useAuthStore } from "../../stores/auth";
 import { Text, H1, Muted } from "~/components/ui/text";
@@ -103,7 +103,7 @@ export default function JoinGroupScreen() {
       <View className="flex-row items-center px-3 pt-3 pb-1">
         <Button variant="ghost" size="sm" onPress={goBack}>
           <View className="flex-row items-center">
-            <ChevronLeft size={20} color="hsl(var(--primary))" />
+            <CaretLeft size={20} color="hsl(var(--primary))" weight="regular" />
             <Text className="text-primary">{t("back")}</Text>
           </View>
         </Button>
@@ -112,21 +112,21 @@ export default function JoinGroupScreen() {
       <View className="flex-1 justify-center px-6">
         {error ? (
           <View className="items-center gap-4">
-            <AlertCircle size={48} color="hsl(0 84.2% 60.2%)" />
+            <WarningCircle size={48} color="hsl(0 84.2% 60.2%)" weight="regular" />
             <Text className="text-lg font-semibold text-center">{t("invalid_invite")}</Text>
             <Muted className="text-center">{error}</Muted>
             <Button onPress={goBack} className="mt-4">{t("back_to_home")}</Button>
           </View>
         ) : joinedGroupId && !alreadyMember ? (
           <View className="items-center gap-4">
-            <Users size={48} color="hsl(var(--primary))" />
+            <UsersThree size={48} color="hsl(var(--primary))" weight="regular" />
             <Text className="text-lg font-semibold text-center">{t("joined_successfully")}</Text>
             {info && <Muted className="text-center">{info.group_name}</Muted>}
             <Button onPress={goToGroup} className="mt-4">{t("go_to_group")}</Button>
           </View>
         ) : alreadyMember ? (
           <View className="items-center gap-4">
-            <Users size={48} color="hsl(var(--primary))" />
+            <UsersThree size={48} color="hsl(var(--primary))" weight="regular" />
             <Text className="text-lg font-semibold text-center">{t("already_member")}</Text>
             {info && <Muted className="text-center">{info.group_name}</Muted>}
             <Button onPress={goToGroup} className="mt-4">{t("go_to_group")}</Button>
@@ -139,7 +139,7 @@ export default function JoinGroupScreen() {
               <CardContent className="p-5 gap-3">
                 <View className="flex-row items-center gap-3">
                   <View className="h-12 w-12 rounded-full bg-primary/10 items-center justify-center">
-                    <Users size={24} color="hsl(var(--primary))" />
+                    <UsersThree size={24} color="hsl(var(--primary))" weight="regular" />
                   </View>
                   <View className="flex-1">
                     <Text className="text-lg font-bold">{info.group_name}</Text>

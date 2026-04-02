@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { View, RefreshControl, Modal, Pressable, Alert, KeyboardAvoidingView, Platform, Animated, ActivityIndicator } from "react-native";
+import { View, RefreshControl, Modal, Pressable, KeyboardAvoidingView, Platform, Animated, ActivityIndicator } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Users, X, Trash2, LogOut, GripVertical, ChevronDown, ChevronRight } from "lucide-react-native";
+import { UsersThree, X, Trash, SignOut, DotsSixVertical, CaretDown, CaretRight } from "phosphor-react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import DraggableFlatList, { ScaleDecorator, RenderItemParams } from "react-native-draggable-flatlist";
 import { groupsAPI } from "../../services/api";
@@ -15,7 +15,7 @@ import { Badge } from "~/components/ui/badge";
 import { FAB } from "~/components/ui/fab";
 import { EmptyState } from "~/components/ui/empty-state";
 import { CurrencyPicker } from "~/components/ui/currency-picker";
-import { useThemeClassName } from "~/lib/theme";
+import { useThemeClassName, useTheme } from "~/lib/theme";
 
 interface SimplifiedDebt {
   from_user_id: string;
@@ -44,6 +44,8 @@ export default function GroupsScreen() {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const themeClass = useThemeClassName();
+  const { isDark } = useTheme();
+  const iconColor = isDark ? "#A1A1AA" : "#71717A";
   const [groups, setGroups] = useState<GroupItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -56,6 +58,7 @@ export default function GroupsScreen() {
   const swipeableRefs = useRef<Map<string, Swipeable>>(new Map());
   const [confirmTarget, setConfirmTarget] = useState<{ item: GroupItem; action: "delete" | "leave" } | null>(null);
   const [settledExpanded, setSettledExpanded] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const activeGroups = useMemo(() => groups.filter((g) => !g.is_settled), [groups]);
   const settledGroups = useMemo(() => groups.filter((g) => g.is_settled), [groups]);
@@ -89,6 +92,7 @@ export default function GroupsScreen() {
   const handleCreate = async () => {
     if (!newName) return;
     setCreating(true);
+    setFormError(null);
     try {
       await groupsAPI.create({
         name: newName,
@@ -98,10 +102,11 @@ export default function GroupsScreen() {
       setShowCreate(false);
       setNewName("");
       setNewDesc("");
+      setFormError(null);
       await fetchGroups();
     } catch (e: any) {
-      const msg = e.response?.data?.detail || e.message || "Unknown error";
-      Alert.alert(t("error"), msg);
+      const msg = e.response?.data?.detail || e.message || t("unknown_error");
+      setFormError(msg);
     } finally {
       setCreating(false);
     }
@@ -142,8 +147,8 @@ export default function GroupsScreen() {
       }
       await fetchGroups();
     } catch (e: any) {
-      const msg = e.response?.data?.detail || e.message || "Unknown error";
-      Alert.alert(t("error"), msg);
+      const msg = e.response?.data?.detail || e.message || t("unknown_error");
+      setFormError(msg);
     }
   };
 
@@ -157,12 +162,12 @@ export default function GroupsScreen() {
     return (
       <Animated.View style={{ transform: [{ scale }] }} className="justify-center mb-3">
         <Pressable
-          className={`h-full justify-center items-center px-6 rounded-r-xl ${isAdmin ? "bg-destructive" : "bg-orange-500"}`}
+          className={`h-full justify-center items-center px-6 rounded-r-xl ${isAdmin ? "bg-destructive" : "bg-warning"}`}
           onPress={() => isAdmin ? handleDeleteGroup(item) : handleLeaveGroup(item)}
         >
           {isAdmin
-            ? <Trash2 size={22} color="white" />
-            : <LogOut size={22} color="white" />}
+            ? <Trash size={22} color="white" weight="regular" />
+            : <SignOut size={22} color="white" weight="regular" />}
           <Text className="text-white text-xs mt-1 font-medium">
             {isAdmin ? t("delete") : t("leave_group")}
           </Text>
@@ -172,11 +177,14 @@ export default function GroupsScreen() {
   };
 
   const renderDebtDetails = (debts: SimplifiedDebt[]) => (
-    <View className="px-4 pb-3 -mt-2 gap-1">
+    <View className="px-4 pb-3 -mt-2 gap-2">
       {debts.map((d, i) => (
-        <View key={i} className="flex-row items-center gap-1 pl-9">
-          <Text className="text-xs text-destructive">
-            {d.from_user_name} {t("owes")} {d.to_user_name} {d.currency} {Number(d.amount).toFixed(2)}
+        <View key={i} className="pl-9">
+          <Text className="text-sm text-muted-foreground">
+            {d.from_user_name} {t("owes")} {d.to_user_name}
+          </Text>
+          <Text className="text-lg font-bold text-destructive">
+            {d.currency} {Number(d.amount).toFixed(2)}
           </Text>
         </View>
       ))}
@@ -206,7 +214,7 @@ export default function GroupsScreen() {
               hitSlop={8}
               className="justify-center mr-3"
             >
-              <GripVertical size={20} className="text-muted-foreground" />
+              <DotsSixVertical size={20} color={iconColor} />
             </Pressable>
             <View className="flex-1 gap-1">
               <H3>{item.name}</H3>
@@ -259,8 +267,8 @@ export default function GroupsScreen() {
         onPress={() => setSettledExpanded((v) => !v)}
       >
         {settledExpanded
-          ? <ChevronDown size={18} className="text-muted-foreground" />
-          : <ChevronRight size={18} className="text-muted-foreground" />}
+          ? <CaretDown size={18} color={iconColor} />
+          : <CaretRight size={18} color={iconColor} />}
         <Text className="text-muted-foreground font-medium">
           {t("settled_groups")} ({settledGroups.length})
         </Text>
@@ -278,7 +286,7 @@ export default function GroupsScreen() {
       ) : groups.length === 0 ? (
         <View className="flex-1 items-center justify-center p-5">
           <EmptyState
-            icon={Users}
+            icon={UsersThree}
             title={t("create_group")}
             description={t("create_group_hint")}
             actionLabel={t("create_group")}
@@ -349,7 +357,7 @@ export default function GroupsScreen() {
               <View className="flex-row items-center justify-between mb-6">
                 <H3>{t("create_group")}</H3>
                 <Pressable onPress={() => setShowCreate(false)}>
-                  <X size={24} color="hsl(240 3.8% 46.1%)" />
+                  <X size={24} color={iconColor} />
                 </Pressable>
               </View>
 
@@ -357,7 +365,7 @@ export default function GroupsScreen() {
                 <Input
                   label={t("group_name")}
                   value={newName}
-                  onChangeText={setNewName}
+                  onChangeText={(v) => { setNewName(v); setFormError(null); }}
                   placeholder={t("group_name")}
                 />
                 <Input
@@ -371,6 +379,10 @@ export default function GroupsScreen() {
                   value={newCurrency}
                   onSelect={setNewCurrency}
                 />
+
+                {formError ? (
+                  <Text className="text-destructive text-sm">{formError}</Text>
+                ) : null}
 
                 <Button
                   onPress={handleCreate}

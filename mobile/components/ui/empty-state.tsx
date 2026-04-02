@@ -2,10 +2,10 @@ import { View } from "react-native";
 import { cn } from "~/lib/utils";
 import { Text, Muted } from "./text";
 import { Button } from "./button";
-import type { LucideIcon } from "lucide-react-native";
+import type { IconProps } from "phosphor-react-native";
 
 interface EmptyStateProps {
-  icon: LucideIcon;
+  icon: React.ComponentType<IconProps>;
   title: string;
   description?: string;
   actionLabel?: string;
@@ -23,7 +23,7 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <View className={cn("items-center justify-center py-16 px-8", className)}>
-      <Icon size={48} color="hsl(240 3.8% 46.1%)" strokeWidth={1.5} />
+      <Icon size={48} color="hsl(240 3.8% 46.1%)" weight="regular" />
       <Text className="mt-4 text-lg font-medium text-center">{title}</Text>
       {description ? (
         <Muted className="mt-1 text-center">{description}</Muted>
