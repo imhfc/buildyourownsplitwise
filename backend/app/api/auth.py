@@ -12,7 +12,7 @@ from app.schemas.user import (
     UserResponse,
     UserUpdate,
 )
-from app.services import auth_service
+from app.services import auth_service, email_invitation_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -43,10 +43,16 @@ async def google_login(data: GoogleAuthRequest, db: AsyncSession = Depends(get_d
         access_token, refresh_token, user = await auth_service.google_login(db, data.access_token)
     except ValidationError as e:
         raise HTTPException(status_code=401, detail=e.message)
+
+    pending_count = 0
+    if user.email:
+        pending_count = await email_invitation_service.count_pending(db, user.email)
+
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
         user=UserResponse.model_validate(user),
+        pending_invitation_count=pending_count,
     )
 
 

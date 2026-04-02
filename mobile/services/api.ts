@@ -86,7 +86,7 @@ export const groupsAPI = {
   get: (id: string) => api.get(`/groups/${id}`),
   create: (data: { name: string; description?: string; default_currency?: string }) =>
     api.post("/groups", data),
-  update: (id: string, data: Record<string, string>) =>
+  update: (id: string, data: Record<string, unknown>) =>
     api.patch(`/groups/${id}`, data),
   delete: (id: string) => api.delete(`/groups/${id}`),
   addMember: (groupId: string, userId: string) =>
@@ -101,12 +101,19 @@ export const groupsAPI = {
     api.delete(`/groups/${groupId}/invite`),
   regenerateInvite: (groupId: string) =>
     api.post(`/groups/${groupId}/invite/regenerate`),
+  sendEmailInvitation: (groupId: string, email: string) =>
+    api.post(`/groups/${groupId}/email-invitations`, { email }),
+  listEmailInvitations: (groupId: string) =>
+    api.get(`/groups/${groupId}/email-invitations`),
 };
 
 // Invites (receiver-side)
 export const inviteAPI = {
   getInfo: (token: string) => api.get(`/invite/${token}`),
   accept: (token: string) => api.post(`/invite/${token}/accept`),
+  getMyPendingInvitations: () => api.get("/invite/email/pending"),
+  respondToInvitation: (id: string, action: "accept" | "decline") =>
+    api.post(`/invite/email/${id}/respond`, { action }),
 };
 
 export interface ExpenseSplitInput {
@@ -115,15 +122,20 @@ export interface ExpenseSplitInput {
   shares?: number;
 }
 
+export interface ExpensePayerInput {
+  user_id: string;
+  amount: number;
+}
+
 export interface ExpenseCreatePayload {
   description: string;
   total_amount: number;
   currency?: string;
   paid_by: string;
+  payers?: ExpensePayerInput[];
   split_method?: "equal" | "exact" | "ratio" | "shares";
   splits?: ExpenseSplitInput[];
   note?: string;
-  category_id?: string;
 }
 
 export interface ExpenseUpdatePayload {
@@ -131,10 +143,10 @@ export interface ExpenseUpdatePayload {
   total_amount?: number;
   currency?: string;
   paid_by?: string;
+  payers?: ExpensePayerInput[];
   split_method?: string;
   splits?: ExpenseSplitInput[];
   note?: string;
-  category_id?: string;
 }
 
 export interface SettlementCreatePayload {
@@ -142,6 +154,9 @@ export interface SettlementCreatePayload {
   amount: number;
   currency: string;
   note?: string;
+  original_currency?: string;
+  original_amount?: number;
+  locked_rate?: number;
 }
 
 // Expenses
@@ -167,15 +182,8 @@ export const settlementsAPI = {
   confirm: (groupId: string, settlementId: string) =>
     api.patch(`/groups/${groupId}/settlements/${settlementId}/confirm`),
   pending: () => api.get("/settlements/pending"),
-};
-
-// Categories
-export const categoriesAPI = {
-  list: (groupId?: string) =>
-    api.get("/categories", { params: groupId ? { group_id: groupId } : {} }),
-  create: (data: { name: string; icon?: string; color?: string; group_id?: string }) =>
-    api.post("/categories", data),
-  delete: (id: string) => api.delete(`/categories/${id}`),
+  pairwiseDetails: (groupId: string) =>
+    api.get(`/groups/${groupId}/settlements/details`),
 };
 
 // Balances

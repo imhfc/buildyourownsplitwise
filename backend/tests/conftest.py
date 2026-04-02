@@ -25,7 +25,6 @@ from app.models.group import Group, GroupMember
 from app.models.expense import Expense, ExpenseSplit
 from app.models.settlement import Settlement
 from app.models.friendship import Friendship  # noqa: F401
-from app.models.category import ExpenseCategory  # noqa: F401
 from app.models.activity_log import ActivityLog, ActivityRead  # noqa: F401
 
 # ---------------------------------------------------------------------------

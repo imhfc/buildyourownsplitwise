@@ -8,6 +8,7 @@
 4. **新功能必寫新測試** — 新端點或功能必須觸發 `/write-tests` 撰寫對應測試案例並執行，未附測試的功能不算完成
 5. **既有功能必跑回歸測試** — 任何改動（含 bug 修復、重構）完成後，必須執行完整測試套件確認既有功能未被破壞（後端：`pytest tests/`，前端：`bash mobile/scripts/quality-gate.sh`）
 6. **Bug 修復後更新文件** — 更新 QUALITY_SLA.md 和 quality-gate.sh
+7. **新功能完成後更新 README** — 同步更新 `README.md` 功能列表 + `docs/CHANGELOG.md`（2026-04-02 回顧）
 
 ## 後端驗證閘門
 

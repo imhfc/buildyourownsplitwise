@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import ForbiddenError, NotFoundError, ValidationError
-from app.models.expense import Expense, ExpenseSplit
+from app.models.expense import Expense, ExpensePayer, ExpenseSplit
 from app.models.group import Group
 from app.models.settlement import Settlement
 from app.models.user import User
@@ -86,13 +86,19 @@ async def calculate_balances(
     result = await db.execute(
         select(Expense)
         .where(Expense.group_id == group_id, Expense.deleted_at.is_(None))
-        .options(selectinload(Expense.splits))
+        .options(selectinload(Expense.splits), selectinload(Expense.payers))
     )
     expenses = result.scalars().all()
 
     for expense in expenses:
-        converted_total = await to_base(expense.total_amount, expense.currency)
-        balances[expense.paid_by] += converted_total
+        # 多人付款：用 payers 分配付款金額；單人付款：全額歸 paid_by
+        if expense.payers:
+            for payer in expense.payers:
+                converted_payer_amount = await to_base(payer.amount, expense.currency)
+                balances[payer.user_id] += converted_payer_amount
+        else:
+            converted_total = await to_base(expense.total_amount, expense.currency)
+            balances[expense.paid_by] += converted_total
         for split in expense.splits:
             converted_split = await to_base(split.amount, expense.currency)
             balances[split.user_id] -= converted_split
@@ -127,7 +133,7 @@ async def calculate_balances_by_currency(
     result = await db.execute(
         select(Expense)
         .where(Expense.group_id == group_id, Expense.deleted_at.is_(None))
-        .options(selectinload(Expense.splits))
+        .options(selectinload(Expense.splits), selectinload(Expense.payers))
     )
     expenses = result.scalars().all()
 
@@ -136,7 +142,11 @@ async def calculate_balances_by_currency(
 
     for expense in expenses:
         cur = expense.currency.upper()
-        by_currency[cur][expense.paid_by] += expense.total_amount
+        if expense.payers:
+            for payer in expense.payers:
+                by_currency[cur][payer.user_id] += payer.amount
+        else:
+            by_currency[cur][expense.paid_by] += expense.total_amount
         for split in expense.splits:
             by_currency[cur][split.user_id] -= split.amount
 
@@ -191,13 +201,18 @@ async def calculate_balances_unified(
     result = await db.execute(
         select(Expense)
         .where(Expense.group_id == group_id, Expense.deleted_at.is_(None))
-        .options(selectinload(Expense.splits))
+        .options(selectinload(Expense.splits), selectinload(Expense.payers))
     )
     expenses = result.scalars().all()
 
     for expense in expenses:
-        converted_total = await to_target(expense.total_amount, expense.currency)
-        balances[expense.paid_by] += converted_total
+        if expense.payers:
+            for payer in expense.payers:
+                converted_payer_amount = await to_target(payer.amount, expense.currency)
+                balances[payer.user_id] += converted_payer_amount
+        else:
+            converted_total = await to_target(expense.total_amount, expense.currency)
+            balances[expense.paid_by] += converted_total
         for split in expense.splits:
             converted_split = await to_target(split.amount, expense.currency)
             balances[split.user_id] -= converted_split
@@ -278,6 +293,107 @@ def simplify_debts(balances: dict[uuid.UUID, Decimal]) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# Pairwise 債務計算（simplify_debts=False 時使用）
+# ---------------------------------------------------------------------------
+
+async def calculate_pairwise_debts_by_currency(
+    db: AsyncSession, group_id: uuid.UUID
+) -> dict[str, list[dict]]:
+    """
+    按幣別計算每對使用者之間的淨債務，不做跨使用者簡化。
+    回傳：{ "TWD": [{"from": uid_a, "to": uid_b, "amount": Decimal}], ... }
+    """
+    result_db = await db.execute(
+        select(Expense)
+        .where(Expense.group_id == group_id, Expense.deleted_at.is_(None))
+        .options(selectinload(Expense.splits), selectinload(Expense.payers))
+    )
+    expenses = result_db.scalars().all()
+
+    # currency -> (debtor, creditor) -> amount
+    pairwise: dict[str, dict[tuple[uuid.UUID, uuid.UUID], Decimal]] = defaultdict(
+        lambda: defaultdict(Decimal)
+    )
+
+    for expense in expenses:
+        cur = expense.currency.upper()
+        if expense.payers:
+            # 多人付款：每個 split 使用者對每個 payer 按比例欠款
+            for split in expense.splits:
+                for payer in expense.payers:
+                    if split.user_id != payer.user_id:
+                        # split 使用者對這個 payer 的欠款比例 = payer 付的比例 * split 的金額
+                        payer_ratio = payer.amount / expense.total_amount
+                        debt = round(split.amount * payer_ratio, 2)
+                        pairwise[cur][(split.user_id, payer.user_id)] += debt
+        else:
+            for split in expense.splits:
+                if split.user_id != expense.paid_by:
+                    pairwise[cur][(split.user_id, expense.paid_by)] += split.amount
+
+    # 扣除已確認的 settlement
+    settlement_result = await db.execute(
+        select(Settlement).where(
+            Settlement.group_id == group_id,
+            _confirmed_filter(),
+        )
+    )
+    for s in settlement_result.scalars().all():
+        cur = s.currency.upper()
+        pairwise[cur][(s.from_user, s.to_user)] -= s.amount
+
+    # 淨額化每對使用者
+    cleaned: dict[str, list[dict]] = {}
+    for cur, pairs in pairwise.items():
+        processed: set[tuple[uuid.UUID, uuid.UUID]] = set()
+        transactions: list[dict] = []
+        for (a, b), amount in pairs.items():
+            if (a, b) in processed or (b, a) in processed:
+                continue
+            reverse = pairs.get((b, a), Decimal("0"))
+            net = amount - reverse
+            if net > Decimal("0.01"):
+                transactions.append({"from": a, "to": b, "amount": round(net, 2)})
+            elif net < Decimal("-0.01"):
+                transactions.append({"from": b, "to": a, "amount": round(-net, 2)})
+            processed.add((a, b))
+            processed.add((b, a))
+        if transactions:
+            cleaned[cur] = transactions
+
+    return cleaned
+
+
+async def get_pairwise_details(
+    db: AsyncSession, group_id: uuid.UUID
+) -> list[dict]:
+    """取得 pairwise 債務明細（供前端展開顯示用）"""
+    pairwise_map = await calculate_pairwise_debts_by_currency(db, group_id)
+    if not pairwise_map:
+        return []
+
+    all_user_ids: set[uuid.UUID] = set()
+    for transactions in pairwise_map.values():
+        for t in transactions:
+            all_user_ids.add(t["from"])
+            all_user_ids.add(t["to"])
+    user_map = await _load_user_names(db, list(all_user_ids))
+
+    result = []
+    for cur, transactions in sorted(pairwise_map.items()):
+        for t in transactions:
+            result.append({
+                "from_user_id": str(t["from"]),
+                "from_user_name": user_map.get(t["from"], "Unknown"),
+                "to_user_id": str(t["to"]),
+                "to_user_name": user_map.get(t["to"], "Unknown"),
+                "amount": str(t["amount"]),
+                "currency": cur,
+            })
+    return result
+
+
+# ---------------------------------------------------------------------------
 # 結算建議（支援分幣別 / 統一幣別）
 # ---------------------------------------------------------------------------
 
@@ -329,7 +445,7 @@ async def get_settlement_suggestions(
             ),
         )
 
-    # --- 分幣別模式（預設）---
+    # --- 分幣別模式（預設，使用簡化債務演算法）---
     balances_map = await calculate_balances_by_currency(db, group_id)
     if not balances_map:
         return SettlementSuggestionsResponse(mode="by_currency", by_currency=[])

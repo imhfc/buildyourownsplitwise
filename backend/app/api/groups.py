@@ -1,17 +1,18 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
-from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
+from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError, ValidationError
 from app.models.user import User
+from app.schemas.email_invitation import EmailInvitationCreate, EmailInvitationResponse
 from app.schemas.group import (
     AddMemberRequest, GroupCreate, GroupListResponse, GroupResponse, GroupUpdate,
     InviteTokenResponse, ReorderGroupsRequest, SimplifiedDebt,
 )
-from app.services import group_service
+from app.services import email_invitation_service, group_service
 
 router = APIRouter(prefix="/groups", tags=["groups"])
 
@@ -19,6 +20,7 @@ _STATUS_MAP = {
     ForbiddenError: 403,
     NotFoundError: 404,
     ConflictError: 400,
+    ValidationError: 422,
 }
 
 
@@ -174,5 +176,45 @@ async def regenerate_invite(
 ):
     try:
         return await group_service.regenerate_invite_token(db, group_id, current_user.id)
+    except ForbiddenError as e:
+        raise HTTPException(status_code=403, detail=e.message)
+
+
+# ---------------------------------------------------------------------------
+# Email invitations
+# ---------------------------------------------------------------------------
+
+@router.post("/{group_id}/email-invitations", response_model=EmailInvitationResponse, status_code=status.HTTP_201_CREATED)
+async def send_email_invitation(
+    group_id: uuid.UUID,
+    data: EmailInvitationCreate,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        result = await email_invitation_service.create_invitation(db, group_id, current_user.id, data.email)
+    except (ForbiddenError, NotFoundError, ConflictError) as e:
+        _handle(e)
+
+    from app.services.email_service import send_invitation_email
+    background_tasks.add_task(
+        send_invitation_email,
+        to_email=result["email"],
+        inviter_name=result["inviter_name"],
+        group_name=result["group_name"],
+        invite_token=result["token"],
+    )
+    return result
+
+
+@router.get("/{group_id}/email-invitations", response_model=list[EmailInvitationResponse])
+async def list_email_invitations(
+    group_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        return await email_invitation_service.list_group_invitations(db, group_id, current_user.id)
     except ForbiddenError as e:
         raise HTTPException(status_code=403, detail=e.message)

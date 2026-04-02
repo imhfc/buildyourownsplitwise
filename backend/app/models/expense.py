@@ -29,17 +29,27 @@ class Expense(Base):
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
     created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
-    category_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("expense_categories.id", ondelete="SET NULL"), nullable=True
-    )
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     group = relationship("Group", back_populates="expenses")
     payer = relationship("User", foreign_keys=[paid_by])
     creator = relationship("User", foreign_keys=[created_by])
-    category = relationship("ExpenseCategory")
     splits = relationship("ExpenseSplit", back_populates="expense", cascade="all, delete-orphan")
+    payers = relationship("ExpensePayer", back_populates="expense", cascade="all, delete-orphan")
+
+
+class ExpensePayer(Base):
+    __tablename__ = "expense_payers"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    expense_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("expenses.id"))
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+
+    # Relationships
+    expense = relationship("Expense", back_populates="payers")
+    user = relationship("User")
 
 
 class ExpenseSplit(Base):

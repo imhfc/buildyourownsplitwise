@@ -12,9 +12,13 @@ import {
   CaretLeft,
   PencilSimple,
   Link,
+  UserPlus,
+  GearSix,
+  CaretDown,
+  CaretRight,
 } from "phosphor-react-native";
 import { CurrencyPicker } from "~/components/ui/currency-picker";
-import { expensesAPI, settlementsAPI, groupsAPI, authAPI, categoriesAPI, balancesAPI, ExpenseSplitInput, ExpenseUpdatePayload } from "../../services/api";
+import { expensesAPI, settlementsAPI, groupsAPI, authAPI, balancesAPI, exchangeRatesAPI, friendsAPI, ExpenseSplitInput, ExpensePayerInput, ExpenseUpdatePayload } from "../../services/api";
 import { useAuthStore } from "../../stores/auth";
 import { Card, CardContent } from "~/components/ui/card";
 import { Text, H3, Muted } from "~/components/ui/text";
@@ -36,19 +40,26 @@ interface ExpenseSplitItem {
   shares: string | null;
 }
 
+interface ExpensePayerItem {
+  user_id: string;
+  user_display_name: string;
+  amount: string;
+}
+
 interface ExpenseItem {
   id: string;
   description: string;
   total_amount: string;
   currency: string;
+  base_currency: string;
+  base_amount: string;
   paid_by: string;
   payer_display_name: string;
+  payers: ExpensePayerItem[];
   split_method: string;
   splits: ExpenseSplitItem[];
   note: string | null;
   expense_date: string | null;
-  category_id: string | null;
-  category_name: string | null;
   created_at: string;
 }
 
@@ -59,14 +70,6 @@ interface Suggestion {
   to_user_name: string;
   amount: string;
   currency: string;
-}
-
-interface CategoryItem {
-  id: string;
-  name: string;
-  icon: string | null;
-  color: string | null;
-  is_default: boolean;
 }
 
 interface BalanceSummary {
@@ -109,14 +112,17 @@ export default function GroupDetailScreen() {
   const [addError, setAddError] = useState("");
   const [splitInputs, setSplitInputs] = useState<Record<string, string>>({});
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  const [categories, setCategories] = useState<CategoryItem[]>([]);
-
+  const [multiPayer, setMultiPayer] = useState(false);
+  const [payerInputs, setPayerInputs] = useState<Record<string, string>>({});
   // Balance & settlement
   const [balances, setBalances] = useState<BalanceSummary | null>(null);
   const [settleTarget, setSettleTarget] = useState<Suggestion | null>(null);
   const [settling, setSettling] = useState(false);
   const [settleError, setSettleError] = useState("");
+  const [settleCurrency, setSettleCurrency] = useState("");
+  const [settleAmount, setSettleAmount] = useState("");
+  const [settleRate, setSettleRate] = useState<number | null>(null);
+  const [converting, setConverting] = useState(false);
 
   // Add member modal
   const [showAddMember, setShowAddMember] = useState(false);
@@ -127,33 +133,67 @@ export default function GroupDetailScreen() {
   const [lookupError, setLookupError] = useState("");
   const [showInvite, setShowInvite] = useState(false);
 
+  // Friend selection for add member
+  type FriendItem = { id: string; display_name: string; email: string; friendship_id: string };
+  const [friendsForAdd, setFriendsForAdd] = useState<FriendItem[]>([]);
+  const [friendsLoading, setFriendsLoading] = useState(false);
+  const [addingFriendId, setAddingFriendId] = useState<string | null>(null);
+
+  // Email invitation
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [sendingInvite, setSendingInvite] = useState(false);
+  const [inviteSuccess, setInviteSuccess] = useState("");
+  const [inviteError, setInviteError] = useState("");
+  const [emailInvitations, setEmailInvitations] = useState<{ id: string; email: string; status: string; inviter_name: string; created_at: string; expires_at: string }[]>([]);
+
+  // Group settings modal
+  const [showSettings, setShowSettings] = useState(false);
+  const [editGroupName, setEditGroupName] = useState("");
+  const [editGroupCurrency, setEditGroupCurrency] = useState("TWD");
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+
+  // Pairwise debt details
+  const [pairwiseDetails, setPairwiseDetails] = useState<Suggestion[]>([]);
+  const [showDetails, setShowDetails] = useState(false);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [sugLoading, setSugLoading] = useState(false);
   const hasFetched = useRef(false);
 
   const isAdmin = members.find((m) => m.user.id === user?.id)?.role === "admin";
 
+  const fetchEmailInvitations = useCallback(async () => {
+    if (!id) return;
+    try {
+      const res = await groupsAPI.listEmailInvitations(id);
+      setEmailInvitations(res.data);
+    } catch {
+      // silently fail
+    }
+  }, [id]);
+
   const fetchData = useCallback(async () => {
     if (!id) return;
     const isFirstLoad = !hasFetched.current;
     if (isFirstLoad) setLoading(true);
     try {
-      // Phase 1: group info + expenses + categories (fast) -- render immediately
-      const [expRes, groupRes, catRes] = await Promise.all([
+      // Phase 1: group info + expenses (fast) -- render immediately
+      const [expRes, groupRes] = await Promise.all([
         expensesAPI.list(id),
         groupsAPI.get(id),
-        categoriesAPI.list(id),
       ]);
       setExpenses(expRes.data);
       setMembers(groupRes.data.members ?? []);
-      setCategories(catRes.data);
       if (groupRes.data.name) setGroupName(groupRes.data.name);
       if (groupRes.data.default_currency) setGroupCurrency(groupRes.data.default_currency);
       hasFetched.current = true;
       if (isFirstLoad) setLoading(false);
 
-      // Phase 2: settlement suggestions + balances (slow) -- load in background
+      // Phase 2: settlement suggestions + balances + email invitations -- load in background
       setSugLoading(true);
+      fetchEmailInvitations();
       Promise.all([
         settlementsAPI.suggestions(id),
         balancesAPI.group(id),
@@ -177,7 +217,7 @@ export default function GroupDetailScreen() {
       console.error("Failed to fetch group data", e);
       if (isFirstLoad) setLoading(false);
     }
-  }, [id]);
+  }, [id, fetchEmailInvitations]);
 
   useFocusEffect(
     useCallback(() => {
@@ -215,9 +255,17 @@ export default function GroupDetailScreen() {
 
   const initSplitInputs = (method: (typeof SPLIT_METHODS)[number]) => {
     const defaults: Record<string, string> = {};
-    selectedMembersList.forEach((m) => {
-      defaults[m.user.id] = method === "shares" || method === "ratio" ? "1" : "";
-    });
+    if (method === "ratio") {
+      const n = selectedMembersList.length;
+      const per = n > 0 ? (100 / n).toFixed(2) : "0";
+      selectedMembersList.forEach((m) => {
+        defaults[m.user.id] = per;
+      });
+    } else if (method === "shares") {
+      selectedMembersList.forEach((m) => {
+        defaults[m.user.id] = "1";
+      });
+    }
     setSplitInputs(defaults);
   };
 
@@ -228,7 +276,11 @@ export default function GroupDetailScreen() {
       const sum = selectedMembersList.reduce((acc, m) => acc + (Number(splitInputs[m.user.id]) || 0), 0);
       return Math.abs(sum - Number(amount)) < 0.01;
     }
-    if (splitMethod === "ratio" || splitMethod === "shares") {
+    if (splitMethod === "ratio") {
+      const sum = selectedMembersList.reduce((acc, m) => acc + (Number(splitInputs[m.user.id]) || 0), 0);
+      return Math.abs(sum - 100) < 0.01;
+    }
+    if (splitMethod === "shares") {
       return selectedMembersList.reduce((acc, m) => acc + (Number(splitInputs[m.user.id]) || 0), 0) > 0;
     }
     return true;
@@ -248,21 +300,74 @@ export default function GroupDetailScreen() {
 
     if (method !== "equal") {
       const inputs: Record<string, string> = {};
-      expense.splits.forEach((s) => {
-        if (method === "exact") {
+      if (method === "exact") {
+        expense.splits.forEach((s) => {
           inputs[s.user_id] = parseFloat(s.amount).toString();
-        } else {
+        });
+      } else if (method === "ratio") {
+        const totalShares = expense.splits.reduce((acc, s) => acc + (s.shares ? parseFloat(s.shares) : 0), 0);
+        expense.splits.forEach((s) => {
+          const share = s.shares ? parseFloat(s.shares) : 0;
+          const pct = totalShares > 0 ? ((share / totalShares) * 100).toFixed(2) : "0";
+          inputs[s.user_id] = pct;
+        });
+      } else {
+        expense.splits.forEach((s) => {
           inputs[s.user_id] = s.shares ? parseFloat(s.shares).toString() : "1";
-        }
-      });
+        });
+      }
       setSplitInputs(inputs);
     } else {
       setSplitInputs({});
     }
 
-    setSelectedCategoryId(expense.category_id ?? null);
+    // 載入多人付款資料
+    if (expense.payers && expense.payers.length > 0) {
+      setMultiPayer(true);
+      const pInputs: Record<string, string> = {};
+      expense.payers.forEach((p) => {
+        pInputs[p.user_id] = parseFloat(p.amount).toString();
+      });
+      setPayerInputs(pInputs);
+    } else {
+      setMultiPayer(false);
+      setPayerInputs({});
+    }
+
     setAddError("");
     setShowAdd(true);
+  };
+
+  const handleSettleCurrencyChange = async (newCurrency: string) => {
+    if (!settleTarget) return;
+    setSettleCurrency(newCurrency);
+
+    if (newCurrency === settleTarget.currency) {
+      setSettleAmount(settleTarget.amount);
+      setSettleRate(null);
+      return;
+    }
+
+    setConverting(true);
+    setSettleError("");
+    try {
+      const res = await exchangeRatesAPI.convert({
+        from_currency: settleTarget.currency,
+        to_currency: newCurrency,
+        amount: parseFloat(settleTarget.amount),
+      });
+      setSettleAmount(String(res.data.converted_amount));
+      setSettleRate(res.data.rate);
+    } catch (e: any) {
+      const msg = e.response?.data?.detail || e.message || t("unknown_error");
+      setSettleError(msg);
+      // 轉換失敗時回退到原幣別
+      setSettleCurrency(settleTarget.currency);
+      setSettleAmount(settleTarget.amount);
+      setSettleRate(null);
+    } finally {
+      setConverting(false);
+    }
   };
 
   const handleSettleUp = async (suggestion: Suggestion) => {
@@ -270,10 +375,18 @@ export default function GroupDetailScreen() {
     setSettling(true);
     setSettleError("");
     try {
+      const isCurrencyChanged = settleCurrency !== suggestion.currency;
       await settlementsAPI.create(id, {
         to_user: suggestion.to_user_id,
-        amount: parseFloat(suggestion.amount),
-        currency: suggestion.currency,
+        amount: parseFloat(settleAmount),
+        currency: settleCurrency,
+        ...(isCurrencyChanged && settleRate != null
+          ? {
+              original_currency: suggestion.currency,
+              original_amount: parseFloat(suggestion.amount),
+              locked_rate: settleRate,
+            }
+          : {}),
       });
       setSettleTarget(null);
       await fetchData();
@@ -307,7 +420,17 @@ export default function GroupDetailScreen() {
         setAddError(t("split_amounts_must_match"));
         return;
       }
-    } else if (splitMethod === "ratio" || splitMethod === "shares") {
+    } else if (splitMethod === "ratio") {
+      const totalPct = selectedMembersList.reduce((acc, m) => acc + (Number(splitInputs[m.user.id]) || 0), 0);
+      if (Math.abs(totalPct - 100) > 0.01) {
+        setAddError(t("ratio_must_equal_100"));
+        return;
+      }
+      splits = selectedMembersList.map((m) => ({
+        user_id: m.user.id,
+        shares: Number(splitInputs[m.user.id]) || 0,
+      }));
+    } else if (splitMethod === "shares") {
       const totalShares = selectedMembersList.reduce((acc, m) => acc + (Number(splitInputs[m.user.id]) || 0), 0);
       if (totalShares <= 0) {
         setAddError(t("need_positive_shares"));
@@ -319,6 +442,22 @@ export default function GroupDetailScreen() {
       }));
     }
 
+    // 多人付款驗證
+    let payersData: ExpensePayerInput[] | undefined;
+    if (multiPayer) {
+      const payerEntries = Object.entries(payerInputs).filter(([, v]) => Number(v) > 0);
+      if (payerEntries.length === 0) {
+        setAddError(t("payers_must_equal_total"));
+        return;
+      }
+      const payerSum = payerEntries.reduce((acc, [, v]) => acc + Number(v), 0);
+      if (Math.abs(payerSum - Number(amount)) > 0.01) {
+        setAddError(t("payers_must_equal_total"));
+        return;
+      }
+      payersData = payerEntries.map(([uid, v]) => ({ user_id: uid, amount: Number(v) }));
+    }
+
     setAdding(true);
     try {
       if (editingExpenseId) {
@@ -328,7 +467,7 @@ export default function GroupDetailScreen() {
           currency: expenseCurrency,
           split_method: splitMethod,
           splits,
-          category_id: selectedCategoryId ?? undefined,
+          ...(multiPayer && payersData ? { payers: payersData } : {}),
         });
       } else {
         await expensesAPI.create(id, {
@@ -338,7 +477,7 @@ export default function GroupDetailScreen() {
           paid_by: user.id,
           split_method: splitMethod,
           splits,
-          category_id: selectedCategoryId ?? undefined,
+          ...(multiPayer && payersData ? { payers: payersData } : {}),
         });
       }
       setShowAdd(false);
@@ -347,13 +486,50 @@ export default function GroupDetailScreen() {
       setAmount("");
       setSplitMethod("equal");
       setSplitInputs({});
-      setSelectedCategoryId(null);
+      setMultiPayer(false);
+      setPayerInputs({});
       await fetchData();
     } catch (e: any) {
       const msg = e.response?.data?.detail || e.message || t("unknown_error");
       setAddError(msg);
     } finally {
       setAdding(false);
+    }
+  };
+
+  const fetchFriendsForAdd = async () => {
+    setFriendsLoading(true);
+    try {
+      const res = await friendsAPI.list();
+      const memberIds = new Set(members.map((m) => m.user.id));
+      const available = (res.data as any[])
+        .filter((f) => !memberIds.has(f.friend.id))
+        .map((f) => ({
+          id: f.friend.id,
+          display_name: f.friend.display_name,
+          email: f.friend.email,
+          friendship_id: f.friendship_id,
+        }));
+      setFriendsForAdd(available);
+    } catch {
+      setFriendsForAdd([]);
+    } finally {
+      setFriendsLoading(false);
+    }
+  };
+
+  const handleAddFriendAsMember = async (friend: FriendItem) => {
+    if (!id) return;
+    setAddingFriendId(friend.id);
+    try {
+      await groupsAPI.addMember(id, friend.id);
+      setFriendsForAdd((prev) => prev.filter((f) => f.id !== friend.id));
+      await fetchData();
+    } catch (e: any) {
+      const msg = e.response?.data?.detail || e.message || t("unknown_error");
+      setLookupError(msg);
+    } finally {
+      setAddingFriendId(null);
     }
   };
 
@@ -386,6 +562,24 @@ export default function GroupDetailScreen() {
       Alert.alert(t("error"), msg);
     } finally {
       setAddingMember(false);
+    }
+  };
+
+  const handleSendEmailInvitation = async () => {
+    if (!inviteEmail.trim() || !id) return;
+    setSendingInvite(true);
+    setInviteError("");
+    setInviteSuccess("");
+    try {
+      await groupsAPI.sendEmailInvitation(id, inviteEmail.trim());
+      setInviteSuccess(t("invitation_sent", { email: inviteEmail.trim() }));
+      setInviteEmail("");
+      fetchEmailInvitations();
+    } catch (e: any) {
+      const msg = e.response?.data?.detail || e.message || t("unknown_error");
+      setInviteError(msg);
+    } finally {
+      setSendingInvite(false);
     }
   };
 
@@ -429,14 +623,21 @@ export default function GroupDetailScreen() {
             <Text className="font-medium">{item.description}</Text>
             <Muted>
               {item.payer_display_name} {t("paid_by")}
-              {item.category_name ? ` / ${item.category_name}` : ""}
             </Muted>
           </View>
           <View className="items-end gap-1">
             <Text className="text-lg font-bold text-primary">
               {item.currency} {parseFloat(item.total_amount).toLocaleString()}
             </Text>
+            {item.currency !== item.base_currency && (
+              <Muted className="text-xs">
+                {item.base_currency} {parseFloat(item.base_amount).toLocaleString()}
+              </Muted>
+            )}
             <View className="flex-row items-center gap-1.5">
+              {item.payers && item.payers.length > 0 && (
+                <Badge variant="outline">{t("multiple_payers")}</Badge>
+              )}
               <Badge variant="secondary">{t(item.split_method)}</Badge>
               <PencilSimple size={14} color="hsl(240 3.8% 46.1%)" weight="regular" />
             </View>
@@ -470,7 +671,13 @@ export default function GroupDetailScreen() {
         {(item.from_user_id === user?.id || item.to_user_id === user?.id) && (
           <Button
             size="sm"
-            onPress={() => { setSettleTarget(item); setSettleError(""); }}
+            onPress={() => {
+              setSettleTarget(item);
+              setSettleCurrency(item.currency);
+              setSettleAmount(item.amount);
+              setSettleRate(null);
+              setSettleError("");
+            }}
           >
             {t("settle_up")}
           </Button>
@@ -525,6 +732,19 @@ export default function GroupDetailScreen() {
         <Text className="flex-1 text-lg font-semibold text-foreground text-center" numberOfLines={1}>
           {groupName}
         </Text>
+        {isAdmin && (
+          <Pressable
+            onPress={() => {
+              setEditGroupName(groupName);
+              setEditGroupCurrency(groupCurrency);
+              setSettingsError(null);
+              setShowSettings(true);
+            }}
+            className="p-2"
+          >
+            <GearSix size={22} color="hsl(var(--primary))" />
+          </Pressable>
+        )}
         <Pressable
           onPress={() => setShowInvite(true)}
           className="p-2 -mr-1"
@@ -563,7 +783,7 @@ export default function GroupDetailScreen() {
               title={t("add_expense")}
               description={t("no_expenses_hint")}
               actionLabel={t("add_expense")}
-              onAction={() => { setEditingExpenseId(null); setAddError(""); setDesc(""); setAmount(""); setSplitMethod("equal"); setSplitInputs({}); setSelectedMembers(new Set(members.map((m) => m.user.id))); setExpenseCurrency(groupCurrency); setSelectedCategoryId(null); setShowAdd(true); }}
+              onAction={() => { setEditingExpenseId(null); setAddError(""); setDesc(""); setAmount(""); setSplitMethod("equal"); setSplitInputs({}); setSelectedMembers(new Set(members.map((m) => m.user.id))); setExpenseCurrency(groupCurrency); setMultiPayer(false); setPayerInputs({}); setShowAdd(true); }}
             />
           }
         />
@@ -603,6 +823,56 @@ export default function GroupDetailScreen() {
                 </Card>
               ) : null
             }
+            ListFooterComponent={
+              suggestions.length > 0 ? (
+                <View className="mt-2 mb-4">
+                  <Pressable
+                    className="flex-row items-center gap-2 py-3 px-1"
+                    onPress={async () => {
+                      if (showDetails) {
+                        setShowDetails(false);
+                        return;
+                      }
+                      if (pairwiseDetails.length === 0) {
+                        setDetailsLoading(true);
+                        try {
+                          const res = await settlementsAPI.pairwiseDetails(id!);
+                          setPairwiseDetails(res.data);
+                        } catch (e) {
+                          console.error("Failed to fetch pairwise details", e);
+                        } finally {
+                          setDetailsLoading(false);
+                        }
+                      }
+                      setShowDetails(true);
+                    }}
+                  >
+                    {showDetails
+                      ? <CaretDown size={18} color="hsl(240 3.8% 46.1%)" />
+                      : <CaretRight size={18} color="hsl(240 3.8% 46.1%)" />}
+                    <Text className="text-muted-foreground font-medium">
+                      {showDetails ? t("hide_details") : t("show_details")}
+                    </Text>
+                    {detailsLoading && <ActivityIndicator size="small" />}
+                  </Pressable>
+                  {showDetails && pairwiseDetails.length > 0 && (
+                    <View className="gap-2 mt-1">
+                      <Muted className="text-xs px-1">{t("debt_details")}</Muted>
+                      {pairwiseDetails.map((d, i) => (
+                        <View key={i} className="flex-row items-center justify-between px-3 py-2 bg-muted/50 rounded-lg">
+                          <Text className="text-sm flex-1">
+                            {d.from_user_name} → {d.to_user_name}
+                          </Text>
+                          <Text className="text-sm font-medium">
+                            {d.currency} {parseFloat(d.amount).toLocaleString()}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              ) : null
+            }
             ListEmptyComponent={
               <EmptyState
                 icon={ArrowsLeftRight}
@@ -628,12 +898,39 @@ export default function GroupDetailScreen() {
               description={t("no_members_hint")}
             />
           }
+          ListFooterComponent={
+            emailInvitations.filter((inv) => inv.status === "pending").length > 0 ? (
+              <View className="mt-4">
+                <Muted className="mb-2 text-sm font-medium">{t("pending_invitations")}</Muted>
+                {emailInvitations
+                  .filter((inv) => inv.status === "pending")
+                  .map((inv) => (
+                    <Card key={inv.id} className="mb-2">
+                      <CardContent className="flex-row items-center p-4 gap-3">
+                        <View className="h-10 w-10 rounded-full bg-muted items-center justify-center">
+                          <UserPlus size={20} color="hsl(240 3.8% 46.1%)" weight="regular" />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="font-medium">{inv.email}</Text>
+                          <Muted className="text-xs">
+                            {t("invited_by", { name: inv.inviter_name })}
+                          </Muted>
+                        </View>
+                        <Badge variant="secondary">
+                          {t("pending")}
+                        </Badge>
+                      </CardContent>
+                    </Card>
+                  ))}
+              </View>
+            ) : null
+          }
         />
       )}
 
-      {tab === "expenses" && <FAB onPress={() => { setEditingExpenseId(null); setAddError(""); setDesc(""); setAmount(""); setSplitMethod("equal"); setSplitInputs({}); setSelectedMembers(new Set(members.map((m) => m.user.id))); setExpenseCurrency(groupCurrency); setSelectedCategoryId(null); setShowAdd(true); }} />}
+      {tab === "expenses" && <FAB onPress={() => { setEditingExpenseId(null); setAddError(""); setDesc(""); setAmount(""); setSplitMethod("equal"); setSplitInputs({}); setSelectedMembers(new Set(members.map((m) => m.user.id))); setExpenseCurrency(groupCurrency); setMultiPayer(false); setPayerInputs({}); setShowAdd(true); }} />}
       {tab === "members" && (
-        <FAB onPress={() => { setShowAddMember(true); setMemberEmail(""); setFoundUser(null); setLookupError(""); }} />
+        <FAB onPress={() => { setShowAddMember(true); setMemberEmail(""); setFoundUser(null); setLookupError(""); setInviteEmail(""); setInviteError(""); setInviteSuccess(""); }} />
       )}
 
       <InviteShareModal
@@ -701,39 +998,87 @@ export default function GroupDetailScreen() {
                     </View>
                   </View>
 
-                  {/* Category picker */}
-                  {categories.length > 0 && (
-                    <View className="gap-2">
-                      <Text className="text-sm font-medium">{t("category")}</Text>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        <View className="flex-row gap-2">
-                          <Pressable
-                            onPress={() => setSelectedCategoryId(null)}
-                            className={`px-3 py-2 rounded-full border ${
-                              !selectedCategoryId ? "bg-primary/10 border-primary" : "border-border"
-                            }`}
-                          >
-                            <Text className={`text-sm ${!selectedCategoryId ? "text-primary font-medium" : "text-muted-foreground"}`}>
-                              {t("no_category")}
-                            </Text>
-                          </Pressable>
-                          {categories.map((cat) => (
-                            <Pressable
-                              key={cat.id}
-                              onPress={() => setSelectedCategoryId(cat.id)}
-                              className={`px-3 py-2 rounded-full border ${
-                                selectedCategoryId === cat.id ? "bg-primary/10 border-primary" : "border-border"
-                              }`}
-                            >
-                              <Text className={`text-sm ${selectedCategoryId === cat.id ? "text-primary font-medium" : "text-muted-foreground"}`}>
-                                {cat.icon ? `${cat.icon} ` : ""}{cat.name}
+                  {/* Payer mode toggle */}
+                  <View className="gap-2">
+                    <Text className="text-sm font-medium">{t("payers")}</Text>
+                    <SegmentedTabs
+                      tabs={[
+                        { value: "single", label: t("single_payer") },
+                        { value: "multi", label: t("multiple_payers") },
+                      ]}
+                      value={multiPayer ? "multi" : "single"}
+                      onValueChange={(v) => {
+                        const isMulti = v === "multi";
+                        setMultiPayer(isMulti);
+                        if (isMulti && Object.keys(payerInputs).length === 0) {
+                          // 預設當前使用者為付款人
+                          setPayerInputs({ [user!.id]: amount || "" });
+                        }
+                      }}
+                    />
+                    {multiPayer && (
+                      <View className="gap-2 mt-1">
+                        {members.map((m) => {
+                          const val = payerInputs[m.user.id] ?? "";
+                          if (!val && val !== "") return null;
+                          return (
+                            <View key={m.user.id} className="flex-row items-center gap-2">
+                              <Text className="flex-1 text-sm" numberOfLines={1}>
+                                {m.user.display_name}
                               </Text>
-                            </Pressable>
-                          ))}
-                        </View>
-                      </ScrollView>
-                    </View>
-                  )}
+                              <View className="w-28">
+                                <Input
+                                  value={val}
+                                  onChangeText={(text) => {
+                                    if (text === "" || /^\d*\.?\d{0,2}$/.test(text)) {
+                                      setPayerInputs((prev) => ({ ...prev, [m.user.id]: text }));
+                                    }
+                                  }}
+                                  keyboardType="decimal-pad"
+                                  placeholder="0.00"
+                                />
+                              </View>
+                              <Pressable
+                                onPress={() => {
+                                  setPayerInputs((prev) => {
+                                    const next = { ...prev };
+                                    delete next[m.user.id];
+                                    return next;
+                                  });
+                                }}
+                              >
+                                <X size={16} color="hsl(0 84.2% 60.2%)" />
+                              </Pressable>
+                            </View>
+                          );
+                        })}
+                        {/* 新增付款人按鈕 */}
+                        {members.filter((m) => !(m.user.id in payerInputs)).length > 0 && (
+                          <Pressable
+                            onPress={() => {
+                              const available = members.find((m) => !(m.user.id in payerInputs));
+                              if (available) {
+                                setPayerInputs((prev) => ({ ...prev, [available.user.id]: "" }));
+                              }
+                            }}
+                            className="py-2"
+                          >
+                            <Text className="text-sm text-primary">{t("add_payer")}</Text>
+                          </Pressable>
+                        )}
+                        {amount ? (() => {
+                          const payerSum = Object.values(payerInputs).reduce((acc, v) => acc + (Number(v) || 0), 0);
+                          const diff = Number(amount) - payerSum;
+                          const isBalanced = Math.abs(diff) < 0.01;
+                          return (
+                            <Text className={`text-sm font-medium ${isBalanced ? "text-primary" : "text-destructive"}`}>
+                              {diff >= 0 ? t("remaining") : t("exceeded")}: {Math.abs(diff).toFixed(2)}
+                            </Text>
+                          );
+                        })() : null}
+                      </View>
+                    )}
+                  </View>
 
                   {/* Participants */}
                   <View className="gap-2">
@@ -810,7 +1155,7 @@ export default function GroupDetailScreen() {
                           <Text className="flex-1 text-sm" numberOfLines={1}>
                             {m.user.display_name}
                           </Text>
-                          <View className="w-28">
+                          <View className={`${splitMethod === "ratio" ? "w-32 flex-row items-center gap-1" : "w-28"}`}>
                             <Input
                               value={splitInputs[m.user.id] ?? ""}
                               onChangeText={(text) => {
@@ -819,8 +1164,12 @@ export default function GroupDetailScreen() {
                                 }
                               }}
                               keyboardType="decimal-pad"
-                              placeholder={splitMethod === "exact" ? "0.00" : "1"}
+                              placeholder={splitMethod === "exact" ? "0.00" : splitMethod === "ratio" ? "0" : "1"}
+                              className={splitMethod === "ratio" ? "flex-1" : undefined}
                             />
+                            {splitMethod === "ratio" && (
+                              <Text className="text-sm text-muted-foreground">%</Text>
+                            )}
                           </View>
                         </View>
                       ))}
@@ -837,7 +1186,29 @@ export default function GroupDetailScreen() {
                             </Text>
                           );
                         })()
-                      ) : (splitMethod === "ratio" || splitMethod === "shares") && amount ? (
+                      ) : splitMethod === "ratio" && amount ? (
+                        (() => {
+                          const total = Number(amount);
+                          const totalPct = selectedMembersList.reduce((acc, m) => acc + (Number(splitInputs[m.user.id]) || 0), 0);
+                          const isBalanced = Math.abs(totalPct - 100) < 0.01;
+                          return (
+                            <View className="gap-1">
+                              <Text className={`text-sm font-medium ${isBalanced ? "text-primary" : "text-destructive"}`}>
+                                {t("total_percentage")}: {totalPct.toFixed(2)}%
+                              </Text>
+                              {totalPct > 0 && selectedMembersList.map((m) => {
+                                const pct = Number(splitInputs[m.user.id]) || 0;
+                                const est = (total * pct / 100).toFixed(2);
+                                return (
+                                  <Text key={m.user.id} className="text-xs text-muted-foreground">
+                                    {m.user.display_name}: {expenseCurrency} {est}
+                                  </Text>
+                                );
+                              })}
+                            </View>
+                          );
+                        })()
+                      ) : splitMethod === "shares" && amount ? (
                         (() => {
                           const total = Number(amount);
                           const totalShares = selectedMembersList.reduce((acc, m) => acc + (Number(splitInputs[m.user.id]) || 0), 0);
@@ -889,6 +1260,182 @@ export default function GroupDetailScreen() {
         transparent
         animationType="slide"
         onRequestClose={() => setShowAddMember(false)}
+        onShow={fetchFriendsForAdd}
+      >
+        <View className={`flex-1 ${themeClass}`}>
+        <KeyboardAvoidingView
+          className="flex-1 justify-end"
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <View className="flex-1 justify-end bg-black/50">
+            <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4 max-h-[80%]">
+              <View className="items-center mb-4">
+                <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+              </View>
+
+              <View className="flex-row items-center justify-between mb-4">
+                <H3>{t("add_member_title")}</H3>
+                <Pressable onPress={() => setShowAddMember(false)}>
+                  <X size={24} color="hsl(240 3.8% 46.1%)" />
+                </Pressable>
+              </View>
+
+              <ScrollView className="flex-shrink" showsVerticalScrollIndicator={false}>
+                <View className="gap-4">
+                  {/* Friend selection section */}
+                  <View>
+                    <Text className="text-sm font-medium text-muted-foreground mb-2">{t("from_friends")}</Text>
+                    {friendsLoading ? (
+                      <ActivityIndicator size="small" className="py-4" />
+                    ) : friendsForAdd.length === 0 ? (
+                      <Muted className="py-2">{t("no_friends_to_add")}</Muted>
+                    ) : (
+                      <View className="gap-2">
+                        {friendsForAdd.map((friend) => (
+                          <Card key={friend.id}>
+                            <CardContent className="flex-row items-center p-3 gap-3">
+                              <View className="h-9 w-9 rounded-full bg-muted items-center justify-center">
+                                <UsersThree size={18} color="hsl(240 3.8% 46.1%)" weight="regular" />
+                              </View>
+                              <View className="flex-1">
+                                <Text className="font-medium text-sm">{friend.display_name}</Text>
+                                <Muted className="text-xs">{friend.email}</Muted>
+                              </View>
+                              <Pressable
+                                onPress={() => handleAddFriendAsMember(friend)}
+                                disabled={addingFriendId === friend.id}
+                                className="h-8 w-8 rounded-full bg-primary items-center justify-center"
+                              >
+                                {addingFriendId === friend.id ? (
+                                  <ActivityIndicator size="small" color="white" />
+                                ) : (
+                                  <UserPlus size={16} color="white" weight="bold" />
+                                )}
+                              </Pressable>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Divider */}
+                  <View className="flex-row items-center gap-3">
+                    <View className="flex-1 h-px bg-border" />
+                    <Muted className="text-xs">{t("or_search_by_email")}</Muted>
+                    <View className="flex-1 h-px bg-border" />
+                  </View>
+
+                  {/* Email lookup section */}
+                  <View className="flex-row gap-2 items-end">
+                    <View className="flex-1">
+                      <Input
+                        label={t("email")}
+                        value={memberEmail}
+                        onChangeText={(text) => {
+                          setMemberEmail(text);
+                          setFoundUser(null);
+                          setLookupError("");
+                        }}
+                        placeholder={t("enter_email_to_add")}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                      />
+                    </View>
+                    <Button
+                      onPress={handleLookupUser}
+                      loading={lookingUp}
+                      disabled={lookingUp || !memberEmail.trim()}
+                      variant="outline"
+                      className="mb-0.5"
+                    >
+                      {t("lookup")}
+                    </Button>
+                  </View>
+
+                  {lookupError ? (
+                    <Text className="text-destructive text-sm">{lookupError}</Text>
+                  ) : null}
+
+                  {foundUser && (
+                    <Card>
+                      <CardContent className="flex-row items-center p-4 gap-3">
+                        <View className="h-10 w-10 rounded-full bg-muted items-center justify-center">
+                          <UsersThree size={20} color="hsl(240 3.8% 46.1%)" weight="regular" />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="font-medium">{foundUser.display_name}</Text>
+                          <Muted>{foundUser.email}</Muted>
+                        </View>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {foundUser && (
+                    <Button
+                      onPress={handleAddMember}
+                      loading={addingMember}
+                      disabled={addingMember || !foundUser}
+                      size="lg"
+                    >
+                      {t("add_member")}
+                    </Button>
+                  )}
+
+                  {/* Divider */}
+                  <View className="flex-row items-center gap-3 mt-2">
+                    <View className="flex-1 h-px bg-border" />
+                    <Muted className="text-xs">{t("or_invite_by_email")}</Muted>
+                    <View className="flex-1 h-px bg-border" />
+                  </View>
+
+                  {/* Email invitation section */}
+                  <View className="flex-row gap-2 items-end">
+                    <View className="flex-1">
+                      <Input
+                        label={t("email")}
+                        value={inviteEmail}
+                        onChangeText={(text) => {
+                          setInviteEmail(text);
+                          setInviteError("");
+                          setInviteSuccess("");
+                        }}
+                        placeholder={t("enter_email_to_invite")}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                      />
+                    </View>
+                    <Button
+                      onPress={handleSendEmailInvitation}
+                      loading={sendingInvite}
+                      disabled={sendingInvite || !inviteEmail.trim()}
+                      className="mb-0.5"
+                    >
+                      {t("send_invitation")}
+                    </Button>
+                  </View>
+
+                  {inviteError ? (
+                    <Text className="text-destructive text-sm">{inviteError}</Text>
+                  ) : null}
+
+                  {inviteSuccess ? (
+                    <Text className="text-income text-sm">{inviteSuccess}</Text>
+                  ) : null}
+                </View>
+              </ScrollView>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      {/* Group Settings Modal */}
+      <Modal
+        visible={showSettings}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowSettings(false)}
       >
         <View className={`flex-1 ${themeClass}`}>
         <KeyboardAvoidingView
@@ -900,67 +1447,54 @@ export default function GroupDetailScreen() {
               <View className="items-center mb-4">
                 <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
               </View>
-
               <View className="flex-row items-center justify-between mb-6">
-                <H3>{t("add_member_by_email")}</H3>
-                <Pressable onPress={() => setShowAddMember(false)}>
+                <H3>{t("group_settings")}</H3>
+                <Pressable onPress={() => setShowSettings(false)}>
                   <X size={24} color="hsl(240 3.8% 46.1%)" />
                 </Pressable>
               </View>
-
               <View className="gap-4">
-                <View className="flex-row gap-2 items-end">
-                  <View className="flex-1">
-                    <Input
-                      label={t("email")}
-                      value={memberEmail}
-                      onChangeText={(text) => {
-                        setMemberEmail(text);
-                        setFoundUser(null);
-                        setLookupError("");
-                      }}
-                      placeholder={t("enter_email_to_add")}
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                    />
-                  </View>
-                  <Button
-                    onPress={handleLookupUser}
-                    loading={lookingUp}
-                    disabled={lookingUp || !memberEmail.trim()}
-                    variant="outline"
-                    className="mb-0.5"
-                  >
-                    {t("lookup")}
-                  </Button>
-                </View>
-
-                {lookupError ? (
-                  <Text className="text-destructive text-sm">{lookupError}</Text>
+                <Input
+                  label={t("group_name")}
+                  value={editGroupName}
+                  onChangeText={(v) => { setEditGroupName(v); setSettingsError(null); }}
+                  placeholder={t("group_name")}
+                />
+                <CurrencyPicker
+                  label={t("default_currency")}
+                  value={editGroupCurrency}
+                  onSelect={setEditGroupCurrency}
+                />
+                {settingsError ? (
+                  <Text className="text-sm text-destructive">{settingsError}</Text>
                 ) : null}
-
-                {foundUser && (
-                  <Card>
-                    <CardContent className="flex-row items-center p-4 gap-3">
-                      <View className="h-10 w-10 rounded-full bg-muted items-center justify-center">
-                        <UsersThree size={20} color="hsl(240 3.8% 46.1%)" weight="regular" />
-                      </View>
-                      <View className="flex-1">
-                        <Text className="font-medium">{foundUser.display_name}</Text>
-                        <Muted>{foundUser.email}</Muted>
-                      </View>
-                    </CardContent>
-                  </Card>
-                )}
-
                 <Button
-                  onPress={handleAddMember}
-                  loading={addingMember}
-                  disabled={addingMember || !foundUser}
+                  onPress={async () => {
+                    if (!id || !editGroupName.trim()) return;
+                    setSettingsLoading(true);
+                    setSettingsError(null);
+                    try {
+                      await groupsAPI.update(id, {
+                        name: editGroupName.trim(),
+                        default_currency: editGroupCurrency,
+                      });
+                      setGroupName(editGroupName.trim());
+                      setGroupCurrency(editGroupCurrency);
+                      setShowSettings(false);
+                      await fetchData();
+                    } catch (e: any) {
+                      const msg = e.response?.data?.detail || e.message || t("group_update_failed");
+                      setSettingsError(msg);
+                    } finally {
+                      setSettingsLoading(false);
+                    }
+                  }}
+                  loading={settingsLoading}
+                  disabled={settingsLoading || !editGroupName.trim()}
                   size="lg"
                   className="mt-2"
                 >
-                  {t("add_member")}
+                  {t("save")}
                 </Button>
               </View>
             </View>
@@ -981,13 +1515,29 @@ export default function GroupDetailScreen() {
             <View className="bg-background rounded-xl px-5 py-6 w-full max-w-sm">
               <H3 className="mb-4">{t("settle_up_confirm")}</H3>
               {settleTarget && (
-                <Text className="text-base mb-4">
-                  {t("settle_up_confirm_msg", {
-                    from: settleTarget.from_user_name,
-                    amount: `${settleTarget.currency} ${parseFloat(settleTarget.amount).toLocaleString()}`,
-                    to: settleTarget.to_user_name,
-                  })}
-                </Text>
+                <>
+                  <Text className="text-base mb-3">
+                    {t("settle_up_confirm_msg", {
+                      from: settleTarget.from_user_name,
+                      amount: `${settleCurrency} ${parseFloat(settleAmount).toLocaleString()}`,
+                      to: settleTarget.to_user_name,
+                    })}
+                  </Text>
+                  <CurrencyPicker
+                    value={settleCurrency}
+                    onSelect={handleSettleCurrencyChange}
+                    label={t("currency")}
+                    className="mb-3"
+                  />
+                  {settleCurrency !== settleTarget.currency && settleRate != null && (
+                    <Text className="text-sm text-muted-foreground mb-3">
+                      {settleTarget.currency} {parseFloat(settleTarget.amount).toLocaleString()}
+                      {" → "}
+                      {settleCurrency} {parseFloat(settleAmount).toLocaleString()}
+                      {`  (1 ${settleTarget.currency} = ${settleRate} ${settleCurrency})`}
+                    </Text>
+                  )}
+                </>
               )}
               {settleError ? (
                 <Text className="text-sm text-destructive mb-3">{settleError}</Text>
@@ -997,14 +1547,14 @@ export default function GroupDetailScreen() {
                   variant="outline"
                   onPress={() => setSettleTarget(null)}
                   className="flex-1"
-                  disabled={settling}
+                  disabled={settling || converting}
                 >
                   {t("cancel")}
                 </Button>
                 <Button
                   onPress={() => settleTarget && handleSettleUp(settleTarget)}
                   loading={settling}
-                  disabled={settling}
+                  disabled={settling || converting}
                   className="flex-1"
                 >
                   {t("confirm")}

@@ -32,6 +32,21 @@ async def get_settlement_suggestions(
         raise HTTPException(status_code=403, detail=e.message)
 
 
+@router.get("/details")
+async def get_pairwise_details(
+    group_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """取得 pairwise 債務明細（不經簡化演算法）"""
+    try:
+        from app.services.group_service import check_membership
+        await check_membership(db, group_id, current_user.id)
+        return await settlement_service.get_pairwise_details(db, group_id)
+    except ForbiddenError as e:
+        raise HTTPException(status_code=403, detail=e.message)
+
+
 @router.post("", response_model=SettlementResponse, status_code=status.HTTP_201_CREATED)
 async def create_settlement(
     group_id: uuid.UUID,

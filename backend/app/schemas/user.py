@@ -29,6 +29,7 @@ class TokenResponse(BaseModel):
     refresh_token: str | None = None
     token_type: str = "bearer"
     user: UserResponse
+    pending_invitation_count: int = 0
 
 
 class RefreshTokenRequest(BaseModel):

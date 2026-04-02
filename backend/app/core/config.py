@@ -27,6 +27,16 @@ class Settings(BaseSettings):
     # CORS — 逗號分隔，生產環境應設為實際網域，例如 https://app.example.com
     ALLOWED_ORIGINS: str = "*"
 
+    # SendGrid
+    SENDGRID_API_KEY: str = ""
+    SENDGRID_FROM_EMAIL: str = "noreply@byosw.duckdns.org"
+
+    # Frontend URL (for email invitation links)
+    FRONTEND_URL: str = "https://byosw.duckdns.org"
+
+    # Email invitation
+    EMAIL_INVITATION_EXPIRE_DAYS: int = 7
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
 

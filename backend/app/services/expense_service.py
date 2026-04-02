@@ -7,9 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import ForbiddenError, NotFoundError, ValidationError
-from app.models.expense import Expense, ExpenseSplit
+from app.models.expense import Expense, ExpensePayer, ExpenseSplit
 from app.models.group import Group
-from app.schemas.expense import ExpenseCreate, ExpenseResponse, ExpenseSplitResponse, ExpenseUpdate
+from app.schemas.expense import (
+    ExpenseCreate, ExpensePayerResponse, ExpenseResponse, ExpenseSplitResponse, ExpenseUpdate,
+)
 from app.services.activity_log_service import log_activity
 from app.services.exchange_rate_service import get_rate
 from app.services.group_service import check_membership, get_group_member_ids
@@ -67,8 +69,19 @@ async def create_expense(
     await check_membership(db, group_id, user_id)
     member_ids = await get_group_member_ids(db, group_id)
 
-    if data.paid_by not in member_ids:
-        raise ValidationError("Payer is not a group member")
+    # 驗證付款人
+    if data.payers:
+        payer_total = sum(p.amount for p in data.payers)
+        if abs(payer_total - data.total_amount) > Decimal("0.01"):
+            raise ValidationError("Payer amounts don't add up to total")
+        for p in data.payers:
+            if p.user_id not in member_ids:
+                raise ValidationError("Payer is not a group member")
+        primary_payer = data.payers[0].user_id
+    else:
+        if data.paid_by not in member_ids:
+            raise ValidationError("Payer is not a group member")
+        primary_payer = data.paid_by
 
     # 取得群組預設幣別作為 base_currency，並查即時匯率作為快照參考
     group_result = await db.execute(select(Group).where(Group.id == group_id))
@@ -90,15 +103,24 @@ async def create_expense(
         currency=expense_currency,
         base_currency=base_currency,
         exchange_rate_to_base=rate,
-        paid_by=data.paid_by,
+        paid_by=primary_payer,
         split_method=data.split_method,
         note=data.note,
         expense_date=data.expense_date,
-        category_id=data.category_id,
         created_by=user_id,
     )
     db.add(expense)
     await db.flush()
+
+    # 多人付款記錄
+    if data.payers and len(data.payers) > 1:
+        for p in data.payers:
+            payer_record = ExpensePayer(
+                expense_id=expense.id,
+                user_id=p.user_id,
+                amount=p.amount,
+            )
+            db.add(payer_record)
 
     splits = calculate_splits(data, member_ids)
     for s in splits:
@@ -130,7 +152,7 @@ async def list_expenses(
         .options(
             selectinload(Expense.splits).selectinload(ExpenseSplit.user),
             selectinload(Expense.payer),
-            selectinload(Expense.category),
+            selectinload(Expense.payers).selectinload(ExpensePayer.user),
         )
         .order_by(Expense.created_at.desc())
     )
@@ -188,12 +210,37 @@ async def update_expense(
         expense.note = data.note
     if data.expense_date is not None:
         expense.expense_date = data.expense_date
-    if data.category_id is not None:
-        expense.category_id = data.category_id
-    if data.paid_by is not None:
+    # 處理付款人更新
+    if data.payers is not None:
+        payer_total = sum(p.amount for p in data.payers)
+        if abs(payer_total - (data.total_amount or expense.total_amount)) > Decimal("0.01"):
+            raise ValidationError("Payer amounts don't add up to total")
+        for p in data.payers:
+            if p.user_id not in member_ids:
+                raise ValidationError("Payer is not a group member")
+        expense.paid_by = data.payers[0].user_id
+        # 刪除舊的 payers
+        old_payers = await db.execute(
+            select(ExpensePayer).where(ExpensePayer.expense_id == expense.id)
+        )
+        for op in old_payers.scalars().all():
+            await db.delete(op)
+        # 多人付款才寫入
+        if len(data.payers) > 1:
+            for p in data.payers:
+                db.add(ExpensePayer(
+                    expense_id=expense.id, user_id=p.user_id, amount=p.amount,
+                ))
+    elif data.paid_by is not None:
         if data.paid_by not in member_ids:
             raise ValidationError("Payer is not a group member")
         expense.paid_by = data.paid_by
+        # 清除多人付款記錄
+        old_payers = await db.execute(
+            select(ExpensePayer).where(ExpensePayer.expense_id == expense.id)
+        )
+        for op in old_payers.scalars().all():
+            await db.delete(op)
 
     # Get group for default currency
     group_result = await db.execute(select(Group).where(Group.id == group_id))
@@ -268,7 +315,7 @@ async def get_expense_detail(
         .options(
             selectinload(Expense.splits).selectinload(ExpenseSplit.user),
             selectinload(Expense.payer),
-            selectinload(Expense.category),
+            selectinload(Expense.payers).selectinload(ExpensePayer.user),
         )
     )
     expense = result.scalar_one_or_none()
@@ -290,6 +337,14 @@ def format_expense(e: Expense) -> ExpenseResponse:
         base_amount=base_amount,
         paid_by=e.paid_by,
         payer_display_name=e.payer.display_name,
+        payers=[
+            ExpensePayerResponse(
+                user_id=p.user_id,
+                user_display_name=p.user.display_name,
+                amount=p.amount,
+            )
+            for p in e.payers
+        ] if e.payers else [],
         split_method=e.split_method,
         splits=[
             ExpenseSplitResponse(
@@ -303,7 +358,5 @@ def format_expense(e: Expense) -> ExpenseResponse:
         note=e.note,
         receipt_image_url=e.receipt_image_url,
         expense_date=e.expense_date,
-        category_id=e.category_id,
-        category_name=e.category.name if e.category else None,
         created_at=e.created_at,
     )
