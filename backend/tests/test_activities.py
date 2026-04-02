@@ -4,8 +4,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.expense import Expense, ExpenseSplit
-from app.models.settlement import Settlement
+from app.models.activity_log import ActivityLog
 from tests.conftest import auth_header
 
 pytestmark = pytest.mark.asyncio
@@ -21,24 +20,17 @@ class TestActivities:
     async def test_activities_include_expense(
         self, client: AsyncClient, db: AsyncSession, user_a, group_with_members
     ):
-        """新增費用後，activities 應包含 expense_added。"""
-        expense = Expense(
+        """activity_logs 有 expense_added 紀錄時，應正確回傳。"""
+        log = ActivityLog(
             group_id=group_with_members.id,
+            actor_id=user_a.id,
+            action="expense_added",
+            target_type="expense",
             description="晚餐",
-            total_amount=Decimal("300"),
-            currency="TWD",
-            paid_by=user_a.id,
-            created_by=user_a.id,
-        )
-        db.add(expense)
-        await db.flush()
-
-        split = ExpenseSplit(
-            expense_id=expense.id,
-            user_id=user_a.id,
             amount=Decimal("300"),
+            currency="TWD",
         )
-        db.add(split)
+        db.add(log)
         await db.flush()
 
         resp = await client.get("/api/v1/activities", headers=auth_header(user_a))
@@ -53,15 +45,17 @@ class TestActivities:
     async def test_activities_include_settlement(
         self, client: AsyncClient, db: AsyncSession, user_a, user_b, group_with_members
     ):
-        """建立結算後，activities 應包含 settlement_created。"""
-        settlement = Settlement(
+        """activity_logs 有 settlement_created 紀錄時，應正確回傳。"""
+        log = ActivityLog(
             group_id=group_with_members.id,
-            from_user=user_b.id,
-            to_user=user_a.id,
+            actor_id=user_b.id,
+            action="settlement_created",
+            target_type="settlement",
             amount=Decimal("150"),
             currency="TWD",
+            extra_name=user_a.display_name,
         )
-        db.add(settlement)
+        db.add(log)
         await db.flush()
 
         resp = await client.get("/api/v1/activities", headers=auth_header(user_a))
@@ -75,21 +69,21 @@ class TestActivities:
         self, client: AsyncClient, db: AsyncSession, user_a, user_c, group_with_members
     ):
         """user_c 不在群組內，看不到 group_with_members 的活動。"""
-        expense = Expense(
+        log = ActivityLog(
             group_id=group_with_members.id,
+            actor_id=user_a.id,
+            action="expense_added",
+            target_type="expense",
             description="秘密費用",
-            total_amount=Decimal("100"),
+            amount=Decimal("100"),
             currency="TWD",
-            paid_by=user_a.id,
-            created_by=user_a.id,
         )
-        db.add(expense)
+        db.add(log)
         await db.flush()
 
         resp = await client.get("/api/v1/activities", headers=auth_header(user_c))
         assert resp.status_code == 200
         data = resp.json()
-        # user_c 不應看到這筆費用
         descriptions = [i.get("description") for i in data]
         assert "秘密費用" not in descriptions
 
@@ -98,15 +92,16 @@ class TestActivities:
     ):
         """分頁：limit=1 只回傳 1 筆。"""
         for i in range(3):
-            e = Expense(
+            log = ActivityLog(
                 group_id=group_with_members.id,
+                actor_id=user_a.id,
+                action="expense_added",
+                target_type="expense",
                 description=f"費用{i}",
-                total_amount=Decimal("10"),
+                amount=Decimal("10"),
                 currency="TWD",
-                paid_by=user_a.id,
-                created_by=user_a.id,
             )
-            db.add(e)
+            db.add(log)
         await db.flush()
 
         resp = await client.get(

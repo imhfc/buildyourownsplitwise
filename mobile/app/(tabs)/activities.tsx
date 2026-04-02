@@ -6,6 +6,7 @@ import { Receipt, ArrowLeftRight, Activity } from "lucide-react-native";
 import { Text, Muted } from "~/components/ui/text";
 import { EmptyState } from "~/components/ui/empty-state";
 import { activitiesAPI } from "../../services/api";
+import { useNotificationStore } from "~/stores/notification";
 
 interface ActivityItem {
   type: "expense_added" | "settlement_created";
@@ -71,6 +72,7 @@ export default function ActivitiesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const hasFetched = useRef(false);
+  const markAsRead = useNotificationStore((s) => s.markAsRead);
 
   const fetchActivities = useCallback(async () => {
     const isFirstLoad = !hasFetched.current;
@@ -89,7 +91,9 @@ export default function ActivitiesScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchActivities();
-    }, [fetchActivities])
+      // 進入活動頁面時標記已讀
+      markAsRead();
+    }, [fetchActivities, markAsRead])
   );
 
   const onRefresh = async () => {

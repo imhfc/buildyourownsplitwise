@@ -10,6 +10,7 @@ from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from app.models.group import Group, GroupMember
 from app.models.user import User
 from app.schemas.group import GroupCreate, GroupResponse, GroupUpdate, SimplifiedDebt
+from app.services.activity_log_service import log_activity
 
 
 async def check_membership(
@@ -17,8 +18,12 @@ async def check_membership(
 ) -> GroupMember:
     """Verify user is a group member and return the membership record."""
     result = await db.execute(
-        select(GroupMember).where(
-            GroupMember.group_id == group_id, GroupMember.user_id == user_id
+        select(GroupMember)
+        .join(Group, GroupMember.group_id == Group.id)
+        .where(
+            GroupMember.group_id == group_id,
+            GroupMember.user_id == user_id,
+            Group.deleted_at.is_(None),
         )
     )
     member = result.scalar_one_or_none()
@@ -70,6 +75,7 @@ async def list_user_groups(db: AsyncSession, user_id: uuid.UUID) -> list[dict]:
             my_membership.role.label("my_role"),
             my_membership.sort_order,
         )
+        .where(Group.deleted_at.is_(None))
         .join(GroupMember, Group.id == GroupMember.group_id)
         .join(my_membership, (Group.id == my_membership.group_id) & (my_membership.user_id == user_id))
         .group_by(Group.id, my_membership.role, my_membership.sort_order)
@@ -169,7 +175,7 @@ async def delete_group(
 
     result = await db.execute(select(Group).where(Group.id == group_id))
     group = result.scalar_one()
-    await db.delete(group)
+    group.deleted_at = datetime.now(timezone.utc)
 
 
 async def add_member(
@@ -194,6 +200,14 @@ async def add_member(
     member = GroupMember(group_id=group_id, user_id=target_user_id)
     db.add(member)
 
+    # 查目標使用者名稱
+    target_result = await db.execute(select(User.display_name).where(User.id == target_user_id))
+    target_name = target_result.scalar_one_or_none() or "Unknown"
+    await log_activity(
+        db, group_id=group_id, actor_id=requester_id, action="member_added",
+        target_type="member", target_id=target_user_id, extra_name=target_name,
+    )
+
 
 async def remove_member(
     db: AsyncSession, group_id: uuid.UUID, requester_id: uuid.UUID, target_user_id: uuid.UUID
@@ -210,16 +224,27 @@ async def remove_member(
     target = result.scalar_one_or_none()
     if not target:
         raise NotFoundError("Member not found")
+
+    # 查目標使用者名稱
+    target_name_result = await db.execute(select(User.display_name).where(User.id == target_user_id))
+    target_name = target_name_result.scalar_one_or_none() or "Unknown"
+    await log_activity(
+        db, group_id=group_id, actor_id=requester_id, action="member_removed",
+        target_type="member", target_id=target_user_id, extra_name=target_name,
+    )
+
     await db.delete(target)
 
 
 async def get_group_detail(db: AsyncSession, group_id: uuid.UUID) -> GroupResponse:
     result = await db.execute(
         select(Group)
-        .where(Group.id == group_id)
+        .where(Group.id == group_id, Group.deleted_at.is_(None))
         .options(selectinload(Group.members).selectinload(GroupMember.user))
     )
-    group = result.scalar_one()
+    group = result.scalar_one_or_none()
+    if not group:
+        raise NotFoundError("Group not found")
     return GroupResponse(
         id=group.id,
         name=group.name,
@@ -296,7 +321,7 @@ async def regenerate_invite_token(
 async def get_invite_info(db: AsyncSession, token: str) -> dict:
     """Get group info from invite token."""
     result = await db.execute(
-        select(Group).where(Group.invite_token == token)
+        select(Group).where(Group.invite_token == token, Group.deleted_at.is_(None))
     )
     group = result.scalar_one_or_none()
     if not group:
@@ -317,7 +342,7 @@ async def accept_invite(
 ) -> uuid.UUID:
     """Accept invite and join group. Returns group_id."""
     result = await db.execute(
-        select(Group).where(Group.invite_token == token)
+        select(Group).where(Group.invite_token == token, Group.deleted_at.is_(None))
     )
     group = result.scalar_one_or_none()
     if not group:

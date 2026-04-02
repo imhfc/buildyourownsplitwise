@@ -168,6 +168,8 @@ export const settlementsAPI = {
 export const activitiesAPI = {
   list: (skip = 0, limit = 20) =>
     api.get("/activities", { params: { skip, limit } }),
+  unreadCount: () => api.get<{ count: number }>("/activities/unread-count"),
+  markRead: () => api.post<{ count: number }>("/activities/mark-read"),
 };
 
 // Exchange Rates

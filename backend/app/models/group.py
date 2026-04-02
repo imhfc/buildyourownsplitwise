@@ -21,6 +21,7 @@ class Group(Base):
     )
     invite_token: Mapped[str | None] = mapped_column(String(32), unique=True, index=True, nullable=True)
     invite_token_created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     members = relationship("GroupMember", back_populates="group", cascade="all, delete-orphan")

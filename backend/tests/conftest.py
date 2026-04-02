@@ -1,8 +1,15 @@
 import os
 import uuid
 from decimal import Decimal
+from pathlib import Path
 
 os.environ.setdefault("TESTING", "true")
+
+# 自動從 backend/.env 載入 TEST_DATABASE_URL 等環境變數
+from dotenv import load_dotenv
+
+_env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(_env_path, override=False)
 
 import pytest
 import pytest_asyncio
@@ -18,6 +25,8 @@ from app.models.group import Group, GroupMember
 from app.models.expense import Expense, ExpenseSplit
 from app.models.settlement import Settlement
 from app.models.friendship import Friendship  # noqa: F401
+from app.models.category import ExpenseCategory  # noqa: F401
+from app.models.activity_log import ActivityLog, ActivityRead  # noqa: F401
 
 # ---------------------------------------------------------------------------
 # 使用真實 PostgreSQL 進行測試（Neon serverless 或本機 Docker）
@@ -47,25 +56,27 @@ TestSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_com
 
 @pytest_asyncio.fixture(scope="session")
 async def setup_database():
-    """Create all tables once per test session."""
+    """確保測試 DB schema 存在。Neon 由 Alembic 管理，本機可 create_all。"""
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+        # create_all 只建立不存在的表，不會覆蓋 Alembic 管理的 schema
         await conn.run_sync(Base.metadata.create_all)
     yield
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+    # 不 drop_all — schema 由 Alembic 管理
 
 
 @pytest_asyncio.fixture
 async def db(setup_database):
-    """Provide a database session. 測試後清除所有資料（NullPool 避免 asyncpg 連線衝突）。"""
+    """Provide a database session. 測試後清除所有資料。"""
     session = AsyncSession(bind=engine, expire_on_commit=False)
     yield session
     await session.close()
-    # 清除所有測試資料（按 FK 順序）
+    # 清除所有測試資料（按 FK 逆序 DELETE，忽略不存在的表）
     async with engine.begin() as conn:
         for table in reversed(Base.metadata.sorted_tables):
-            await conn.execute(table.delete())
+            try:
+                await conn.execute(table.delete())
+            except Exception:
+                pass
 
 
 @pytest_asyncio.fixture

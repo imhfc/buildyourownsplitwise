@@ -15,6 +15,8 @@ from app.models.expense import Expense, ExpenseSplit  # noqa: F401
 from app.models.settlement import Settlement  # noqa: F401
 from app.models.exchange_rate import ExchangeRate  # noqa: F401
 from app.models.friendship import Friendship  # noqa: F401
+from app.models.category import ExpenseCategory  # noqa: F401
+from app.models.activity_log import ActivityLog, ActivityRead  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)

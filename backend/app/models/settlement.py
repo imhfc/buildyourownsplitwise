@@ -23,6 +23,15 @@ class Settlement(Base):
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
 
+    # 結算確認流程
+    status: Mapped[str] = mapped_column(String(20), default="pending", server_default="pending")
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # 統一幣別結算 — 匯率鎖定（分幣別結算時為 NULL）
+    original_currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    original_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    locked_rate: Mapped[Decimal | None] = mapped_column(Numeric(18, 8), nullable=True)
+
     # Relationships
     group = relationship("Group", back_populates="settlements")
     payer = relationship("User", foreign_keys=[from_user])

@@ -29,11 +29,16 @@ class Expense(Base):
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
     created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    category_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("expense_categories.id", ondelete="SET NULL"), nullable=True
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     group = relationship("Group", back_populates="expenses")
     payer = relationship("User", foreign_keys=[paid_by])
     creator = relationship("User", foreign_keys=[created_by])
+    category = relationship("ExpenseCategory")
     splits = relationship("ExpenseSplit", back_populates="expense", cascade="all, delete-orphan")
 
 

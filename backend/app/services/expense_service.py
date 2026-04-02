@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy import select
@@ -9,6 +10,7 @@ from app.core.exceptions import ForbiddenError, NotFoundError, ValidationError
 from app.models.expense import Expense, ExpenseSplit
 from app.models.group import Group
 from app.schemas.expense import ExpenseCreate, ExpenseResponse, ExpenseSplitResponse, ExpenseUpdate
+from app.services.activity_log_service import log_activity
 from app.services.exchange_rate_service import get_rate
 from app.services.group_service import check_membership, get_group_member_ids
 
@@ -92,6 +94,7 @@ async def create_expense(
         split_method=data.split_method,
         note=data.note,
         expense_date=data.expense_date,
+        category_id=data.category_id,
         created_by=user_id,
     )
     db.add(expense)
@@ -108,6 +111,12 @@ async def create_expense(
         db.add(split)
     await db.flush()
 
+    await log_activity(
+        db, group_id=group_id, actor_id=user_id, action="expense_added",
+        target_type="expense", target_id=expense.id,
+        description=data.description, amount=data.total_amount, currency=expense_currency,
+    )
+
     return await get_expense_detail(db, expense.id)
 
 
@@ -117,10 +126,11 @@ async def list_expenses(
     await check_membership(db, group_id, user_id)
     result = await db.execute(
         select(Expense)
-        .where(Expense.group_id == group_id)
+        .where(Expense.group_id == group_id, Expense.deleted_at.is_(None))
         .options(
             selectinload(Expense.splits).selectinload(ExpenseSplit.user),
             selectinload(Expense.payer),
+            selectinload(Expense.category),
         )
         .order_by(Expense.created_at.desc())
     )
@@ -132,13 +142,19 @@ async def delete_expense(
     db: AsyncSession, group_id: uuid.UUID, expense_id: uuid.UUID, user_id: uuid.UUID
 ) -> None:
     await check_membership(db, group_id, user_id)
-    result = await db.execute(select(Expense).where(Expense.id == expense_id))
+    result = await db.execute(select(Expense).where(Expense.id == expense_id, Expense.deleted_at.is_(None)))
     expense = result.scalar_one_or_none()
     if not expense:
         raise NotFoundError("Expense not found")
     if expense.created_by != user_id:
         raise ForbiddenError("Only creator can delete expense")
-    await db.delete(expense)
+    expense.deleted_at = datetime.now(timezone.utc)
+
+    await log_activity(
+        db, group_id=group_id, actor_id=user_id, action="expense_deleted",
+        target_type="expense", target_id=expense_id,
+        description=expense.description, amount=expense.total_amount, currency=expense.currency,
+    )
 
 
 async def update_expense(
@@ -153,7 +169,7 @@ async def update_expense(
 
     result = await db.execute(
         select(Expense)
-        .where(Expense.id == expense_id)
+        .where(Expense.id == expense_id, Expense.deleted_at.is_(None))
         .options(selectinload(Expense.splits))
     )
     expense = result.scalar_one_or_none()
@@ -172,6 +188,8 @@ async def update_expense(
         expense.note = data.note
     if data.expense_date is not None:
         expense.expense_date = data.expense_date
+    if data.category_id is not None:
+        expense.category_id = data.category_id
     if data.paid_by is not None:
         if data.paid_by not in member_ids:
             raise ValidationError("Payer is not a group member")
@@ -228,13 +246,20 @@ async def update_expense(
             db.add(new_split)
 
     await db.flush()
+
+    await log_activity(
+        db, group_id=group_id, actor_id=user_id, action="expense_updated",
+        target_type="expense", target_id=expense.id,
+        description=expense.description, amount=expense.total_amount, currency=expense.currency,
+    )
+
     return await get_expense_detail(db, expense.id)
 
 
 async def get_expense_detail(
     db: AsyncSession, expense_id: uuid.UUID, group_id: uuid.UUID | None = None
 ) -> ExpenseResponse:
-    conditions = [Expense.id == expense_id]
+    conditions = [Expense.id == expense_id, Expense.deleted_at.is_(None)]
     if group_id is not None:
         conditions.append(Expense.group_id == group_id)
     result = await db.execute(
@@ -243,6 +268,7 @@ async def get_expense_detail(
         .options(
             selectinload(Expense.splits).selectinload(ExpenseSplit.user),
             selectinload(Expense.payer),
+            selectinload(Expense.category),
         )
     )
     expense = result.scalar_one_or_none()
@@ -277,5 +303,7 @@ def format_expense(e: Expense) -> ExpenseResponse:
         note=e.note,
         receipt_image_url=e.receipt_image_url,
         expense_date=e.expense_date,
+        category_id=e.category_id,
+        category_name=e.category.name if e.category else None,
         created_at=e.created_at,
     )

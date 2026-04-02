@@ -445,9 +445,15 @@ export default function GroupDetailScreen() {
           <ChevronLeft size={24} color="hsl(var(--primary))" />
           <Text className="text-primary text-base">{t("groups")}</Text>
         </Pressable>
-        <Text className="flex-1 text-lg font-semibold text-foreground text-center mr-12" numberOfLines={1}>
+        <Text className="flex-1 text-lg font-semibold text-foreground text-center" numberOfLines={1}>
           {groupName}
         </Text>
+        <Pressable
+          onPress={() => setShowInvite(true)}
+          className="p-2 -mr-1"
+        >
+          <Link size={22} color="hsl(var(--primary))" />
+        </Pressable>
       </View>
 
       <SegmentedTabs
@@ -528,15 +534,7 @@ export default function GroupDetailScreen() {
 
       {tab === "expenses" && <FAB onPress={() => { setEditingExpenseId(null); setAddError(""); setDesc(""); setAmount(""); setSplitMethod("equal"); setSplitInputs({}); setSelectedMembers(new Set(members.map((m) => m.user.id))); setExpenseCurrency(groupCurrency); setShowAdd(true); }} />}
       {tab === "members" && (
-        <>
-          <Pressable
-            onPress={() => setShowInvite(true)}
-            className="absolute bottom-24 right-5 h-12 w-12 rounded-full bg-secondary items-center justify-center shadow-lg"
-          >
-            <Link size={22} color="hsl(var(--primary))" />
-          </Pressable>
-          <FAB onPress={() => { setShowAddMember(true); setMemberEmail(""); setFoundUser(null); setLookupError(""); }} />
-        </>
+        <FAB onPress={() => { setShowAddMember(true); setMemberEmail(""); setFoundUser(null); setLookupError(""); }} />
       )}
 
       <InviteShareModal

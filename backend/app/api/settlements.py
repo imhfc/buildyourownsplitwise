@@ -1,26 +1,33 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
-from app.core.exceptions import ForbiddenError
+from app.core.exceptions import ForbiddenError, NotFoundError, ValidationError
 from app.models.user import User
-from app.schemas.settlement import SettlementCreate, SettlementResponse, SettlementSuggestion
+from app.schemas.settlement import SettlementCreate, SettlementResponse, SettlementSuggestionsResponse
 from app.services import settlement_service
 
+# 群組內結算路由
 router = APIRouter(prefix="/groups/{group_id}/settlements", tags=["settlements"])
 
+# 跨群組結算路由（掛在 /api/v1/settlements）
+user_router = APIRouter(prefix="/settlements", tags=["settlements"])
 
-@router.get("/suggestions", response_model=list[SettlementSuggestion])
+
+@router.get("/suggestions", response_model=SettlementSuggestionsResponse)
 async def get_settlement_suggestions(
     group_id: uuid.UUID,
+    unified_currency: str | None = Query(None, description="指定幣別則統一結算，不帶則分幣別"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        return await settlement_service.get_settlement_suggestions(db, group_id, current_user.id)
+        return await settlement_service.get_settlement_suggestions(
+            db, group_id, current_user.id, unified_currency=unified_currency,
+        )
     except ForbiddenError as e:
         raise HTTPException(status_code=403, detail=e.message)
 
@@ -38,13 +45,45 @@ async def create_settlement(
         raise HTTPException(status_code=403, detail=e.message)
 
 
-@router.get("", response_model=list[SettlementResponse])
-async def list_settlements(
+@router.patch("/{settlement_id}/confirm", response_model=SettlementResponse)
+async def confirm_settlement(
     group_id: uuid.UUID,
+    settlement_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        return await settlement_service.list_settlements(db, group_id, current_user.id)
+        return await settlement_service.confirm_settlement(
+            db, group_id, settlement_id, current_user.id,
+        )
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=e.message)
     except ForbiddenError as e:
         raise HTTPException(status_code=403, detail=e.message)
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=e.message)
+
+
+@router.get("", response_model=list[SettlementResponse])
+async def list_settlements(
+    group_id: uuid.UUID,
+    status_filter: str | None = Query(None, alias="status", description="pending / confirmed"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        return await settlement_service.list_settlements(
+            db, group_id, current_user.id, status=status_filter,
+        )
+    except ForbiddenError as e:
+        raise HTTPException(status_code=403, detail=e.message)
+
+
+# --- 跨群組端點 ---
+
+@user_router.get("/pending", response_model=list[SettlementResponse])
+async def list_pending_settlements(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await settlement_service.list_pending_settlements(db, current_user.id)

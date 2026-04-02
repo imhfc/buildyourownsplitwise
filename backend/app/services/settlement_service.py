@@ -1,20 +1,63 @@
 import uuid
 from collections import defaultdict
+from datetime import datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.exceptions import ForbiddenError
+from app.core.exceptions import ForbiddenError, NotFoundError, ValidationError
 from app.models.expense import Expense, ExpenseSplit
 from app.models.group import Group
 from app.models.settlement import Settlement
 from app.models.user import User
-from app.schemas.settlement import SettlementCreate, SettlementResponse, SettlementSuggestion
+from app.schemas.settlement import (
+    CurrencyGroupSuggestions,
+    ExchangeRateInfo,
+    SettlementCreate,
+    SettlementResponse,
+    SettlementSuggestion,
+    SettlementSuggestionsResponse,
+    UnifiedSuggestions,
+)
+from app.services.activity_log_service import log_activity
 from app.services.exchange_rate_service import get_rate
 from app.services.group_service import check_membership
 
+
+# ---------------------------------------------------------------------------
+# 內部工具
+# ---------------------------------------------------------------------------
+
+def _confirmed_filter():
+    """只計入已確認的 settlement（相容舊資料 status IS NULL）"""
+    return or_(Settlement.status == "confirmed", Settlement.status.is_(None))
+
+
+def _build_response(s: Settlement, user_map: dict[uuid.UUID, str]) -> SettlementResponse:
+    return SettlementResponse(
+        id=s.id,
+        group_id=s.group_id,
+        from_user=s.from_user,
+        from_user_name=user_map.get(s.from_user, "Unknown"),
+        to_user=s.to_user,
+        to_user_name=user_map.get(s.to_user, "Unknown"),
+        amount=s.amount,
+        currency=s.currency,
+        note=s.note,
+        status=s.status,
+        settled_at=s.settled_at,
+        confirmed_at=s.confirmed_at,
+        original_currency=s.original_currency,
+        original_amount=s.original_amount,
+        locked_rate=s.locked_rate,
+    )
+
+
+# ---------------------------------------------------------------------------
+# 餘額計算 — 統一幣別（原有邏輯，供 balance_service 使用）
+# ---------------------------------------------------------------------------
 
 async def calculate_balances(
     db: AsyncSession, group_id: uuid.UUID
@@ -22,19 +65,16 @@ async def calculate_balances(
     """
     Calculate net balance for each user, converted to the group's base currency.
     Positive = others owe them. Negative = they owe others.
+    Only confirmed settlements are counted.
     """
-    # 取得群組預設幣別
     group_result = await db.execute(select(Group).where(Group.id == group_id))
     group = group_result.scalar_one()
     base_currency = group.default_currency
 
     balances: dict[uuid.UUID, Decimal] = defaultdict(Decimal)
-
-    # 快取匯率，避免重複查詢同一幣別
     rate_cache: dict[str, Decimal] = {}
 
     async def to_base(amount: Decimal, currency: str) -> Decimal:
-        """將金額轉換成群組 base currency"""
         currency = currency.upper()
         if currency == base_currency.upper():
             return amount
@@ -45,7 +85,7 @@ async def calculate_balances(
 
     result = await db.execute(
         select(Expense)
-        .where(Expense.group_id == group_id)
+        .where(Expense.group_id == group_id, Expense.deleted_at.is_(None))
         .options(selectinload(Expense.splits))
     )
     expenses = result.scalars().all()
@@ -58,7 +98,10 @@ async def calculate_balances(
             balances[split.user_id] -= converted_split
 
     settlement_result = await db.execute(
-        select(Settlement).where(Settlement.group_id == group_id)
+        select(Settlement).where(
+            Settlement.group_id == group_id,
+            _confirmed_filter(),
+        )
     )
     settlements = settlement_result.scalars().all()
 
@@ -69,6 +112,127 @@ async def calculate_balances(
 
     return {uid: bal for uid, bal in balances.items() if abs(bal) > Decimal("0.01")}
 
+
+# ---------------------------------------------------------------------------
+# 餘額計算 — 分幣別（Phase 2）
+# ---------------------------------------------------------------------------
+
+async def calculate_balances_by_currency(
+    db: AsyncSession, group_id: uuid.UUID
+) -> dict[str, dict[uuid.UUID, Decimal]]:
+    """
+    按 expense.currency 分組計算淨餘額，不做幣別轉換。
+    回傳：{ "USD": {user_a: +50, user_b: -50}, "TWD": {...} }
+    """
+    result = await db.execute(
+        select(Expense)
+        .where(Expense.group_id == group_id, Expense.deleted_at.is_(None))
+        .options(selectinload(Expense.splits))
+    )
+    expenses = result.scalars().all()
+
+    # currency -> user_id -> balance
+    by_currency: dict[str, dict[uuid.UUID, Decimal]] = defaultdict(lambda: defaultdict(Decimal))
+
+    for expense in expenses:
+        cur = expense.currency.upper()
+        by_currency[cur][expense.paid_by] += expense.total_amount
+        for split in expense.splits:
+            by_currency[cur][split.user_id] -= split.amount
+
+    # 只計入 confirmed settlement
+    settlement_result = await db.execute(
+        select(Settlement).where(
+            Settlement.group_id == group_id,
+            _confirmed_filter(),
+        )
+    )
+    settlements = settlement_result.scalars().all()
+
+    for s in settlements:
+        cur = s.currency.upper()
+        by_currency[cur][s.from_user] += s.amount
+        by_currency[cur][s.to_user] -= s.amount
+
+    # 過濾掉接近零的餘額
+    cleaned: dict[str, dict[uuid.UUID, Decimal]] = {}
+    for cur, balances in by_currency.items():
+        filtered = {uid: bal for uid, bal in balances.items() if abs(bal) > Decimal("0.01")}
+        if filtered:
+            cleaned[cur] = filtered
+
+    return cleaned
+
+
+# ---------------------------------------------------------------------------
+# 餘額計算 — 統一幣別（Phase 3，指定目標幣別）
+# ---------------------------------------------------------------------------
+
+async def calculate_balances_unified(
+    db: AsyncSession, group_id: uuid.UUID, target_currency: str
+) -> tuple[dict[uuid.UUID, Decimal], list[ExchangeRateInfo]]:
+    """
+    所有幣別轉換為 target_currency 後計算淨餘額。
+    回傳：(balances_dict, exchange_rates_used)
+    """
+    balances: dict[uuid.UUID, Decimal] = defaultdict(Decimal)
+    rate_cache: dict[str, tuple[Decimal, datetime]] = {}
+    target = target_currency.upper()
+
+    async def to_target(amount: Decimal, currency: str) -> Decimal:
+        currency = currency.upper()
+        if currency == target:
+            return amount
+        if currency not in rate_cache:
+            rate, fetched_at = await get_rate(db, currency, target)
+            rate_cache[currency] = (rate, fetched_at)
+        return round(amount * rate_cache[currency][0], 2)
+
+    result = await db.execute(
+        select(Expense)
+        .where(Expense.group_id == group_id, Expense.deleted_at.is_(None))
+        .options(selectinload(Expense.splits))
+    )
+    expenses = result.scalars().all()
+
+    for expense in expenses:
+        converted_total = await to_target(expense.total_amount, expense.currency)
+        balances[expense.paid_by] += converted_total
+        for split in expense.splits:
+            converted_split = await to_target(split.amount, expense.currency)
+            balances[split.user_id] -= converted_split
+
+    settlement_result = await db.execute(
+        select(Settlement).where(
+            Settlement.group_id == group_id,
+            _confirmed_filter(),
+        )
+    )
+    settlements = settlement_result.scalars().all()
+
+    for s in settlements:
+        converted_amount = await to_target(s.amount, s.currency)
+        balances[s.from_user] += converted_amount
+        balances[s.to_user] -= converted_amount
+
+    filtered = {uid: bal for uid, bal in balances.items() if abs(bal) > Decimal("0.01")}
+
+    rates_used = [
+        ExchangeRateInfo(
+            from_currency=cur,
+            to_currency=target,
+            rate=rate,
+            fetched_at=fetched_at,
+        )
+        for cur, (rate, fetched_at) in rate_cache.items()
+    ]
+
+    return filtered, rates_used
+
+
+# ---------------------------------------------------------------------------
+# 貪婪演算法簡化債務（不變）
+# ---------------------------------------------------------------------------
 
 def simplify_debts(balances: dict[uuid.UUID, Decimal]) -> list[dict]:
     """
@@ -113,36 +277,99 @@ def simplify_debts(balances: dict[uuid.UUID, Decimal]) -> list[dict]:
     return transactions
 
 
+# ---------------------------------------------------------------------------
+# 結算建議（支援分幣別 / 統一幣別）
+# ---------------------------------------------------------------------------
+
 async def get_settlement_suggestions(
-    db: AsyncSession, group_id: uuid.UUID, user_id: uuid.UUID
-) -> list[SettlementSuggestion]:
+    db: AsyncSession,
+    group_id: uuid.UUID,
+    user_id: uuid.UUID,
+    unified_currency: str | None = None,
+) -> SettlementSuggestionsResponse:
+    """
+    unified_currency=None  -> 分幣別模式（預設）
+    unified_currency="TWD" -> 統一幣別模式
+    """
     await check_membership(db, group_id, user_id)
 
-    group_result = await db.execute(select(Group).where(Group.id == group_id))
-    group = group_result.scalar_one()
-
-    balances = await calculate_balances(db, group_id)
-    if not balances:
-        return []
-
-    user_ids = list(balances.keys())
-    user_result = await db.execute(select(User).where(User.id.in_(user_ids)))
-    user_map = {u.id: u.display_name for u in user_result.scalars().all()}
-
-    transactions = simplify_debts(balances)
-
-    return [
-        SettlementSuggestion(
-            from_user_id=t["from"],
-            from_user_name=user_map.get(t["from"], "Unknown"),
-            to_user_id=t["to"],
-            to_user_name=user_map.get(t["to"], "Unknown"),
-            amount=t["amount"],
-            currency=group.default_currency,
+    if unified_currency:
+        # --- 統一幣別模式 ---
+        balances, rates_used = await calculate_balances_unified(
+            db, group_id, unified_currency
         )
-        for t in transactions
-    ]
+        if not balances:
+            return SettlementSuggestionsResponse(
+                mode="unified",
+                unified=UnifiedSuggestions(
+                    target_currency=unified_currency, suggestions=[], exchange_rates=rates_used,
+                ),
+            )
 
+        user_map = await _load_user_names(db, list(balances.keys()))
+        transactions = simplify_debts(balances)
+
+        suggestions = [
+            SettlementSuggestion(
+                from_user_id=t["from"],
+                from_user_name=user_map.get(t["from"], "Unknown"),
+                to_user_id=t["to"],
+                to_user_name=user_map.get(t["to"], "Unknown"),
+                amount=t["amount"],
+                currency=unified_currency,
+            )
+            for t in transactions
+        ]
+        return SettlementSuggestionsResponse(
+            mode="unified",
+            unified=UnifiedSuggestions(
+                target_currency=unified_currency,
+                suggestions=suggestions,
+                exchange_rates=rates_used,
+            ),
+        )
+
+    # --- 分幣別模式（預設）---
+    balances_map = await calculate_balances_by_currency(db, group_id)
+    if not balances_map:
+        return SettlementSuggestionsResponse(mode="by_currency", by_currency=[])
+
+    # 收集所有涉及的 user_id
+    all_user_ids: set[uuid.UUID] = set()
+    for balances in balances_map.values():
+        all_user_ids.update(balances.keys())
+    user_map = await _load_user_names(db, list(all_user_ids))
+
+    groups: list[CurrencyGroupSuggestions] = []
+    for cur, balances in sorted(balances_map.items()):
+        transactions = simplify_debts(balances)
+        suggestions = [
+            SettlementSuggestion(
+                from_user_id=t["from"],
+                from_user_name=user_map.get(t["from"], "Unknown"),
+                to_user_id=t["to"],
+                to_user_name=user_map.get(t["to"], "Unknown"),
+                amount=t["amount"],
+                currency=cur,
+            )
+            for t in transactions
+        ]
+        if suggestions:
+            groups.append(CurrencyGroupSuggestions(currency=cur, suggestions=suggestions))
+
+    return SettlementSuggestionsResponse(mode="by_currency", by_currency=groups)
+
+
+async def _load_user_names(db: AsyncSession, user_ids: list[uuid.UUID]) -> dict[uuid.UUID, str]:
+    if not user_ids:
+        return {}
+    user_result = await db.execute(select(User).where(User.id.in_(user_ids)))
+    return {u.id: u.display_name for u in user_result.scalars().all()}
+
+
+# ---------------------------------------------------------------------------
+# 建立結算
+# ---------------------------------------------------------------------------
 
 async def create_settlement(
     db: AsyncSession,
@@ -160,40 +387,93 @@ async def create_settlement(
         amount=data.amount,
         currency=data.currency,
         note=data.note,
+        status="pending",
+        original_currency=data.original_currency,
+        original_amount=data.original_amount,
+        locked_rate=data.locked_rate,
     )
     db.add(settlement)
     await db.flush()
 
-    user_result = await db.execute(
-        select(User).where(User.id.in_([from_user_id, data.to_user]))
+    user_result_for_log = await db.execute(
+        select(User.display_name).where(User.id == data.to_user)
     )
-    users = {u.id: u.display_name for u in user_result.scalars().all()}
+    payee_name = user_result_for_log.scalar_one_or_none() or "Unknown"
 
-    return SettlementResponse(
-        id=settlement.id,
-        group_id=settlement.group_id,
-        from_user=settlement.from_user,
-        from_user_name=users.get(settlement.from_user, ""),
-        to_user=settlement.to_user,
-        to_user_name=users.get(settlement.to_user, ""),
-        amount=settlement.amount,
-        currency=settlement.currency,
-        note=settlement.note,
-        settled_at=settlement.settled_at,
+    await log_activity(
+        db, group_id=group_id, actor_id=from_user_id, action="settlement_created",
+        target_type="settlement", target_id=settlement.id,
+        amount=data.amount, currency=data.currency, extra_name=payee_name,
     )
 
+    user_map = await _load_user_names(db, [from_user_id, data.to_user])
+    return _build_response(settlement, user_map)
+
+
+# ---------------------------------------------------------------------------
+# 確認結算（收款方操作）
+# ---------------------------------------------------------------------------
+
+async def confirm_settlement(
+    db: AsyncSession,
+    group_id: uuid.UUID,
+    settlement_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> SettlementResponse:
+    result = await db.execute(
+        select(Settlement).where(
+            Settlement.id == settlement_id,
+            Settlement.group_id == group_id,
+        )
+    )
+    settlement = result.scalar_one_or_none()
+    if not settlement:
+        raise NotFoundError("Settlement not found")
+
+    if settlement.to_user != user_id:
+        raise ForbiddenError("Only the payee can confirm a settlement")
+
+    if settlement.status != "pending":
+        raise ValidationError(f"Settlement is already {settlement.status}")
+
+    settlement.status = "confirmed"
+    settlement.confirmed_at = datetime.now(timezone.utc)
+    await db.flush()
+
+    await log_activity(
+        db, group_id=group_id, actor_id=user_id, action="settlement_confirmed",
+        target_type="settlement", target_id=settlement.id,
+        amount=settlement.amount, currency=settlement.currency,
+    )
+
+    user_map = await _load_user_names(db, [settlement.from_user, settlement.to_user])
+    return _build_response(settlement, user_map)
+
+
+# ---------------------------------------------------------------------------
+# 列出結算（群組內，支援 status filter）
+# ---------------------------------------------------------------------------
 
 async def list_settlements(
-    db: AsyncSession, group_id: uuid.UUID, user_id: uuid.UUID
+    db: AsyncSession,
+    group_id: uuid.UUID,
+    user_id: uuid.UUID,
+    status: str | None = None,
 ) -> list[SettlementResponse]:
     await check_membership(db, group_id, user_id)
-    result = await db.execute(
+
+    query = (
         select(Settlement)
         .where(Settlement.group_id == group_id)
         .options(selectinload(Settlement.payer), selectinload(Settlement.payee))
         .order_by(Settlement.settled_at.desc())
     )
+    if status:
+        query = query.where(Settlement.status == status)
+
+    result = await db.execute(query)
     settlements = result.scalars().all()
+
     return [
         SettlementResponse(
             id=s.id,
@@ -205,7 +485,50 @@ async def list_settlements(
             amount=s.amount,
             currency=s.currency,
             note=s.note,
+            status=s.status,
             settled_at=s.settled_at,
+            confirmed_at=s.confirmed_at,
+            original_currency=s.original_currency,
+            original_amount=s.original_amount,
+            locked_rate=s.locked_rate,
+        )
+        for s in settlements
+    ]
+
+
+# ---------------------------------------------------------------------------
+# 跨群組待確認結算列表
+# ---------------------------------------------------------------------------
+
+async def list_pending_settlements(
+    db: AsyncSession, user_id: uuid.UUID
+) -> list[SettlementResponse]:
+    """列出所有待當前使用者確認的結算（跨群組）"""
+    result = await db.execute(
+        select(Settlement)
+        .where(Settlement.to_user == user_id, Settlement.status == "pending")
+        .options(selectinload(Settlement.payer), selectinload(Settlement.payee))
+        .order_by(Settlement.settled_at.desc())
+    )
+    settlements = result.scalars().all()
+
+    return [
+        SettlementResponse(
+            id=s.id,
+            group_id=s.group_id,
+            from_user=s.from_user,
+            from_user_name=s.payer.display_name,
+            to_user=s.to_user,
+            to_user_name=s.payee.display_name,
+            amount=s.amount,
+            currency=s.currency,
+            note=s.note,
+            status=s.status,
+            settled_at=s.settled_at,
+            confirmed_at=s.confirmed_at,
+            original_currency=s.original_currency,
+            original_amount=s.original_amount,
+            locked_rate=s.locked_rate,
         )
         for s in settlements
     ]

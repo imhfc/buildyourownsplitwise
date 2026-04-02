@@ -20,6 +20,7 @@ class ExpenseCreate(BaseModel):
     splits: list[ExpenseSplitInput] = []
     note: str | None = None
     expense_date: date | None = None
+    category_id: uuid.UUID | None = None
 
 
 class ExpenseUpdate(BaseModel):
@@ -31,6 +32,7 @@ class ExpenseUpdate(BaseModel):
     splits: list[ExpenseSplitInput] | None = None
     note: str | None = None
     expense_date: date | None = None
+    category_id: uuid.UUID | None = None
 
 
 class ExpenseSplitResponse(BaseModel):
@@ -58,6 +60,8 @@ class ExpenseResponse(BaseModel):
     note: str | None
     receipt_image_url: str | None
     expense_date: date | None
+    category_id: uuid.UUID | None = None
+    category_name: str | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
