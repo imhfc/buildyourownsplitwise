@@ -379,3 +379,4 @@ cd backend && pytest tests/
 | 布林旗標只檢查「結果為零」就判定為「已完成」 | `is_settled` 等代表「完成」語意的旗標，必須同時檢查「曾經開始過」（如 `expense_count > 0`），零狀態實體（如新群組無費用）不等於已完成 |
 | 新增 `log_activity(action="xxx")` 但未同步更新 `ActivityType` | 新增任何 activity action 值時，必須同步更新 4 處：(1) `schemas/activity.py` ActivityType Literal (2) 前端 `activities.tsx` ActivityType union + switch cases (3) 三語 i18n JSON (4) 前端 icon/style/description。缺任一處 = 活動列表整頁 500 |
 | async session 中使用 `db.expire_all()` | `expire_all()` 會 expire 整個 identity map（含測試 fixture），觸發同步 lazy load → `MissingGreenlet`；改用 `db.expire(specific_obj)` 只 expire 需要重載的物件，且呼叫前先將後續需要的屬性存到區域變數 |
+| `backend/.env` 的 `TEST_DATABASE_URL` 指向雲端 DB | 必須指向本機 `127.0.0.1` 且含 `ssl=disable`；指向雲端（Neon/RDS）會因跨洋 RTT 導致測試慢 100 倍以上（每次 TRUNCATE 3.5 秒 vs 本機 0.01 秒），規範文件寫了兩次沒用，必須靠 quality-gate.sh C-19 自動檢查 |

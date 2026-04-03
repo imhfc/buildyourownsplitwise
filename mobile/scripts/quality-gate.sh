@@ -163,6 +163,21 @@ else
   green "C-17 schemas/activity.py 不存在（跳過）"
 fi
 
+# ── C-19：backend/.env TEST_DATABASE_URL 必須指向本機 ────────────────────────
+BACKEND_ENV="$(cd "$MOBILE_DIR/.." && pwd)/backend/.env"
+if [ -f "$BACKEND_ENV" ]; then
+  TEST_DB_URL=$(grep '^TEST_DATABASE_URL=' "$BACKEND_ENV" 2>/dev/null | head -1 | cut -d= -f2-)
+  if [ -z "$TEST_DB_URL" ]; then
+    red   "C-19 backend/.env 缺少 TEST_DATABASE_URL（測試 DB 未設定）"
+  elif echo "$TEST_DB_URL" | grep -q '127\.0\.0\.1' && echo "$TEST_DB_URL" | grep -q 'ssl=disable'; then
+    green "C-19 TEST_DATABASE_URL 指向本機（127.0.0.1 + ssl=disable）"
+  else
+    red   "C-19 TEST_DATABASE_URL 未指向本機：$TEST_DB_URL（必須包含 127.0.0.1 且 ssl=disable，禁止指向雲端 DB）"
+  fi
+else
+  green "C-19 backend/.env 不存在（跳過）"
+fi
+
 # ── 結果 ──────────────────────────────────────────────────────────────────────
 echo ""
 echo "=== 結果：PASS=$PASS  FAIL=$FAIL ==="
