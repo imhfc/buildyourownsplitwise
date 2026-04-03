@@ -7,9 +7,7 @@
 3. **新功能必寫新測試** — 新端點或功能必須觸發 `/write-tests` 撰寫對應測試案例並執行，未附測試的功能不算完成。
 4. **既有功能必跑回歸測試** — 任何改動（含 bug 修復、重構）完成後，必須執行完整測試套件確認既有功能未被破壞：
    ```bash
-   # 第一次或 DB container 未啟動時
-   docker compose -f docker-compose.test.yml up -d db-test
-   # 後端回歸測試（打真實 PostgreSQL，port 5433）
+   # 後端回歸測試（打本機 PostgreSQL，port 5432）
    cd backend && pytest tests/
    ```
    若需自訂 DB 位址：`TEST_DATABASE_URL=postgresql+asyncpg://... pytest tests/`
@@ -294,7 +292,6 @@ EXPO_PUBLIC_API_URL=https://byosw.duckdns.org/api/v1 npx expo start --web
 #### 跑測試（使用獨立 PostgreSQL，不影響 dev DB）
 
 ```bash
-docker compose -f docker-compose.test.yml up -d db-test
 cd backend && pytest tests/
 ```
 
@@ -381,3 +378,4 @@ cd backend && pytest tests/
 | 兩個 scheme 色相差距 < 30 度 | 新增 scheme 前檢查所有現有 hue，任意兩者差距 >= 30 度，否則視覺無法區分 |
 | 布林旗標只檢查「結果為零」就判定為「已完成」 | `is_settled` 等代表「完成」語意的旗標，必須同時檢查「曾經開始過」（如 `expense_count > 0`），零狀態實體（如新群組無費用）不等於已完成 |
 | 新增 `log_activity(action="xxx")` 但未同步更新 `ActivityType` | 新增任何 activity action 值時，必須同步更新 4 處：(1) `schemas/activity.py` ActivityType Literal (2) 前端 `activities.tsx` ActivityType union + switch cases (3) 三語 i18n JSON (4) 前端 icon/style/description。缺任一處 = 活動列表整頁 500 |
+| async session 中使用 `db.expire_all()` | `expire_all()` 會 expire 整個 identity map（含測試 fixture），觸發同步 lazy load → `MissingGreenlet`；改用 `db.expire(specific_obj)` 只 expire 需要重載的物件，且呼叫前先將後續需要的屬性存到區域變數 |

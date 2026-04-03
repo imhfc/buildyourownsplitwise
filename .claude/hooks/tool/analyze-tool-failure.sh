@@ -39,8 +39,8 @@ if [[ "$command" =~ pytest ]] && [[ "$error_msg" =~ (FAILED|ERROR|failed) ]]; th
         context="[ERROR] 資料庫連線失敗
 
 **建議修正**：
-1. 確認測試 DB 已啟動：docker compose -f docker-compose.test.yml up -d db-test
-2. 確認 TEST_DATABASE_URL 設定正確（port 5433）
+1. 確認本機 PostgreSQL 已啟動：brew services start postgresql@16
+2. 確認 TEST_DATABASE_URL 設定正確（port 5432）
 3. 檢查 PostgreSQL 日誌"
 
     # 斷言失敗

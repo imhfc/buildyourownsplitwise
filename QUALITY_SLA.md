@@ -111,6 +111,7 @@ pytest backend/tests/                  # SLA-5：後端測試
 | C-15 | `settlement_service.py` 的 `create_settlement` 必須驗證 `from_user_id != data.to_user`，禁止自己對自己結清 | SLA-5 | 2026-04-03 自我結算垃圾資料影響餘額計算 |
 | C-16 | `group_service.py` 的 `list_user_groups` 查詢必須包含 `expense_count` 子查詢，`is_settled` 判斷必須同時滿足 `debts == 0 AND expense_count > 0`，零費用群組不得被標記為已結清 | SLA-5 | 2026-04-03 新群組零狀態被誤判為已結清 |
 | C-17 | `log_activity()` 的所有 `action` 值必須同時存在於：(1) `schemas/activity.py` 的 `ActivityType` Literal (2) 前端 `activities.tsx` 的 `ActivityType` union (3) 三語 i18n JSON (4) 前端 `getActivityStyle`/`ActivityIcon`/`buildDescription` 的 switch cases。任一處缺漏 = 活動列表整頁 500 | SLA-5 | 2026-04-03 email_invitation_cancelled 未加入 ActivityType 導致 Pydantic ValidationError |
+| C-18 | `backend/app/services/` 中禁止使用 `db.expire_all()`，必須用 `db.expire(specific_obj)` 針對特定物件；且 expire 前必須先將後續需要的屬性存到區域變數 | SLA-5 | 2026-04-03 update_expense 的 expire_all 導致 MissingGreenlet |
 
 ---
 
@@ -132,3 +133,4 @@ pytest backend/tests/                  # SLA-5：後端測試
 | 2026-04-03 | P1 | 雙方都能按結清，產生方向反轉和自我結算的垃圾資料 | **雙重根因**：(1) 前端結清按鈕條件用 `from_user_id \|\| to_user_id`，收款方也能點結清，但後端 `create_settlement` 把 `current_user` 設為 `from_user` → 方向反轉；(2) 後端未驗證 `from_user != to_user`，導致自己對自己結清的紀錄寫入 DB 影響餘額。解法：前端結清按鈕限定 `from_user_id === user?.id`，收款方只保留「發送提醒」；後端新增 `from_user == to_user` 驗證；群組 tab 加 badge 顯示 pending 數量 | C-14, C-15 |
 | 2026-04-03 | P2 | 新建立的群組馬上被歸類到「已結清群組」 | `is_settled` 只檢查 `debts == 0`，新群組無任何費用所以債務為零，零狀態被誤判為已完成。解法：`list_user_groups` 加入 `expense_count` 子查詢，`is_settled` 改為 `debts == 0 AND expense_count > 0`，語意正確區分「從未有帳」與「帳已清完」 | C-16 |
 | 2026-04-03 | P1 | 活動紀錄頁面載入失敗（500 Internal Server Error） | `email_invitation_service.py` 新增 `log_activity(action="email_invitation_cancelled")` 但未同步更新 `schemas/activity.py` 的 `ActivityType` Literal。`list_user_activities` 建構 `ActivityItem` 時 Pydantic 驗證失敗，整個列表 500。解法：`ActivityType` 加入 `email_invitation_cancelled`；前端型別、i18n、UI switch 同步補齊 | C-17 |
+| 2026-04-03 | P1 | 更新消費後 MissingGreenlet 錯誤（500） | `update_expense` 中 `db.expire_all()` 把整個 session identity map 的物件全部 expire（含測試 fixture），後續存取 `expense.id` 觸發同步 lazy load，async session 下爆 `MissingGreenlet`。解法：改用 `db.expire(expense)` 只 expire 該物件，且在 expire 前先把 `expense.id` 存到區域變數 | C-18 |

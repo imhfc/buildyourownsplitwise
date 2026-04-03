@@ -33,7 +33,7 @@ cat <<EOF
 **專案偏好**：
 - 語言：繁體中文（zh-TW）
 - 禁止 Emoji
-- 後端測試：pytest tests/（需先啟動 db-test）
+- 後端測試：pytest tests/（需本機 PostgreSQL 已啟動）
 - 前端品質關卡：bash mobile/scripts/quality-gate.sh
 
 EOF

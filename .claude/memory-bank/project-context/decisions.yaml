@@ -77,6 +77,21 @@ decisions:
     impact: "所有含 API 呼叫的 Modal 表單元件需同步審查並修改"
     status: active
 
+  - id: DEC-009
+    date: 2026-04-03
+    context: |
+      測試 DB 原本在 VM (211.20.120.114) 上的 db-test Docker 容器，
+      本機透過 autossh SSH tunnel (port 5433) 連線。依賴 VM 狀態和網路連線，
+      開發體驗不穩定。
+    decision: |
+      1. 測試 DB 改為本機 PostgreSQL 16（brew install postgresql@16，port 5432）
+      2. 刪除 VM 上的 db-test 容器
+      3. 移除本機 autossh SSH tunnel（launchd plist）
+      4. 刪除 docker-compose.test.yml，移除 docker-compose.yml 中的 db-test service
+      5. 更新所有引用（13 個檔案：rules, agents, hooks, memory-bank, docs）
+    rationale: "本機 DB 延遲更低、不依賴 VM 狀態和 SSH tunnel，開發體驗更好；prod VM 不應有測試用容器"
+    status: active
+
   - id: DEC-007
     date: 2026-03-31
     context: |

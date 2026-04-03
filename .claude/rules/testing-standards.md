@@ -6,9 +6,8 @@
 
 ### 環境
 
-- 測試 DB：VM (211.20.120.114) 上的獨立 `db-test` PostgreSQL 容器（port 5433，`--network host` + `PGPORT=5433`）
-- 本機透過 SSH tunnel 連線（autossh + launchd 自動建立，`127.0.0.1:5433` -> VM `127.0.0.1:5433`）
-- `TEST_DATABASE_URL` 定義在 `backend/.env`，指向 `127.0.0.1:5433`，必須含 `?ssl=disable`（SSH tunnel 已加密，asyncpg 預設嘗試 SSL 會被無 SSL 的 PostgreSQL 拒絕）
+- 測試 DB：本機 PostgreSQL 16（`brew install postgresql@16`，port 5432）
+- `TEST_DATABASE_URL` 定義在 `backend/.env`，指向 `127.0.0.1:5432`，必須含 `?ssl=disable`
 - conftest.py 透過 `dotenv.load_dotenv` 自動載入 `backend/.env`，不需手動 export 環境變數
 - conftest.py 使用 `NullPool` + `statement_cache_size=0`
 - `setup_database` fixture 只做 `create_all`（不 drop），schema 由 Alembic 管理
@@ -61,5 +60,5 @@ cd mobile && npx jest --coverage
 | 層級 | 工具 | 範圍 |
 |------|------|------|
 | 單元測試 | pytest / Jest | Service 層邏輯、工具函式 |
-| 整合測試 | pytest + httpx | API 端點 + VM db-test (SSH tunnel) |
+| 整合測試 | pytest + httpx | API 端點 + 本機 PostgreSQL |
 | 品質關卡 | quality-gate.sh | 設定不變式檢查 |

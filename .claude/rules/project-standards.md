@@ -40,12 +40,13 @@ backend/app/
 - 有方向性的關係（settlement, transfer）建立時，service 層必須驗證兩端不是同一人（`from != to`），防止前端 bug 產生自我操作的垃圾資料（2026-04-03 回顧）
 - 代表「完成」語意的布林旗標（如 `is_settled`），必須同時檢查「曾經有過活動」（如 `expense_count > 0`），零狀態實體不等於已完成（2026-04-03 回顧）
 - `log_activity(action=...)` 的 action 值必須同步存在於 `ActivityType` Literal（後端 schema）+ 前端 ActivityType union + i18n + UI switch，缺任一處 = 活動列表整頁 500（2026-04-03 回顧）
+- async session 中禁止 `db.expire_all()`，改用 `db.expire(specific_obj)` 只 expire 需要重載的物件；expire 前必須先將後續需要的屬性存到區域變數，否則存取 expired 屬性觸發同步 lazy load → `MissingGreenlet`（2026-04-03 回顧）
 
 ## Docker / 部署規則
 
 - `docker-compose.yml` 中除 Caddy(80/443) 外，所有 `ports` 必須綁定 `127.0.0.1:`，禁止對外開放內部服務（2026-04-02 回顧）
 - VM 上有 UFW 防火牆時，Docker port mapping 可能與 iptables 衝突，優先使用 `--network host` + 自訂 `PGPORT`（2026-04-02 回顧）
-- 本機連 VM 內部服務一律透過 SSH tunnel（autossh + launchd），禁止對外開放 port（2026-04-02 回顧）
+- 測試 DB 使用本機 PostgreSQL（`brew install postgresql@16`，port 5432），不需 SSH tunnel（2026-04-03 更新）
 
 ## Mobile 規範
 

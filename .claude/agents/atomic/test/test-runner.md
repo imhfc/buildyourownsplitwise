@@ -30,8 +30,7 @@ context:
 ### 後端（pytest）
 
 ```bash
-# 前提：確保測試 DB 已啟動
-docker compose -f docker-compose.test.yml up -d db-test
+# 前提：確保本機 PostgreSQL 已啟動（brew services start postgresql@16）
 
 # 執行所有測試
 cd backend && pytest tests/
@@ -74,7 +73,7 @@ FAILED tests/test_expenses.py::test_name - AssertionError: ...
 
 | 錯誤類型 | 原因 | 修正建議 |
 |---------|------|---------|
-| ConnectionRefusedError | 測試 DB 未啟動 | `docker compose -f docker-compose.test.yml up -d db-test` |
+| ConnectionRefusedError | 測試 DB 未啟動 | `brew services start postgresql@16` |
 | ImportError | 套件未安裝 | `pip install -r requirements.txt` |
 | AssertionError | 斷言失敗 | 檢查預期值，交給 test-fixer |
 | ValidationError | Pydantic 驗證 | 檢查 schema 和測試資料 |

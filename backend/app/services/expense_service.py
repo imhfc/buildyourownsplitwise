@@ -311,7 +311,13 @@ async def update_expense(
         description=expense.description, amount=expense.total_amount, currency=expense.currency,
     )
 
-    return await get_expense_detail(db, expense.id)
+    # Expire the expense so get_expense_detail reloads from DB with proper eager loading.
+    # Without this, newly created ExpenseSplit objects in the identity map lack the `user`
+    # relationship, causing MissingGreenlet on lazy load in async mode.
+    expense_id = expense.id
+    db.expire(expense)
+
+    return await get_expense_detail(db, expense_id)
 
 
 async def get_expense_detail(

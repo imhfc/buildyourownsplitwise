@@ -42,7 +42,7 @@ cd backend && pytest tests/test_<module>.py -v --tb=long
 |------|------|---------|
 | AssertionError | 預期值不符 | 更新 assert 或修正邏輯 |
 | ValidationError | Pydantic schema 變更 | 更新測試 payload |
-| ConnectionRefusedError | DB 未啟動 | 啟動 db-test |
+| ConnectionRefusedError | DB 未啟動 | `brew services start postgresql@16` |
 | ImportError | 模組移動/重命名 | 更新 import 路徑 |
 | 401 Unauthorized | Token 過期或缺少 | 檢查 auth_headers fixture |
 

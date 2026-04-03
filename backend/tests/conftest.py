@@ -27,6 +27,7 @@ from app.models.expense import Expense, ExpenseSplit
 from app.models.settlement import Settlement
 from app.models.friendship import Friendship  # noqa: F401
 from app.models.activity_log import ActivityLog, ActivityRead  # noqa: F401
+from app.models.reminder import PaymentReminder  # noqa: F401
 
 # ---------------------------------------------------------------------------
 # 使用真實 PostgreSQL 進行測試（prod VM 或本機 Docker）

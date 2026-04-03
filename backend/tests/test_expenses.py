@@ -342,3 +342,190 @@ class TestMultiCurrencyExpense:
         assert Decimal(data["exchange_rate_to_base"]) == Decimal("32.5")
         # base_amount = 100 * 32.5 = 3250
         assert Decimal(data["base_amount"]) == Decimal("3250")
+
+    async def test_update_expense_change_currency_ratio_split(
+        self, client: AsyncClient, db: AsyncSession,
+        user_a: User, user_b: User, group_with_members: Group,
+    ):
+        """編輯消費時切換幣別 + 改用 ratio split，應不會拋出 MissingGreenlet。"""
+        # 建立 GBP→TWD 匯率紀錄
+        er = ExchangeRate(
+            source_currency="GBP",
+            target_currency="TWD",
+            rate=Decimal("41.5"),
+            source="taiwan_bank",
+            fetched_at=datetime.now(timezone.utc),
+        )
+        db.add(er)
+        await db.flush()
+
+        # 先建立一筆 TWD 的 equal split 消費
+        create_resp = await client.post(
+            f"/api/v1/groups/{group_with_members.id}/expenses",
+            headers=auth_header(user_a),
+            json={
+                "description": "Initial expense",
+                "total_amount": "300",
+                "currency": "TWD",
+                "paid_by": str(user_a.id),
+                "split_method": "equal",
+                "splits": [
+                    {"user_id": str(user_a.id)},
+                    {"user_id": str(user_b.id)},
+                ],
+            },
+        )
+        assert create_resp.status_code == 201
+        expense_id = create_resp.json()["id"]
+
+        # 用 PATCH 更新：改幣別為 GBP，split_method 改為 ratio
+        update_resp = await client.patch(
+            f"/api/v1/groups/{group_with_members.id}/expenses/{expense_id}",
+            headers=auth_header(user_a),
+            json={
+                "currency": "GBP",
+                "total_amount": "100",
+                "split_method": "ratio",
+                "splits": [
+                    {"user_id": str(user_a.id), "shares": "60"},
+                    {"user_id": str(user_b.id), "shares": "40"},
+                ],
+            },
+        )
+
+        assert update_resp.status_code == 200, f"Expected 200, got {update_resp.status_code}: {update_resp.json()}"
+        data = update_resp.json()
+        assert data["currency"] == "GBP"
+        assert data["split_method"] == "ratio"
+        assert Decimal(data["total_amount"]) == Decimal("100")
+        # 驗證兩個 split 加起來等於 total_amount
+        total_splits = sum(Decimal(s["amount"]) for s in data["splits"])
+        assert total_splits == Decimal("100")
+        # 驗證每個 split 都有 user_display_name（不為空或 null）
+        for split in data["splits"]:
+            assert "user_display_name" in split
+            assert split["user_display_name"] is not None
+            assert split["user_display_name"] != ""
+
+    async def test_update_expense_change_currency_shares_split(
+        self, client: AsyncClient, db: AsyncSession,
+        user_a: User, user_b: User, group_with_members: Group,
+    ):
+        """編輯消費時切換幣別 + 改用 shares split，應不會拋出 MissingGreenlet。"""
+        # 建立 USD→TWD 匯率紀錄
+        er = ExchangeRate(
+            source_currency="USD",
+            target_currency="TWD",
+            rate=Decimal("32"),
+            source="taiwan_bank",
+            fetched_at=datetime.now(timezone.utc),
+        )
+        db.add(er)
+        await db.flush()
+
+        # 先建立一筆 TWD 的 equal split 消費
+        create_resp = await client.post(
+            f"/api/v1/groups/{group_with_members.id}/expenses",
+            headers=auth_header(user_a),
+            json={
+                "description": "Initial expense",
+                "total_amount": "600",
+                "currency": "TWD",
+                "paid_by": str(user_a.id),
+                "split_method": "equal",
+                "splits": [
+                    {"user_id": str(user_a.id)},
+                    {"user_id": str(user_b.id)},
+                ],
+            },
+        )
+        assert create_resp.status_code == 201
+        expense_id = create_resp.json()["id"]
+
+        # 用 PATCH 更新：改幣別為 USD，split_method 改為 shares
+        update_resp = await client.patch(
+            f"/api/v1/groups/{group_with_members.id}/expenses/{expense_id}",
+            headers=auth_header(user_a),
+            json={
+                "currency": "USD",
+                "total_amount": "50",
+                "split_method": "shares",
+                "splits": [
+                    {"user_id": str(user_a.id), "shares": "1"},
+                    {"user_id": str(user_b.id), "shares": "2"},
+                ],
+            },
+        )
+
+        assert update_resp.status_code == 200, f"Expected 200, got {update_resp.status_code}: {update_resp.json()}"
+        data = update_resp.json()
+        assert data["currency"] == "USD"
+        assert data["split_method"] == "shares"
+        assert Decimal(data["total_amount"]) == Decimal("50")
+        # 驗證兩個 split 加起來等於 total_amount
+        total_splits = sum(Decimal(s["amount"]) for s in data["splits"])
+        assert total_splits == Decimal("50")
+        # 驗證每個 split 都有 user_display_name
+        for split in data["splits"]:
+            assert "user_display_name" in split
+            assert split["user_display_name"] is not None
+            assert split["user_display_name"] != ""
+
+    async def test_update_expense_change_currency_equal_split(
+        self, client: AsyncClient, db: AsyncSession,
+        user_a: User, user_b: User, group_with_members: Group,
+    ):
+        """編輯消費時切換幣別但保持 equal split（對照組）。"""
+        # 建立 JPY→TWD 匯率紀錄
+        er = ExchangeRate(
+            source_currency="JPY",
+            target_currency="TWD",
+            rate=Decimal("0.25"),
+            source="taiwan_bank",
+            fetched_at=datetime.now(timezone.utc),
+        )
+        db.add(er)
+        await db.flush()
+
+        # 先建立一筆 TWD 的 equal split 消費
+        create_resp = await client.post(
+            f"/api/v1/groups/{group_with_members.id}/expenses",
+            headers=auth_header(user_a),
+            json={
+                "description": "Initial expense",
+                "total_amount": "200",
+                "currency": "TWD",
+                "paid_by": str(user_a.id),
+                "split_method": "equal",
+                "splits": [
+                    {"user_id": str(user_a.id)},
+                    {"user_id": str(user_b.id)},
+                ],
+            },
+        )
+        assert create_resp.status_code == 201
+        expense_id = create_resp.json()["id"]
+
+        # 用 PATCH 更新：改幣別為 JPY，保持 equal split
+        update_resp = await client.patch(
+            f"/api/v1/groups/{group_with_members.id}/expenses/{expense_id}",
+            headers=auth_header(user_a),
+            json={
+                "currency": "JPY",
+                "total_amount": "1000",
+            },
+        )
+
+        assert update_resp.status_code == 200, f"Expected 200, got {update_resp.status_code}: {update_resp.json()}"
+        data = update_resp.json()
+        assert data["currency"] == "JPY"
+        assert data["split_method"] == "equal"
+        assert Decimal(data["total_amount"]) == Decimal("1000")
+        # 驗證兩個 split 各為 500
+        splits = sorted([Decimal(s["amount"]) for s in data["splits"]])
+        assert splits == [Decimal("500"), Decimal("500")]
+        # 驗證每個 split 都有 user_display_name
+        for split in data["splits"]:
+            assert "user_display_name" in split
+            assert split["user_display_name"] is not None
+            assert split["user_display_name"] != ""
