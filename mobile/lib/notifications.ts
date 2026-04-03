@@ -91,3 +91,17 @@ export function setupNotificationHandlers() {
     }),
   });
 }
+
+/**
+ * 監聽前景收到的推播通知，觸發 callback 刷新資料。
+ * 回傳 cleanup 函式供 useEffect 使用。
+ */
+export function addNotificationReceivedCallback(callback: () => void): () => void {
+  if (!Notifications) return () => {};
+
+  const subscription = Notifications.addNotificationReceivedListener(() => {
+    callback();
+  });
+
+  return () => subscription.remove();
+}

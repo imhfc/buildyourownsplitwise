@@ -1,8 +1,8 @@
 import { useCallback, useRef, useState } from "react";
-import { View, FlatList, RefreshControl, ActivityIndicator } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { View, FlatList, RefreshControl, ActivityIndicator, Pressable } from "react-native";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Receipt, ArrowsLeftRight, ClockCounterClockwise, UserPlus, UserMinus, BellRinging, EnvelopeSimple, PencilSimple, Trash } from "phosphor-react-native";
+import { Receipt, ArrowsLeftRight, ClockCounterClockwise, UserPlus, UserMinus, BellRinging, EnvelopeSimple, PencilSimple, Trash, CaretRight } from "phosphor-react-native";
 import { Text, Muted } from "~/components/ui/text";
 import { EmptyState } from "~/components/ui/empty-state";
 import { activitiesAPI } from "../../services/api";
@@ -111,15 +111,33 @@ function buildDescription(item: ActivityItem, t: (key: string) => string): strin
   }
 }
 
+const NAVIGABLE_TYPES: Set<ActivityType> = new Set([
+  "reminder_sent",
+  "settlement_created",
+  "settlement_confirmed",
+  "settlement_rejected",
+  "expense_added",
+  "expense_updated",
+  "expense_deleted",
+]);
+
 function ActivityRow({ item }: { item: ActivityItem }) {
   const { t } = useTranslation();
   const { isDark } = useTheme();
+  const router = useRouter();
   const style = getActivityStyle(item.type, isDark);
   const description = buildDescription(item, t);
   const hasAmount = item.amount != null && item.currency != null;
+  const canNavigate = NAVIGABLE_TYPES.has(item.type);
 
-  return (
-    <View className="flex-row items-start px-5 py-3 gap-3">
+  const handlePress = () => {
+    if (canNavigate) {
+      router.push(`/group/${item.group_id}`);
+    }
+  };
+
+  const content = (
+    <>
       <View
         className="mt-0.5 h-9 w-9 rounded-full items-center justify-center"
         style={{ backgroundColor: style.bg }}
@@ -137,6 +155,28 @@ function ActivityRow({ item }: { item: ActivityItem }) {
           <Muted className="text-xs">{formatRelativeTime(item.timestamp)}</Muted>
         </View>
       </View>
+      {canNavigate && (
+        <View className="justify-center">
+          <CaretRight size={16} color={isDark ? "#71717A" : "#A1A1AA"} />
+        </View>
+      )}
+    </>
+  );
+
+  if (canNavigate) {
+    return (
+      <Pressable
+        className="flex-row items-start px-5 py-3 gap-3 active:opacity-70"
+        onPress={handlePress}
+      >
+        {content}
+      </Pressable>
+    );
+  }
+
+  return (
+    <View className="flex-row items-start px-5 py-3 gap-3">
+      {content}
     </View>
   );
 }

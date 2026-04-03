@@ -20,6 +20,7 @@ import {
 import { CurrencyPicker } from "~/components/ui/currency-picker";
 import { expensesAPI, settlementsAPI, groupsAPI, authAPI, balancesAPI, exchangeRatesAPI, friendsAPI, ExpenseSplitInput, ExpensePayerInput, ExpenseUpdatePayload } from "../../services/api";
 import { useAuthStore } from "../../stores/auth";
+import { addNotificationReceivedCallback } from "~/lib/notifications";
 import { Card, CardContent } from "~/components/ui/card";
 import { Text, H3, Muted } from "~/components/ui/text";
 import { Button } from "~/components/ui/button";
@@ -256,6 +257,13 @@ export default function GroupDetailScreen() {
       fetchData();
     }, [fetchData])
   );
+
+  // 收到推播時即時刷新群組資料（餘額、結清、消費）
+  useEffect(() => {
+    return addNotificationReceivedCallback(() => {
+      fetchData();
+    });
+  }, [fetchData]);
 
   // Debounced preferred currency conversion hint
   const preferredCurrency = user?.preferred_currency ?? "TWD";

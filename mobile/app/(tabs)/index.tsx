@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, RefreshControl, Modal, Pressable, KeyboardAvoidingView, Platform, Animated, ActivityIndicator } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -17,6 +17,7 @@ import { FAB } from "~/components/ui/fab";
 import { EmptyState } from "~/components/ui/empty-state";
 import { CurrencyPicker } from "~/components/ui/currency-picker";
 import { useThemeClassName, useTheme } from "~/lib/theme";
+import { addNotificationReceivedCallback } from "~/lib/notifications";
 
 interface SimplifiedDebt {
   from_user_id: string;
@@ -124,7 +125,7 @@ export default function GroupsScreen() {
       }
       setPendingSettlements((prev) => prev.filter((s) => s.id !== settlement.id));
       syncBadgeCount();
-      await fetchGroups();
+      await Promise.all([fetchGroups(), fetchOverallBalance()]);
     } catch (e: any) {
       const msg = e.response?.data?.detail || e.message || t("unknown_error");
       setFormError(msg);
@@ -192,6 +193,15 @@ export default function GroupsScreen() {
     }, [fetchGroups, fetchPendingInvitations, fetchPendingSettlements, fetchOverallBalance])
   );
 
+  // 收到推播時即時刷新首頁所有資料
+  useEffect(() => {
+    return addNotificationReceivedCallback(() => {
+      fetchGroups();
+      fetchPendingSettlements();
+      fetchOverallBalance();
+    });
+  }, [fetchGroups, fetchPendingSettlements, fetchOverallBalance]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     await Promise.all([fetchGroups(), fetchPendingInvitations(), fetchPendingSettlements(), fetchOverallBalance()]);
@@ -212,7 +222,7 @@ export default function GroupsScreen() {
       setNewName("");
       setNewDesc("");
       setFormError(null);
-      await fetchGroups();
+      await Promise.all([fetchGroups(), fetchOverallBalance()]);
     } catch (e: any) {
       const msg = e.response?.data?.detail || e.message || t("unknown_error");
       setFormError(msg);
@@ -254,7 +264,7 @@ export default function GroupsScreen() {
       } else {
         await groupsAPI.removeMember(item.id, user!.id);
       }
-      await fetchGroups();
+      await Promise.all([fetchGroups(), fetchOverallBalance()]);
     } catch (e: any) {
       const msg = e.response?.data?.detail || e.message || t("unknown_error");
       setFormError(msg);

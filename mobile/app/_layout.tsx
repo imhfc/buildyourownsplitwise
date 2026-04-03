@@ -8,7 +8,9 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ThemeProvider as NavThemeProvider, DarkTheme, DefaultTheme } from "@react-navigation/native";
 import { ThemeProvider, useTheme, COLOR_SCHEMES } from "~/lib/theme";
 import { useAuthStore } from "../stores/auth";
-import { registerForPushNotifications, setupNotificationHandlers } from "~/lib/notifications";
+import { registerForPushNotifications, setupNotificationHandlers, addNotificationReceivedCallback } from "~/lib/notifications";
+import { useNotificationStore } from "~/stores/notification";
+import { usePendingSettlementsStore } from "~/stores/pending-settlements";
 
 const SCHEME_CLASS: Record<string, string> = {
   blue: "",
@@ -44,6 +46,9 @@ function InnerLayout() {
     }
   }, [isAuthenticated, hasHydrated, segments]);
 
+  const fetchUnreadCount = useNotificationStore((s) => s.fetchUnreadCount);
+  const fetchPendingSettlementCount = usePendingSettlementsStore((s) => s.fetchCount);
+
   // Push 通知註冊（登入後）
   useEffect(() => {
     if (isAuthenticated && hasHydrated) {
@@ -51,6 +56,15 @@ function InnerLayout() {
       registerForPushNotifications().catch(() => {});
     }
   }, [isAuthenticated, hasHydrated]);
+
+  // 收到推播時立即刷新 pending settlements + 未讀活動
+  useEffect(() => {
+    if (!isAuthenticated || !hasHydrated) return;
+    return addNotificationReceivedCallback(() => {
+      fetchPendingSettlementCount();
+      fetchUnreadCount();
+    });
+  }, [isAuthenticated, hasHydrated, fetchPendingSettlementCount, fetchUnreadCount]);
 
   return (
     <NavThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
