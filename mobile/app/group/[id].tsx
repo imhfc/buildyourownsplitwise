@@ -1317,7 +1317,7 @@ export default function GroupDetailScreen() {
                           <Text className="flex-1 text-sm" numberOfLines={1}>
                             {m.user.display_name}
                           </Text>
-                          <View className={`${splitMethod === "ratio" ? "w-32 flex-row items-center gap-1" : "w-28"}`}>
+                          <View className="w-28">
                             <Input
                               value={splitInputs[m.user.id] ?? ""}
                               onChangeText={(text) => {
@@ -1327,10 +1327,12 @@ export default function GroupDetailScreen() {
                               }}
                               keyboardType="decimal-pad"
                               placeholder={splitMethod === "exact" ? "0.00" : splitMethod === "ratio" ? "0" : "1"}
-                              className={splitMethod === "ratio" ? "flex-1" : undefined}
+                              className={splitMethod === "ratio" ? "pr-7" : undefined}
                             />
                             {splitMethod === "ratio" && (
-                              <Text className="text-sm text-muted-foreground">%</Text>
+                              <View className="absolute right-2 top-0 bottom-0 justify-center pointer-events-none">
+                                <Text className="text-sm text-muted-foreground">%</Text>
+                              </View>
                             )}
                           </View>
                         </View>
