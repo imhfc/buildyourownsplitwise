@@ -89,5 +89,5 @@ async def delete_expense(
 ):
     try:
         await expense_service.delete_expense(db, group_id, expense_id, current_user.id)
-    except (ForbiddenError, NotFoundError) as e:
+    except (ForbiddenError, NotFoundError, ValidationError) as e:
         _handle(e)

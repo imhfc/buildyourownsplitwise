@@ -57,6 +57,11 @@ class ExpenseSplitResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class SettledInfo(BaseModel):
+    settled_by: str  # 結清付款人名稱
+    settled_at: datetime  # 結清確認時間
+
+
 class ExpenseResponse(BaseModel):
     id: uuid.UUID
     group_id: uuid.UUID
@@ -75,5 +80,7 @@ class ExpenseResponse(BaseModel):
     receipt_image_url: str | None
     expense_date: date | None
     created_at: datetime
+    is_settled: bool = False  # 是否已被結清覆蓋
+    settled_info: SettledInfo | None = None  # 結清資訊（誰、什麼時候）
 
     model_config = {"from_attributes": True}

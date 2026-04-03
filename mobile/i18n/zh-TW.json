@@ -224,5 +224,10 @@
   "you_owe_person": "你欠 {{name}}",
   "you_are_owed": "別人欠你",
   "show_settled_groups": "顯示 {{count}} 個已結清群組",
-  "hiding_settled_groups": "已結清的群組已隱藏"
+  "hiding_settled_groups": "已結清的群組已隱藏",
+  "settled_expenses": "已結清消費",
+  "settled_expense_count": "{{count}} 筆已結清",
+  "settled_by_at": "由 {{name}} 於 {{date}} 結清",
+  "expense_settled_readonly": "此消費已結清，無法編輯",
+  "cannot_edit_settled": "已結清的消費不可編輯"
 }

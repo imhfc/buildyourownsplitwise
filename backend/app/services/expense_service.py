@@ -9,8 +9,10 @@ from sqlalchemy.orm import selectinload
 from app.core.exceptions import ForbiddenError, NotFoundError, ValidationError
 from app.models.expense import Expense, ExpensePayer, ExpenseSplit
 from app.models.group import Group
+from app.models.settlement import Settlement
 from app.schemas.expense import (
     ExpenseCreate, ExpensePayerResponse, ExpenseResponse, ExpenseSplitResponse, ExpenseUpdate,
+    SettledInfo,
 )
 from app.services.activity_log_service import log_activity
 from app.services.exchange_rate_service import get_rate
@@ -153,6 +155,33 @@ async def create_expense(
     return await get_expense_detail(db, expense.id)
 
 
+async def _get_last_confirmed_settlement(
+    db: AsyncSession, group_id: uuid.UUID
+) -> Settlement | None:
+    """取得群組中最後一次 confirmed 的 settlement。"""
+    result = await db.execute(
+        select(Settlement)
+        .where(
+            Settlement.group_id == group_id,
+            Settlement.status == "confirmed",
+        )
+        .options(selectinload(Settlement.payer))
+        .order_by(Settlement.confirmed_at.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+async def check_expense_settled(
+    db: AsyncSession, group_id: uuid.UUID, expense_created_at: datetime
+) -> bool:
+    """檢查某筆消費是否已被結清覆蓋（建立時間早於最後一次 confirmed settlement）。"""
+    last = await _get_last_confirmed_settlement(db, group_id)
+    if not last or not last.confirmed_at:
+        return False
+    return expense_created_at <= last.confirmed_at
+
+
 async def list_expenses(
     db: AsyncSession, group_id: uuid.UUID, user_id: uuid.UUID
 ) -> list[ExpenseResponse]:
@@ -168,7 +197,22 @@ async def list_expenses(
         .order_by(Expense.created_at.desc())
     )
     expenses = result.scalars().all()
-    return [format_expense(e) for e in expenses]
+
+    # 查詢最後一次 confirmed settlement 作為結清分界線
+    last_settlement = await _get_last_confirmed_settlement(db, group_id)
+    settled_info = None
+    cutoff: datetime | None = None
+    if last_settlement and last_settlement.confirmed_at:
+        cutoff = last_settlement.confirmed_at
+        settled_info = SettledInfo(
+            settled_by=last_settlement.payer.display_name,
+            settled_at=last_settlement.confirmed_at,
+        )
+
+    return [
+        format_expense(e, is_settled=(cutoff is not None and e.created_at <= cutoff), settled_info=settled_info)
+        for e in expenses
+    ]
 
 
 async def delete_expense(
@@ -181,6 +225,8 @@ async def delete_expense(
         raise NotFoundError("Expense not found")
     if expense.created_by != user_id:
         raise ForbiddenError("Only creator can delete expense")
+    if await check_expense_settled(db, group_id, expense.created_at):
+        raise ValidationError("Cannot delete a settled expense")
     expense.deleted_at = datetime.now(timezone.utc)
 
     await log_activity(
@@ -213,6 +259,8 @@ async def update_expense(
     involved_user_ids = {expense.paid_by} | {s.user_id for s in expense.splits}
     if user_id not in involved_user_ids:
         raise ForbiddenError("Only involved members can update expense")
+    if await check_expense_settled(db, group_id, expense.created_at):
+        raise ValidationError("Cannot edit a settled expense")
 
     # Update non-None fields
     if data.description is not None:
@@ -341,7 +389,11 @@ async def get_expense_detail(
     return format_expense(expense)
 
 
-def format_expense(e: Expense) -> ExpenseResponse:
+def format_expense(
+    e: Expense,
+    is_settled: bool = False,
+    settled_info: SettledInfo | None = None,
+) -> ExpenseResponse:
     base_amount = round(e.total_amount * e.exchange_rate_to_base, 2)
     return ExpenseResponse(
         id=e.id,
@@ -376,4 +428,6 @@ def format_expense(e: Expense) -> ExpenseResponse:
         receipt_image_url=e.receipt_image_url,
         expense_date=e.expense_date,
         created_at=e.created_at,
+        is_settled=is_settled,
+        settled_info=settled_info if is_settled else None,
     )

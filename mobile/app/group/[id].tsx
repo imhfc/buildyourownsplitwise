@@ -48,6 +48,11 @@ interface ExpensePayerItem {
   amount: string;
 }
 
+interface SettledInfo {
+  settled_by: string;
+  settled_at: string;
+}
+
 interface ExpenseItem {
   id: string;
   description: string;
@@ -63,6 +68,8 @@ interface ExpenseItem {
   note: string | null;
   expense_date: string | null;
   created_at: string;
+  is_settled: boolean;
+  settled_info: SettledInfo | null;
 }
 
 interface Suggestion {
@@ -183,6 +190,7 @@ export default function GroupDetailScreen() {
 
   const [loading, setLoading] = useState(true);
   const [sugLoading, setSugLoading] = useState(false);
+  const [showSettled, setShowSettled] = useState(false);
   const hasFetched = useRef(false);
 
   const isAdmin = members.find((m) => m.user.id === user?.id)?.role === "admin";
@@ -681,40 +689,55 @@ export default function GroupDetailScreen() {
     ]);
   };
 
-  const renderExpense = ({ item }: { item: ExpenseItem }) => (
-    <Pressable onPress={() => openEditModal(item)}>
-      <Card className="mb-3">
-        <CardContent className="flex-row items-center p-4 gap-3">
-          <View className="h-10 w-10 rounded-full bg-muted items-center justify-center">
-            <Receipt size={20} color="hsl(240 3.8% 46.1%)" />
-          </View>
-          <View className="flex-1">
-            <Text className="font-medium">{item.description}</Text>
-            <Muted>
-              {item.payer_display_name} {t("paid_by")}
-            </Muted>
-          </View>
-          <View className="items-end gap-1">
-            <Text className="text-lg font-bold text-primary">
-              {item.currency} {parseFloat(item.total_amount).toLocaleString()}
-            </Text>
-            {item.currency !== item.base_currency && (
-              <Muted className="text-xs">
-                {item.base_currency} {parseFloat(item.base_amount).toLocaleString()}
-              </Muted>
-            )}
-            <View className="flex-row items-center gap-1.5">
-              {item.payers && item.payers.length > 0 && (
-                <Badge variant="outline">{t("multiple_payers")}</Badge>
+  const renderExpense = ({ item }: { item: ExpenseItem }) => {
+    const settled = item.is_settled;
+    return (
+      <Pressable
+        onPress={() => {
+          if (settled) {
+            setAddError(t("cannot_edit_settled"));
+            return;
+          }
+          openEditModal(item);
+        }}
+      >
+        <Card className={`mb-3 ${settled ? "opacity-50" : ""}`}>
+          <CardContent className="flex-row items-center p-4 gap-3">
+            <View className={`h-10 w-10 rounded-full items-center justify-center ${settled ? "bg-muted/50" : "bg-muted"}`}>
+              {settled ? (
+                <Check size={20} color="hsl(142 71% 45%)" weight="bold" />
+              ) : (
+                <Receipt size={20} color="hsl(240 3.8% 46.1%)" />
               )}
-              <Badge variant="secondary">{t(item.split_method)}</Badge>
-              <PencilSimple size={14} color="hsl(240 3.8% 46.1%)" weight="regular" />
             </View>
-          </View>
-        </CardContent>
-      </Card>
-    </Pressable>
-  );
+            <View className="flex-1">
+              <Text className={`font-medium ${settled ? "line-through text-muted-foreground" : ""}`}>{item.description}</Text>
+              <Muted>
+                {item.payer_display_name} {t("paid_by")}
+              </Muted>
+            </View>
+            <View className="items-end gap-1">
+              <Text className={`text-lg font-bold ${settled ? "text-muted-foreground" : "text-primary"}`}>
+                {item.currency} {parseFloat(item.total_amount).toLocaleString()}
+              </Text>
+              {item.currency !== item.base_currency && (
+                <Muted className="text-xs">
+                  {item.base_currency} {parseFloat(item.base_amount).toLocaleString()}
+                </Muted>
+              )}
+              <View className="flex-row items-center gap-1.5">
+                {item.payers && item.payers.length > 0 && (
+                  <Badge variant="outline">{t("multiple_payers")}</Badge>
+                )}
+                <Badge variant="secondary">{t(item.split_method)}</Badge>
+                {!settled && <PencilSimple size={14} color="hsl(240 3.8% 46.1%)" weight="regular" />}
+              </View>
+            </View>
+          </CardContent>
+        </Card>
+      </Pressable>
+    );
+  };
 
   const hasPendingFor = (fromId: string, toId: string) =>
     pendingSettlements.some((s) => s.from_user === fromId && s.to_user === toId);
@@ -892,24 +915,69 @@ export default function GroupDetailScreen() {
           <ActivityIndicator size="large" />
         </View>
       ) : tab === "expenses" ? (
-        <FlatList
-          data={expenses}
-          keyExtractor={(item) => item.id}
-          renderItem={renderExpense}
-          contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-          ListEmptyComponent={
-            <EmptyState
-              icon={Receipt}
-              title={t("add_expense")}
-              description={t("no_expenses_hint")}
-              actionLabel={t("add_expense")}
-              onAction={() => { setEditingExpenseId(null); setAddError(""); setDesc(""); setAmount(""); setSplitMethod("equal"); setSplitInputs({}); setSelectedMembers(new Set(members.map((m) => m.user.id))); setExpenseCurrency(groupCurrency); setMultiPayer(false); setPayerInputs({}); setShowAdd(true); }}
+        (() => {
+          const unsettled = expenses.filter((e) => !e.is_settled);
+          const settled = expenses.filter((e) => e.is_settled);
+          return (
+            <FlatList
+              data={unsettled}
+              keyExtractor={(item) => item.id}
+              renderItem={renderExpense}
+              contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+              }
+              ListEmptyComponent={
+                settled.length === 0 ? (
+                  <EmptyState
+                    icon={Receipt}
+                    title={t("add_expense")}
+                    description={t("no_expenses_hint")}
+                    actionLabel={t("add_expense")}
+                    onAction={() => { setEditingExpenseId(null); setAddError(""); setDesc(""); setAmount(""); setSplitMethod("equal"); setSplitInputs({}); setSelectedMembers(new Set(members.map((m) => m.user.id))); setExpenseCurrency(groupCurrency); setMultiPayer(false); setPayerInputs({}); setShowAdd(true); }}
+                  />
+                ) : null
+              }
+              ListFooterComponent={
+                settled.length > 0 ? (
+                  <View className="mt-4">
+                    <Pressable
+                      onPress={() => setShowSettled(!showSettled)}
+                      className="flex-row items-center justify-between py-3 px-1"
+                    >
+                      <View className="flex-row items-center gap-2">
+                        <Check size={16} color="hsl(142 71% 45%)" weight="bold" />
+                        <Text className="text-sm font-medium text-muted-foreground">
+                          {t("settled_expenses")} ({settled.length})
+                        </Text>
+                      </View>
+                      {showSettled ? (
+                        <CaretDown size={16} color="hsl(240 3.8% 46.1%)" />
+                      ) : (
+                        <CaretRight size={16} color="hsl(240 3.8% 46.1%)" />
+                      )}
+                    </Pressable>
+                    {showSettled && (
+                      <View>
+                        {settled[0]?.settled_info && (
+                          <Muted className="text-xs mb-3 px-1">
+                            {t("settled_by_at", {
+                              name: settled[0].settled_info.settled_by,
+                              date: new Date(settled[0].settled_info.settled_at).toLocaleDateString(),
+                            })}
+                          </Muted>
+                        )}
+                        {settled.map((item) => (
+                          <View key={item.id}>{renderExpense({ item })}</View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                ) : null
+              }
             />
-          }
-        />
+          );
+        })()
       ) : tab === "settlements" ? (
         sugLoading && suggestions.length === 0 ? (
           <View className="flex-1 items-center justify-center">
