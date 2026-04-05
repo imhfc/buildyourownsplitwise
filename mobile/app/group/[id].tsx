@@ -156,6 +156,9 @@ export default function GroupDetailScreen() {
   const [unifiedSettleError, setUnifiedSettleError] = useState("");
   const [unifiedConverting, setUnifiedConverting] = useState(false);
 
+  // Balance summary collapse
+  const [balanceSummaryExpanded, setBalanceSummaryExpanded] = useState(false);
+
   // Add member modal
   const [showAddMember, setShowAddMember] = useState(false);
   const [memberEmail, setMemberEmail] = useState("");
@@ -310,7 +313,13 @@ export default function GroupDetailScreen() {
         groupsAPI.get(id),
       ]);
       setExpenses(expRes.data);
-      setMembers(groupRes.data.members ?? []);
+      const rawMembers = groupRes.data.members ?? [];
+      const sorted = [...rawMembers].sort((a, b) => {
+        if (a.user.id === user?.id) return -1;
+        if (b.user.id === user?.id) return 1;
+        return 0;
+      });
+      setMembers(sorted);
       if (groupRes.data.name) setGroupName(groupRes.data.name);
       if (groupRes.data.default_currency) setGroupCurrency(groupRes.data.default_currency);
       if (groupRes.data.cover_image_url) setCoverImageUrl(groupRes.data.cover_image_url);
@@ -1026,7 +1035,7 @@ export default function GroupDetailScreen() {
         </View>
       ) : null}
 
-      {/* Balance summary above tabs (Splitwise style) */}
+      {/* Balance summary above tabs — collapsible (Splitwise style) */}
       {(() => {
         const mySuggestions = suggestions.filter((s) => s.from_user_id === user?.id || s.to_user_id === user?.id);
         const owedToMe = mySuggestions.filter((s) => s.to_user_id === user?.id);
@@ -1040,15 +1049,25 @@ export default function GroupDetailScreen() {
         const hasOwe = iOwe.length > 0;
         if (!hasOwed && !hasOwe) return null;
         return (
-          <View className="mx-5 mt-3 mb-1">
+          <Pressable
+            onPress={() => setBalanceSummaryExpanded((v) => !v)}
+            className="mx-5 mt-3 mb-1"
+          >
             {hasOwed && (
-              <View className="mb-2">
-                <Text className="text-base font-semibold text-income">
-                  {Object.entries(owedByCurrency).map(([cur, amt]) =>
-                    t("gets_back_total", { currency: cur, amount: amt.toLocaleString() })
-                  ).join(" + ")}
-                </Text>
-                {owedToMe.map((s) => (
+              <View className={balanceSummaryExpanded ? "mb-2" : ""}>
+                <View className="flex-row items-center">
+                  <Text className="text-base font-semibold text-income flex-1">
+                    {Object.entries(owedByCurrency).map(([cur, amt]) =>
+                      t("gets_back_total", { currency: cur, amount: amt.toLocaleString() })
+                    ).join(" + ")}
+                  </Text>
+                  {!hasOwe && (
+                    balanceSummaryExpanded
+                      ? <CaretDown size={16} color="hsl(240 3.8% 46.1%)" />
+                      : <CaretRight size={16} color="hsl(240 3.8% 46.1%)" />
+                  )}
+                </View>
+                {balanceSummaryExpanded && owedToMe.map((s) => (
                   <Text key={`${s.from_user_id}-${s.to_user_id}`} className="text-sm text-muted-foreground ml-2 mt-0.5">
                     {t("owes_you", { name: s.from_user_name })} {s.currency} {parseFloat(s.amount).toLocaleString()}
                   </Text>
@@ -1057,19 +1076,25 @@ export default function GroupDetailScreen() {
             )}
             {hasOwe && (
               <View className="mb-1">
-                <Text className="text-base font-semibold text-destructive">
-                  {Object.entries(oweByCurrency).map(([cur, amt]) =>
-                    t("owes_total", { currency: cur, amount: amt.toLocaleString() })
-                  ).join(" + ")}
-                </Text>
-                {iOwe.map((s) => (
+                <View className="flex-row items-center">
+                  <Text className="text-base font-semibold text-destructive flex-1">
+                    {Object.entries(oweByCurrency).map(([cur, amt]) =>
+                      t("owes_total", { currency: cur, amount: amt.toLocaleString() })
+                    ).join(" + ")}
+                  </Text>
+                  {balanceSummaryExpanded
+                    ? <CaretDown size={16} color="hsl(240 3.8% 46.1%)" />
+                    : <CaretRight size={16} color="hsl(240 3.8% 46.1%)" />
+                  }
+                </View>
+                {balanceSummaryExpanded && iOwe.map((s) => (
                   <Text key={`${s.from_user_id}-${s.to_user_id}`} className="text-sm text-muted-foreground ml-2 mt-0.5">
                     {t("you_owe_person", { name: s.to_user_name })} {s.currency} {parseFloat(s.amount).toLocaleString()}
                   </Text>
                 ))}
               </View>
             )}
-          </View>
+          </Pressable>
         );
       })()}
 
