@@ -12,7 +12,10 @@ import { useAuthStore } from "~/stores/auth";
 export default function TabsLayout() {
   const { t } = useTranslation();
   const { isDark, colorScheme } = useTheme();
-  const insets = useSafeAreaInsets();
+  const rawInsets = useSafeAreaInsets();
+  // Web 上 useSafeAreaInsets 可能回傳 0（viewport 未設 viewport-fit=cover），
+  // 給予最低 8px 底部間距，避免 tab bar 被手機瀏覽器工具列遮擋
+  const bottomInset = Platform.OS === "web" ? Math.max(rawInsets.bottom, 8) : rawInsets.bottom;
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const fetchUnreadCount = useNotificationStore((s) => s.fetchUnreadCount);
@@ -50,9 +53,8 @@ export default function TabsLayout() {
           backgroundColor: isDark ? "#0A0C0F" : "#FFFFFF",
           borderTopWidth: 1,
           borderTopColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
-          height: 56 + insets.bottom,
-          paddingBottom: 6 + insets.bottom,
-          paddingTop: 6,
+          paddingBottom: bottomInset,
+          paddingTop: 8,
         },
         tabBarLabelStyle: {
           fontSize: 10,

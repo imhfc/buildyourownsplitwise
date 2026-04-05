@@ -58,6 +58,8 @@ backend/app/
 - Modal 表單的 API 錯誤必須用 inline error state 顯示，禁止用 Alert.alert（Expo Web 上行為不穩定）
 - UI 元件尺寸/圓角/間距必須對齊 shadcn/ui 標準值（Button h-10、Input h-10、rounded-lg），禁止憑直覺自訂（2026-04-05 回顧）
 - 頁面內 logo 使用 `logo-transparent.png`（透明底），禁止直接引用 `icon.png`（有白底）；dark mode 用 `tintColor` 染色（2026-04-05 回顧）
+- `bg-primary` 上的圖示/spinner color 禁止 `white`/`#fff`，必須用 `hsl(var(--primary-foreground))`；dark mode primary 可能近白色（2026-04-05 回顧）
+- Mobile web 必須動態注入 `viewport-fit=cover`（啟用 safe-area-inset）+ `100dvh` CSS（排除瀏覽器工具列），裝置差異尺寸禁止 hardcode 常數（2026-04-05 回顧）
 
 ## 推播通知規則（2026-04-05 回顧）
 

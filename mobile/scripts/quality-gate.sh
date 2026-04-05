@@ -191,6 +191,26 @@ else
   green "C-19 backend/.env 不存在（跳過）"
 fi
 
+# ── C-20: bg-primary 上的圖示不得硬編碼 white/#fff ───────────────────────────
+WHITE_ON_PRIMARY=0
+for f in mobile/components/ui/fab.tsx mobile/components/ui/button.tsx mobile/app/group/\[id\].tsx mobile/app/\(tabs\)/friends.tsx; do
+  if [ -f "$f" ] && grep -qE 'color="(white|#fff)"' "$f"; then
+    WHITE_ON_PRIMARY=1
+  fi
+done
+if [ "$WHITE_ON_PRIMARY" -eq 0 ]; then
+  green "C-20 bg-primary 上的圖示未使用硬編碼 white/#fff"
+else
+  red   "C-20 bg-primary 上的圖示仍有硬編碼 white/#fff，應使用 hsl(var(--primary-foreground))"
+fi
+
+# ── C-21: _layout.tsx 包含 viewport-fit=cover 動態注入 ───────────────────────
+if grep -q 'viewport-fit' "$MOBILE_DIR/app/_layout.tsx" && grep -q '100dvh' "$MOBILE_DIR/app/_layout.tsx"; then
+  green "C-21 _layout.tsx 包含 viewport-fit=cover + 100dvh 動態注入"
+else
+  red   "C-21 _layout.tsx 缺少 viewport-fit=cover 或 100dvh 動態注入（mobile web safe area）"
+fi
+
 # ── 結果 ──────────────────────────────────────────────────────────────────────
 echo ""
 echo "=== 結果：PASS=$PASS  FAIL=$FAIL ==="

@@ -113,6 +113,8 @@ pytest backend/tests/                  # SLA-5：後端測試
 | C-17 | `log_activity()` 的所有 `action` 值必須同時存在於：(1) `schemas/activity.py` 的 `ActivityType` Literal (2) 前端 `activities.tsx` 的 `ActivityType` union (3) 三語 i18n JSON (4) 前端 `getActivityStyle`/`ActivityIcon`/`buildDescription` 的 switch cases。任一處缺漏 = 活動列表整頁 500 | SLA-5 | 2026-04-03 email_invitation_cancelled 未加入 ActivityType 導致 Pydantic ValidationError |
 | C-18 | `backend/app/services/` 中禁止使用 `db.expire_all()`，必須用 `db.expire(specific_obj)` 針對特定物件；且 expire 前必須先將後續需要的屬性存到區域變數 | SLA-5 | 2026-04-03 update_expense 的 expire_all 導致 MissingGreenlet |
 | C-19 | `backend/.env` 的 `TEST_DATABASE_URL` 必須指向本機（包含 `127.0.0.1` 且包含 `ssl=disable`），禁止指向外部主機（Neon、RDS 等雲端 DB） | SLA-5 | 2026-04-03 TEST_DATABASE_URL 指向 Neon 美東，195 個測試要跑 10+ 分鐘（每次 TRUNCATE 3.5 秒 RTT），改本機後 8 秒 |
+| C-20 | `mobile/components/ui/fab.tsx`、`mobile/components/ui/button.tsx`、`mobile/app/group/[id].tsx`、`mobile/app/(tabs)/friends.tsx` 中 `bg-primary` 上的圖示 color 不得為 `white`/`#fff`，必須使用 `hsl(var(--primary-foreground))` | SLA-4 | FAB/Button 在 byosp dark mode（primary 近白）上圖示不可見 |
+| C-21 | `mobile/app/_layout.tsx` 包含 `viewport-fit=cover` 動態注入和 `100dvh` CSS 注入 | SLA-2 | Mobile web 上 safe area 自動偵測 + 排除瀏覽器工具列 |
 
 ---
 
@@ -136,3 +138,5 @@ pytest backend/tests/                  # SLA-5：後端測試
 | 2026-04-03 | P1 | 活動紀錄頁面載入失敗（500 Internal Server Error） | `email_invitation_service.py` 新增 `log_activity(action="email_invitation_cancelled")` 但未同步更新 `schemas/activity.py` 的 `ActivityType` Literal。`list_user_activities` 建構 `ActivityItem` 時 Pydantic 驗證失敗，整個列表 500。解法：`ActivityType` 加入 `email_invitation_cancelled`；前端型別、i18n、UI switch 同步補齊 | C-17 |
 | 2026-04-03 | P1 | 更新消費後 MissingGreenlet 錯誤（500） | `update_expense` 中 `db.expire_all()` 把整個 session identity map 的物件全部 expire（含測試 fixture），後續存取 `expense.id` 觸發同步 lazy load，async session 下爆 `MissingGreenlet`。解法：改用 `db.expire(expense)` 只 expire 該物件，且在 expire 前先把 `expense.id` 存到區域變數 | C-18 |
 | 2026-04-03 | P2 | 後端測試跑 10+ 分鐘（應 < 30 秒） | `backend/.env` 的 `TEST_DATABASE_URL` 仍指向 Neon 雲端 DB（美東），每次 TRUNCATE CASCADE 因跨洋 RTT 花 3.5 秒。testing-standards.md 寫了兩次要用本機但 .env 從未修正。解法：改為 `127.0.0.1:5432?ssl=disable`，新增 C-19 自動檢查 | C-19 |
+| 2026-04-05 | P2 | byosp dark mode 下 FAB/Button 圖示不可見 | `bg-primary` 上的圖示 `color` 硬編碼為 `"white"`，而 byosp dark mode primary 為 HSL 0 0% 98%（近白），白色圖示在白底上不可見。解法：改為 `hsl(var(--primary-foreground))` 跟隨色系 | C-20 |
+| 2026-04-05 | P2 | Mobile web tab bar 文字/內容被手機瀏覽器工具列裁切 | Expo 預設 viewport meta 無 `viewport-fit=cover`，且頁面高度使用 `100%` 而非 `100dvh`，無法自動排除瀏覽器工具列佔用空間。解法：`_layout.tsx` 動態注入 `viewport-fit=cover` 及 `height: 100dvh` CSS | C-21 |
