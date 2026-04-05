@@ -3,7 +3,7 @@ import { Platform, View } from "react-native";
 import { Tabs, useFocusEffect, usePathname } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { UserPlus, SquaresFour, ClockCounterClockwise, UserCircle } from "phosphor-react-native";
+import { Users, SquaresFour, ClockCounterClockwise, UserCircle } from "phosphor-react-native";
 import { useTheme, COLOR_SCHEMES } from "~/lib/theme";
 import { useNotificationStore } from "~/stores/notification";
 import { usePendingSettlementsStore } from "~/stores/pending-settlements";
@@ -24,7 +24,7 @@ export default function TabsLayout() {
 
   const scheme = COLOR_SCHEMES.find((s) => s.id === colorScheme) ?? COLOR_SCHEMES[0];
   const activeTint = isDark ? scheme.preview.dark : scheme.preview.light;
-  const inactiveTint = isDark ? "#52525B" : "#A1A1AA";
+  const inactiveTint = isDark ? "#525252" : "#A3A3A3";
 
   useFocusEffect(
     useCallback(() => {
@@ -50,7 +50,7 @@ export default function TabsLayout() {
         tabBarActiveTintColor: activeTint,
         tabBarInactiveTintColor: inactiveTint,
         tabBarStyle: {
-          backgroundColor: isDark ? "#0A0C0F" : "#FFFFFF",
+          backgroundColor: isDark ? "#0A0A0A" : "#FAFAFA",
           borderTopWidth: 1,
           borderTopColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
           height: 52 + bottomInset,
@@ -62,9 +62,9 @@ export default function TabsLayout() {
           letterSpacing: 0.2,
         },
         headerStyle: {
-          backgroundColor: isDark ? "#0A0C0F" : "#FFFFFF",
+          backgroundColor: isDark ? "#0A0A0A" : "#FAFAFA",
         },
-        headerTintColor: isDark ? "#FAFAFA" : "#18181B",
+        headerTintColor: isDark ? "#FAFAFA" : "#171717",
         headerShadowVisible: false,
       }}
     >
@@ -73,7 +73,7 @@ export default function TabsLayout() {
         options={{
           title: t("friends"),
           tabBarIcon: ({ color, focused }) => (
-            <UserPlus size={20} color={color} weight={focused ? "fill" : "regular"} />
+            <Users size={20} color={color} weight={focused ? "regular" : "light"} />
           ),
         }}
       />
@@ -82,11 +82,11 @@ export default function TabsLayout() {
         options={{
           title: t("groups"),
           tabBarIcon: ({ color, focused }) => (
-            <SquaresFour size={20} color={color} weight={focused ? "fill" : "regular"} />
+            <SquaresFour size={20} color={color} weight={focused ? "regular" : "light"} />
           ),
           tabBarBadge: pendingSettlementCount > 0 ? pendingSettlementCount : undefined,
           tabBarBadgeStyle: {
-            backgroundColor: isDark ? "#52525B" : "#18181B",
+            backgroundColor: isDark ? "#525252" : "#171717",
             color: "#FFFFFF",
             fontSize: 10,
             fontWeight: "600",
@@ -102,11 +102,11 @@ export default function TabsLayout() {
         options={{
           title: t("activities"),
           tabBarIcon: ({ color, focused }) => (
-            <ClockCounterClockwise size={20} color={color} weight={focused ? "fill" : "regular"} />
+            <ClockCounterClockwise size={20} color={color} weight={focused ? "regular" : "light"} />
           ),
           tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
           tabBarBadgeStyle: {
-            backgroundColor: isDark ? "#52525B" : "#18181B",
+            backgroundColor: isDark ? "#525252" : "#171717",
             color: "#FFFFFF",
             fontSize: 10,
             fontWeight: "600",
@@ -122,7 +122,7 @@ export default function TabsLayout() {
         options={{
           title: t("account"),
           tabBarIcon: ({ color, focused }) => (
-            <UserCircle size={20} color={color} weight={focused ? "fill" : "regular"} />
+            <UserCircle size={20} color={color} weight={focused ? "regular" : "light"} />
           ),
         }}
       />

@@ -28,7 +28,7 @@ export function EmptyState({
         <Logo size={56} />
       </View>
       {Icon ? (
-        <Icon size={32} color="hsl(215 16% 47%)" weight="regular" />
+        <Icon size={32} color="hsl(215 16% 47%)" weight="light" />
       ) : null}
       <Text className="mt-3 text-sm font-medium text-center">{title}</Text>
       {description ? (

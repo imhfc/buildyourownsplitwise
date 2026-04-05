@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, RefreshControl, Modal, Pressable, KeyboardAvoidingView, Platform, Animated, ActivityIndicator } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { UsersThree, X, Trash, SignOut, DotsSixVertical, CaretDown, CaretRight, EnvelopeSimple, Check, CurrencyCircleDollar } from "phosphor-react-native";
+import { SquaresFour, X, Trash, SignOut, DotsSixVertical, CaretDown, CaretRight, EnvelopeSimple, Check, CurrencyCircleDollar } from "phosphor-react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import DraggableFlatList, { ScaleDecorator, RenderItemParams } from "react-native-draggable-flatlist";
 import { groupsAPI, inviteAPI, settlementsAPI, balancesAPI } from "../../services/api";
@@ -58,7 +58,7 @@ export default function GroupsScreen() {
   const user = useAuthStore((s) => s.user);
   const themeClass = useThemeClassName();
   const { isDark } = useTheme();
-  const iconColor = isDark ? "#71717A" : "#A1A1AA";
+  const iconColor = isDark ? "#737373" : "#A3A3A3";
   const syncBadgeCount = usePendingSettlementsStore((s) => s.fetchCount);
   const [groups, setGroups] = useState<GroupItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -628,7 +628,7 @@ export default function GroupsScreen() {
       ) : groups.length === 0 ? (
         <View className="flex-1 items-center justify-center p-5">
           <EmptyState
-            icon={UsersThree}
+            icon={SquaresFour}
             title={t("create_group")}
             description={t("create_group_hint")}
             actionLabel={t("create_group")}
@@ -715,7 +715,7 @@ export default function GroupsScreen() {
             <View className="flex-row items-center justify-between mb-5">
               <Text className="text-base font-semibold">{t("create_group")}</Text>
               <Pressable onPress={handleCloseCreate} hitSlop={8}>
-                <X size={20} color={isDark ? "#71717A" : "#A1A1AA"} />
+                <X size={20} color={isDark ? "#737373" : "#A3A3A3"} />
               </Pressable>
             </View>
 

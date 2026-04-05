@@ -5,20 +5,19 @@ import { authAPI } from "../services/api";
 import { useAuthStore } from "../stores/auth";
 
 type Theme = "light" | "dark" | "system";
-export type ColorScheme = "byosw" | "blue" | "green" | "purple" | "warm" | "coral" | "slate";
+export type ColorScheme = "byosw" | "blue" | "green" | "purple" | "warm" | "coral";
 
 export const COLOR_SCHEMES: {
   id: ColorScheme;
   labelKey: string;
   preview: { light: string; dark: string };
 }[] = [
-  { id: "byosw",  labelKey: "scheme_byosw",  preview: { light: "#0F172A", dark: "#FAFAFA" } },
-  { id: "blue",   labelKey: "scheme_blue",   preview: { light: "#3B82F6", dark: "#60A5FA" } },
-  { id: "green",  labelKey: "scheme_green",  preview: { light: "#5BC5A7", dark: "#4DB899" } },
-  { id: "purple", labelKey: "scheme_purple", preview: { light: "#6E4CE5", dark: "#8B6CF7" } },
-  { id: "warm",   labelKey: "scheme_warm",   preview: { light: "#1B4D3E", dark: "#3D8B74" } },
-  { id: "coral",  labelKey: "scheme_coral",  preview: { light: "#D96A3E", dark: "#C08070" } },
-  { id: "slate",  labelKey: "scheme_slate",  preview: { light: "#64748B", dark: "#94A3B8" } },
+  { id: "byosw",  labelKey: "scheme_byosw",  preview: { light: "#171717", dark: "#FAFAFA" } },
+  { id: "blue",   labelKey: "scheme_blue",   preview: { light: "#3B82F6", dark: "#3B82F6" } },
+  { id: "green",  labelKey: "scheme_green",  preview: { light: "#16A34A", dark: "#22C55E" } },
+  { id: "purple", labelKey: "scheme_purple", preview: { light: "#7C3AED", dark: "#7C3AED" } },
+  { id: "warm",   labelKey: "scheme_warm",   preview: { light: "#F97316", dark: "#EA580C" } },
+  { id: "coral",  labelKey: "scheme_coral",  preview: { light: "#E11D48", dark: "#E11D48" } },
 ];
 
 interface ThemeContext {

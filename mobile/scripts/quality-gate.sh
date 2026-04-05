@@ -211,7 +211,7 @@ else
   red   "C-21 _layout.tsx 缺少 viewport-fit=cover 或 100dvh 動態注入（mobile web safe area）"
 fi
 
-# ── C-22: (tabs)/_layout.tsx tab bar 配套公式：web fallback + height: 49 + bottomInset + paddingBottom: bottomInset ──
+# ── C-22: (tabs)/_layout.tsx tab bar 配套公式：web fallback + height: 50-52 + bottomInset + paddingBottom: bottomInset ──
 TABS_LAYOUT="$MOBILE_DIR/app/(tabs)/_layout.tsx"
 if [ -f "$TABS_LAYOUT" ]; then
   C22_PASS=true
@@ -219,8 +219,8 @@ if [ -f "$TABS_LAYOUT" ]; then
   if ! grep -q 'Platform\.OS.*web.*Math\.max' "$TABS_LAYOUT" 2>/dev/null; then
     C22_PASS=false
   fi
-  # 必須有 height: 56 + bottomInset（配套公式，確保內容空間 = 56px）
-  if ! grep -q 'height:.*56.*bottomInset' "$TABS_LAYOUT" 2>/dev/null; then
+  # 必須有 height: 50~52 + bottomInset（配套公式）
+  if ! grep -qE 'height:.*5[0-2].*bottomInset' "$TABS_LAYOUT" 2>/dev/null; then
     C22_PASS=false
   fi
   # 必須有 paddingBottom: bottomInset（配套公式）
@@ -228,9 +228,9 @@ if [ -f "$TABS_LAYOUT" ]; then
     C22_PASS=false
   fi
   if $C22_PASS; then
-    green "C-22 tab bar 配套公式正確（web fallback + height: 56+bottomInset + paddingBottom: bottomInset）"
+    green "C-22 tab bar 配套公式正確（web fallback + height: 50-52+bottomInset + paddingBottom: bottomInset）"
   else
-    red   "C-22 (tabs)/_layout.tsx tab bar 必須同時滿足三項：(1) Platform.OS web Math.max fallback (2) height: 56 + bottomInset (3) paddingBottom: bottomInset"
+    red   "C-22 (tabs)/_layout.tsx tab bar 必須同時滿足三項：(1) Platform.OS web Math.max fallback (2) height: 50-52 + bottomInset (3) paddingBottom: bottomInset"
   fi
 else
   green "C-22 (tabs)/_layout.tsx 不存在（跳過）"

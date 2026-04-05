@@ -161,7 +161,7 @@ function ActivityRow({ item }: { item: ActivityItem }) {
         <Text className="text-sm leading-5">{description}</Text>
         <View className="flex-row items-center mt-1 gap-2">
           {hasAmount && (
-            <Text className="text-sm font-semibold">
+            <Text className="text-sm font-semibold tabular-nums">
               {item.currency} {Number(item.amount).toLocaleString()}
             </Text>
           )}
@@ -170,7 +170,7 @@ function ActivityRow({ item }: { item: ActivityItem }) {
       </View>
       {canNavigate && (
         <View className="justify-center">
-          <CaretRight size={16} color={isDark ? "#71717A" : "#A1A1AA"} />
+          <CaretRight size={16} color={isDark ? "#737373" : "#A3A3A3"} />
         </View>
       )}
     </>

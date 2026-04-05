@@ -66,12 +66,12 @@ function SettingItem({ icon, title, value, onPress, rightElement }: SettingItemP
       <View className="h-9 w-9 items-center justify-center rounded-lg bg-muted mr-3">
         {icon}
       </View>
-      <View className="flex-1">
-        <Text className="text-base font-medium">{title}</Text>
-        {value ? <Muted>{value}</Muted> : null}
+      <View className="flex-1 gap-0.5">
+        <Text className="text-sm font-medium text-foreground">{title}</Text>
+        {value ? <Text className="text-xs text-muted-foreground">{value}</Text> : null}
       </View>
       {rightElement ?? (onPress ? (
-        <CaretRight size={20} color="#71717A" />
+        <CaretRight size={20} color="#737373" />
       ) : null)}
     </Pressable>
   );
@@ -159,23 +159,23 @@ export default function AccountScreen() {
     }
   };
 
-  const iconColor = isDark ? "#A1A1AA" : "#71717A";
+  const iconColor = isDark ? "#A3A3A3" : "#737373";
 
   return (
     <ScrollView className="flex-1 bg-background">
       {/* Profile Section */}
       <View className="items-center pt-8 pb-6">
         <Avatar name={user?.display_name || "?"} avatarUrl={user?.avatar_url} size="xl" index={0} />
-        <Text className="mt-3 text-xl font-semibold">
+        <Text className="mt-3 text-base font-semibold text-foreground">
           {user?.display_name}
         </Text>
-        <Muted>{user?.email}</Muted>
+        <Text className="text-xs text-muted-foreground mt-0.5">{user?.email}</Text>
       </View>
 
       {/* Settings Card */}
       <View className="px-5">
         <Card>
-          <CardContent className="p-4 gap-0">
+          <CardContent className="p-3.5 gap-0">
             <SettingItem
               icon={<Palette size={18} color={iconColor} />}
               title={t("color_scheme")}
@@ -271,14 +271,14 @@ export default function AccountScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <View className="flex-1 justify-end bg-black/50">
-            <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4">
+            <View className="bg-background border-t border-border rounded-t-xl px-5 pb-10 pt-4">
               <View className="items-center mb-4">
-                <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+                <View className="h-1 w-8 rounded-full bg-muted-foreground/20" />
               </View>
-              <View className="flex-row items-center justify-between mb-6">
-                <Text className="text-xl font-semibold">{t("edit_display_name")}</Text>
+              <View className="flex-row items-center justify-between mb-5">
+                <Text className="text-base font-semibold">{t("edit_display_name")}</Text>
                 <Pressable onPress={() => { setShowEditName(false); setNameError(null); }}>
-                  <X size={24} color={iconColor} />
+                  <X size={20} color={iconColor} />
                 </Pressable>
               </View>
               <View className="gap-4">
@@ -315,14 +315,14 @@ export default function AccountScreen() {
       >
         <View className={`flex-1 ${themeClass}`}>
         <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4">
+          <View className="bg-background border-t border-border rounded-t-xl px-5 pb-10 pt-4">
             <View className="items-center mb-4">
-              <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+              <View className="h-1 w-8 rounded-full bg-muted-foreground/20" />
             </View>
-            <View className="flex-row items-center justify-between mb-6">
-              <Text className="text-xl font-semibold">{t("select_language")}</Text>
+            <View className="flex-row items-center justify-between mb-5">
+              <Text className="text-base font-semibold">{t("select_language")}</Text>
               <Pressable onPress={() => setShowLangPicker(false)}>
-                <X size={24} color={iconColor} />
+                <X size={20} color={iconColor} />
               </Pressable>
             </View>
             <View className="gap-3">
@@ -337,7 +337,7 @@ export default function AccountScreen() {
                   onPress={() => handleLanguageSelect(lang.code)}
                 >
                   <Text
-                    className={`flex-1 font-medium ${
+                    className={`flex-1 text-sm font-medium ${
                       i18n.language === lang.code ? "text-primary" : ""
                     }`}
                   >
@@ -363,14 +363,14 @@ export default function AccountScreen() {
       >
         <View className={`flex-1 ${themeClass}`}>
         <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4">
+          <View className="bg-background border-t border-border rounded-t-xl px-5 pb-10 pt-4">
             <View className="items-center mb-4">
-              <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+              <View className="h-1 w-8 rounded-full bg-muted-foreground/20" />
             </View>
-            <View className="flex-row items-center justify-between mb-6">
-              <Text className="text-xl font-semibold">{t("color_scheme")}</Text>
+            <View className="flex-row items-center justify-between mb-5">
+              <Text className="text-base font-semibold">{t("color_scheme")}</Text>
               <Pressable onPress={() => setShowSchemePicker(false)}>
-                <X size={24} color={iconColor} />
+                <X size={20} color={iconColor} />
               </Pressable>
             </View>
             <View className="gap-3">
@@ -400,7 +400,7 @@ export default function AccountScreen() {
                       className="mr-3"
                     />
                     <Text
-                      className={`flex-1 font-medium ${
+                      className={`flex-1 text-sm font-medium ${
                         isSelected ? "text-primary" : ""
                       }`}
                     >
@@ -427,14 +427,14 @@ export default function AccountScreen() {
       >
         <View className={`flex-1 ${themeClass}`}>
         <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4">
+          <View className="bg-background border-t border-border rounded-t-xl px-5 pb-10 pt-4">
             <View className="items-center mb-4">
-              <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+              <View className="h-1 w-8 rounded-full bg-muted-foreground/20" />
             </View>
-            <View className="flex-row items-center justify-between mb-6">
-              <Text className="text-xl font-semibold">{t("select_currency")}</Text>
+            <View className="flex-row items-center justify-between mb-5">
+              <Text className="text-base font-semibold">{t("select_currency")}</Text>
               <Pressable onPress={() => setShowCurrencyModal(false)}>
-                <X size={24} color={iconColor} />
+                <X size={20} color={iconColor} />
               </Pressable>
             </View>
             <ScrollView className="gap-2 max-h-96">
@@ -450,7 +450,7 @@ export default function AccountScreen() {
                   disabled={currencyLoading}
                 >
                   <View className="flex-1">
-                    <Text className="font-medium">{currency.code}</Text>
+                    <Text className="text-sm font-medium text-foreground">{currency.code}</Text>
                     <Muted className="text-xs">
                       {getCurrencyDisplayName(currency.code)}
                     </Muted>

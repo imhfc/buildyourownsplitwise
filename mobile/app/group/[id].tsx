@@ -11,9 +11,9 @@ import {
   Check,
   CaretLeft,
   PencilSimple,
-  Link,
   UserPlus,
-  GearSix,
+  SlidersHorizontal,
+  ShareNetwork,
   CaretDown,
   CaretRight,
   Megaphone,
@@ -25,7 +25,7 @@ import { useDraftStore } from "../../stores/draft";
 import { addNotificationReceivedCallback } from "~/lib/notifications";
 import { DiscardDraftDialog } from "~/components/ui/discard-draft-dialog";
 import { Card, CardContent } from "~/components/ui/card";
-import { Text, H3, Muted } from "~/components/ui/text";
+import { Text, Muted } from "~/components/ui/text";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Badge } from "~/components/ui/badge";
@@ -881,29 +881,29 @@ export default function GroupDetailScreen() {
           openEditModal(item);
         }}
       >
-        <Card className={`mb-3 ${settled ? "opacity-50" : ""}`}>
-          <CardContent className="flex-row items-center p-4 gap-3">
-            <View className={`h-10 w-10 rounded-full items-center justify-center ${settled ? "bg-muted/50" : "bg-muted"}`}>
+        <Card className={`mb-2 ${settled ? "opacity-50" : ""}`}>
+          <CardContent className="flex-row items-center p-3.5 gap-3">
+            <View className={`h-9 w-9 rounded-full items-center justify-center ${settled ? "bg-muted/50" : "bg-muted"}`}>
               {settled ? (
-                <Check size={20} color="hsl(142 71% 45%)" weight="bold" />
+                <Check size={18} color="hsl(142 71% 45%)" weight="bold" />
               ) : (
-                <Receipt size={20} color="hsl(240 3.8% 46.1%)" />
+                <Receipt size={18} color="hsl(240 3.8% 46.1%)" />
               )}
             </View>
-            <View className="flex-1">
-              <Text className={`font-medium ${settled ? "line-through text-muted-foreground" : ""}`}>{item.description}</Text>
-              <Muted>
+            <View className="flex-1 gap-0.5">
+              <Text className={`text-sm font-medium ${settled ? "line-through text-muted-foreground" : "text-foreground"}`}>{item.description}</Text>
+              <Text className="text-xs text-muted-foreground">
                 {item.payer_display_name} {t("paid_by")}
-              </Muted>
+              </Text>
             </View>
-            <View className="items-end gap-1">
-              <Text className={`text-lg font-bold ${settled ? "text-muted-foreground" : "text-primary"}`}>
+            <View className="items-end gap-0.5">
+              <Text className={`text-sm font-semibold tabular-nums ${settled ? "text-muted-foreground" : "text-primary"}`}>
                 {item.currency} {parseFloat(item.total_amount).toLocaleString()}
               </Text>
               {item.currency !== item.base_currency && (
-                <Muted className="text-xs">
+                <Text className="text-xs text-muted-foreground">
                   {item.base_currency} {parseFloat(item.base_amount).toLocaleString()}
-                </Muted>
+                </Text>
               )}
               <View className="flex-row items-center gap-1.5">
                 {item.payers && item.payers.length > 0 && (
@@ -947,17 +947,17 @@ export default function GroupDetailScreen() {
     const isSending = sendingFriendRequestId === item.user.id;
 
     return (
-      <Card className="mb-3">
-        <CardContent className="flex-row items-center p-4 gap-3">
-          <View className="h-10 w-10 rounded-full bg-muted items-center justify-center">
-            <UsersThree size={20} color="hsl(240 3.8% 46.1%)" weight="regular" />
+      <Card className="mb-2">
+        <CardContent className="flex-row items-center p-3.5 gap-3">
+          <View className="h-9 w-9 rounded-full bg-muted items-center justify-center">
+            <UsersThree size={18} color="hsl(240 3.8% 46.1%)" weight="regular" />
           </View>
-          <View className="flex-1">
-            <Text className="font-medium">
+          <View className="flex-1 gap-0.5">
+            <Text className="text-sm font-medium text-foreground">
               {item.user.display_name}
               {isSelf ? "  （你）" : ""}
             </Text>
-            <Muted>{item.user.email}</Muted>
+            <Text className="text-xs text-muted-foreground">{item.user.email}</Text>
           </View>
           <View className="flex-row items-center gap-2">
             <Badge variant={item.role === "admin" ? "default" : "secondary"}>
@@ -1023,7 +1023,7 @@ export default function GroupDetailScreen() {
             {hasOwed && (
               <View className={balanceSummaryExpanded ? "mb-2" : ""}>
                 <View className="flex-row items-center">
-                  <Text className="text-base font-semibold text-income flex-1">
+                  <Text className="text-sm font-semibold text-income flex-1">
                     {Object.entries(owedByCurrency).map(([cur, amt]) =>
                       t("gets_back_total", { currency: cur, amount: amt.toLocaleString() })
                     ).join(" + ")}
@@ -1035,7 +1035,7 @@ export default function GroupDetailScreen() {
                   )}
                 </View>
                 {balanceSummaryExpanded && owedToMe.map((s) => (
-                  <Text key={`${s.from_user_id}-${s.to_user_id}`} className="text-sm text-muted-foreground ml-2 mt-0.5">
+                  <Text key={`${s.from_user_id}-${s.to_user_id}`} className="text-xs text-muted-foreground ml-2 mt-0.5">
                     {t("owes_you", { name: s.from_user_name })} {s.currency} {parseFloat(s.amount).toLocaleString()}
                   </Text>
                 ))}
@@ -1044,7 +1044,7 @@ export default function GroupDetailScreen() {
             {hasOwe && (
               <View className="mb-1">
                 <View className="flex-row items-center">
-                  <Text className="text-base font-semibold text-destructive flex-1">
+                  <Text className="text-sm font-semibold text-destructive flex-1">
                     {Object.entries(oweByCurrency).map(([cur, amt]) =>
                       t("owes_total", { currency: cur, amount: amt.toLocaleString() })
                     ).join(" + ")}
@@ -1055,7 +1055,7 @@ export default function GroupDetailScreen() {
                   }
                 </View>
                 {balanceSummaryExpanded && iOwe.map((s) => (
-                  <Text key={`${s.from_user_id}-${s.to_user_id}`} className="text-sm text-muted-foreground ml-2 mt-0.5">
+                  <Text key={`${s.from_user_id}-${s.to_user_id}`} className="text-xs text-muted-foreground ml-2 mt-0.5">
                     {t("you_owe_person", { name: s.to_user_name })} {s.currency} {parseFloat(s.amount).toLocaleString()}
                   </Text>
                 ))}
@@ -1107,13 +1107,13 @@ export default function GroupDetailScreen() {
           }}
           className="p-2"
         >
-          <GearSix size={22} color="hsl(var(--primary))" />
+          <SlidersHorizontal size={22} color="hsl(var(--primary))" weight="regular" />
         </Pressable>
         <Pressable
           onPress={() => setShowInvite(true)}
           className="p-2 -mr-1"
         >
-          <Link size={22} color="hsl(var(--primary))" />
+          <ShareNetwork size={22} color="hsl(var(--primary))" weight="regular" />
         </Pressable>
       </View>
 
@@ -1159,7 +1159,7 @@ export default function GroupDetailScreen() {
                         onPress={() => setShowNotInvolved(!showNotInvolved)}
                         className="flex-row items-center justify-between py-3 px-1"
                       >
-                        <Text className="text-sm font-medium text-muted-foreground">
+                        <Text className="text-xs font-medium text-muted-foreground">
                           {t("not_involved_expenses")} ({otherUnsettled.length})
                         </Text>
                         {showNotInvolved ? (
@@ -1183,7 +1183,7 @@ export default function GroupDetailScreen() {
                         onPress={() => setShowSettled(!showSettled)}
                         className="flex-row items-center justify-between py-3 px-1"
                       >
-                        <Text className="text-sm font-medium text-muted-foreground">
+                        <Text className="text-xs font-medium text-muted-foreground">
                           {t("settled_expenses")} ({settled.length})
                         </Text>
                         {showSettled ? (
@@ -1230,9 +1230,9 @@ export default function GroupDetailScreen() {
 
             {/* Pending settlements */}
             {pendingSettlements.length > 0 && (
-              <Card className="mb-4">
-                <CardContent className="p-4 gap-2">
-                  <Text className="font-semibold text-sm text-muted-foreground">{t("pending_settlements")}</Text>
+              <Card className="mb-3">
+                <CardContent className="p-3.5 gap-2">
+                  <Text className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("pending_settlements")}</Text>
                   {pendingSettlements.map((s) => (
                     <View key={s.id} className="flex-row items-center justify-between py-1">
                       <Text className="text-sm flex-1">
@@ -1267,9 +1267,9 @@ export default function GroupDetailScreen() {
                   {/* Section: Others owe me */}
                   {owedToMe.length > 0 && (
                     <Card>
-                      <CardContent className="p-4 gap-3">
+                      <CardContent className="p-3.5 gap-2.5">
                         <View className="flex-row items-center justify-between">
-                          <Text className="font-semibold text-income">{t("owed_to_you")}</Text>
+                          <Text className="text-xs font-medium text-income uppercase tracking-wider">{t("owed_to_you")}</Text>
                           {owedToMe.length > 1 && (
                             <Button
                               size="sm"
@@ -1314,7 +1314,7 @@ export default function GroupDetailScreen() {
                                 <Text className="text-sm flex-1">
                                   {t("owes_you", { name: item.from_user_name })}
                                 </Text>
-                                <Text className="text-base font-bold text-income">
+                                <Text className="text-sm font-semibold tabular-nums text-income">
                                   {item.currency} {parseFloat(item.amount).toLocaleString()}
                                 </Text>
                               </View>
@@ -1372,8 +1372,8 @@ export default function GroupDetailScreen() {
                     }
                     return (
                       <Card>
-                        <CardContent className="p-4 gap-3">
-                          <Text className="font-semibold text-destructive">{t("you_owe")}</Text>
+                        <CardContent className="p-3.5 gap-2.5">
+                          <Text className="text-xs font-medium text-destructive uppercase tracking-wider">{t("you_owe")}</Text>
                           {Array.from(grouped).map(([personId, { name, items }]) => {
                             const alreadyPending = hasPendingFor(items[0].from_user_id, personId);
                             const canSettle = items[0].from_user_id === user?.id;
@@ -1405,7 +1405,7 @@ export default function GroupDetailScreen() {
                                 {/* Per-currency rows */}
                                 {items.map((item) => (
                                   <View key={`${item.from_user_id}-${item.to_user_id}-${item.currency}`} className="flex-row items-center justify-between pl-3">
-                                    <Text className="text-base font-bold text-destructive flex-1">
+                                    <Text className="text-sm font-semibold tabular-nums text-destructive flex-1">
                                       {item.currency} {parseFloat(item.amount).toLocaleString()}
                                     </Text>
                                     {canSettle && (
@@ -1436,8 +1436,8 @@ export default function GroupDetailScreen() {
 
                   {/* Section: All members balances */}
                   <Card>
-                    <CardContent className="p-4 gap-2">
-                      <Text className="font-semibold text-sm text-muted-foreground">{t("all_members_balances")}</Text>
+                    <CardContent className="p-3.5 gap-1.5">
+                      <Text className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("all_members_balances")}</Text>
                       {members.map((m) => {
                         // Calculate net balance for this member from all suggestions
                         const owedSum = suggestions
@@ -1545,20 +1545,20 @@ export default function GroupDetailScreen() {
           ListFooterComponent={
             emailInvitations.filter((inv) => inv.status === "pending").length > 0 ? (
               <View className="mt-4">
-                <Muted className="mb-2 text-sm font-medium">{t("pending_invitations")}</Muted>
+                <Text className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">{t("pending_invitations")}</Text>
                 {emailInvitations
                   .filter((inv) => inv.status === "pending")
                   .map((inv) => (
                     <Card key={inv.id} className="mb-2">
-                      <CardContent className="flex-row items-center p-4 gap-3">
-                        <View className="h-10 w-10 rounded-full bg-muted items-center justify-center">
-                          <UserPlus size={20} color="hsl(240 3.8% 46.1%)" weight="regular" />
+                      <CardContent className="flex-row items-center p-3.5 gap-3">
+                        <View className="h-9 w-9 rounded-full bg-muted items-center justify-center">
+                          <UserPlus size={18} color="hsl(240 3.8% 46.1%)" weight="regular" />
                         </View>
-                        <View className="flex-1">
-                          <Text className="font-medium">{inv.email}</Text>
-                          <Muted className="text-xs">
+                        <View className="flex-1 gap-0.5">
+                          <Text className="text-sm font-medium text-foreground">{inv.email}</Text>
+                          <Text className="text-xs text-muted-foreground">
                             {t("invited_by", { name: inv.inviter_name })}
-                          </Muted>
+                          </Text>
                         </View>
                         <Pressable
                           onPress={async () => {
@@ -1610,15 +1610,15 @@ export default function GroupDetailScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <Pressable className="flex-1" onPress={handleCloseExpenseModal} />
-          <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4">
+          <View className="bg-background border-t border-border rounded-t-xl px-5 pb-10 pt-4">
             <View className="items-center mb-4">
-              <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+              <View className="h-1 w-8 rounded-full bg-muted-foreground/20" />
             </View>
 
-            <View className="flex-row items-center justify-between mb-6">
-              <H3>{editingExpenseId ? t("edit_expense") : t("add_expense")}</H3>
-              <Pressable onPress={handleCloseExpenseModal}>
-                <X size={24} color="hsl(240 3.8% 46.1%)" />
+            <View className="flex-row items-center justify-between mb-5">
+              <Text className="text-base font-semibold">{editingExpenseId ? t("edit_expense") : t("add_expense")}</Text>
+              <Pressable onPress={handleCloseExpenseModal} hitSlop={8}>
+                <X size={20} color="hsl(240 3.8% 46.1%)" />
               </Pressable>
             </View>
 
@@ -1942,15 +1942,15 @@ export default function GroupDetailScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <Pressable className="flex-1" onPress={() => setShowAddMember(false)} />
-          <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4 max-h-[80%]">
+          <View className="bg-background border-t border-border rounded-t-xl px-5 pb-10 pt-4 max-h-[80%]">
             <View className="items-center mb-4">
-              <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+              <View className="h-1 w-8 rounded-full bg-muted-foreground/20" />
             </View>
 
-            <View className="flex-row items-center justify-between mb-4">
-              <H3>{t("add_member_title")}</H3>
-              <Pressable onPress={() => setShowAddMember(false)}>
-                <X size={24} color="hsl(240 3.8% 46.1%)" />
+            <View className="flex-row items-center justify-between mb-5">
+              <Text className="text-base font-semibold">{t("add_member_title")}</Text>
+              <Pressable onPress={() => setShowAddMember(false)} hitSlop={8}>
+                <X size={20} color="hsl(240 3.8% 46.1%)" />
               </Pressable>
             </View>
 
@@ -2038,8 +2038,8 @@ export default function GroupDetailScreen() {
                           <UsersThree size={20} color="hsl(240 3.8% 46.1%)" weight="regular" />
                         </View>
                         <View className="flex-1">
-                          <Text className="font-medium">{foundUser.display_name}</Text>
-                          <Muted>{foundUser.email}</Muted>
+                          <Text className="text-sm font-medium text-foreground">{foundUser.display_name}</Text>
+                          <Text className="text-xs text-muted-foreground">{foundUser.email}</Text>
                         </View>
                       </CardContent>
                     </Card>
@@ -2116,14 +2116,14 @@ export default function GroupDetailScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <Pressable className="flex-1" onPress={() => setShowSettings(false)} />
-          <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4">
+          <View className="bg-background border-t border-border rounded-t-xl px-5 pb-10 pt-4">
             <View className="items-center mb-4">
-              <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+              <View className="h-1 w-8 rounded-full bg-muted-foreground/20" />
             </View>
-            <View className="flex-row items-center justify-between mb-6">
-              <H3>{t("group_settings")}</H3>
-              <Pressable onPress={() => setShowSettings(false)}>
-                <X size={24} color="hsl(240 3.8% 46.1%)" />
+            <View className="flex-row items-center justify-between mb-5">
+              <Text className="text-base font-semibold">{t("group_settings")}</Text>
+              <Pressable onPress={() => setShowSettings(false)} hitSlop={8}>
+                <X size={20} color="hsl(240 3.8% 46.1%)" />
               </Pressable>
             </View>
               <View className="gap-4">
@@ -2191,11 +2191,11 @@ export default function GroupDetailScreen() {
       >
         <View className={`flex-1 ${themeClass}`}>
           <Pressable className="flex-1 justify-center items-center bg-black/50 px-6" onPress={() => setSettleTarget(null)}>
-            <Pressable className="bg-background rounded-xl px-5 py-6 w-full max-w-sm">
-              <H3 className="mb-4">{t("settle_up_confirm")}</H3>
+            <Pressable className="bg-background rounded-xl border border-border p-6 w-full max-w-sm">
+              <Text className="text-base font-semibold text-foreground mb-4">{t("settle_up_confirm")}</Text>
               {settleTarget && (
                 <>
-                  <Text className="text-base mb-3">
+                  <Text className="text-sm text-muted-foreground mb-3">
                     {t("settle_up_confirm_msg", {
                       from: settleTarget.from_user_name,
                       amount: `${settleCurrency} ${parseFloat(settleAmount).toLocaleString()}`,
@@ -2252,10 +2252,10 @@ export default function GroupDetailScreen() {
       >
         <View className={`flex-1 ${themeClass}`}>
           <Pressable className="flex-1 justify-center items-center bg-black/50 px-6" onPress={() => setForgiveTarget(null)}>
-            <Pressable className="bg-background rounded-xl px-5 py-6 w-full max-w-sm">
-              <H3 className="mb-4">{t("forgive_debt_confirm")}</H3>
+            <Pressable className="bg-background rounded-xl border border-border p-6 w-full max-w-sm">
+              <Text className="text-base font-semibold text-foreground mb-4">{t("forgive_debt_confirm")}</Text>
               {forgiveTarget && (
-                <Text className="text-base mb-3">
+                <Text className="text-sm text-muted-foreground mb-3">
                   {t("forgive_debt_confirm_msg", {
                     name: forgiveTarget.from_user_name,
                     amount: `${forgiveTarget.currency} ${parseFloat(forgiveTarget.amount).toLocaleString()}`,
@@ -2296,8 +2296,8 @@ export default function GroupDetailScreen() {
       >
         <View className={`flex-1 ${themeClass}`}>
           <Pressable className="flex-1 justify-center items-center bg-black/50 px-6" onPress={() => { setUnifiedSettleTarget(null); setUnifiedSettleItems([]); }}>
-            <Pressable className="bg-background rounded-xl px-5 py-6 w-full max-w-sm">
-              <H3 className="mb-4">{t("unified_settle_title")}</H3>
+            <Pressable className="bg-background rounded-xl border border-border p-6 w-full max-w-sm">
+              <Text className="text-base font-semibold text-foreground mb-4">{t("unified_settle_title")}</Text>
               {unifiedSettleTarget && (
                 <>
                   <CurrencyPicker
@@ -2329,7 +2329,7 @@ export default function GroupDetailScreen() {
                       {unifiedSettleItems.length > 1 && (
                         <View className="flex-row items-center justify-between py-1.5 pl-2 border-t border-border mt-1 pt-2">
                           <Text className="text-sm font-semibold">{t("unified_settle_total")}</Text>
-                          <Text className="text-base font-bold text-destructive">
+                          <Text className="text-sm font-semibold tabular-nums text-destructive">
                             {unifiedSettleCurrency} {unifiedSettleItems.reduce((sum, i) => sum + i.convertedAmount, 0).toLocaleString()}
                           </Text>
                         </View>

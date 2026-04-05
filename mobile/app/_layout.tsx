@@ -37,7 +37,6 @@ const SCHEME_CLASS: Record<string, string> = {
   purple: "scheme-purple",
   warm: "scheme-warm",
   coral: "scheme-coral",
-  slate: "scheme-slate",
 };
 
 function InnerLayout() {

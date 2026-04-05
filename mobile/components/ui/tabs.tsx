@@ -1,19 +1,6 @@
-import { Pressable, View, Platform, type ViewStyle } from "react-native";
+import { Pressable, View } from "react-native";
 import { cn } from "~/lib/utils";
 import { Text } from "./text";
-
-const activeTabShadow: ViewStyle = Platform.select({
-  web: {
-    boxShadow: "0 1px 4px rgba(0,0,0,0.1)",
-  } as any,
-  default: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-}) ?? {};
 
 interface Tab {
   value: string;
@@ -29,7 +16,7 @@ interface TabsProps {
 
 export function SegmentedTabs({ tabs, value, onValueChange, className }: TabsProps) {
   return (
-    <View className={cn("flex-row rounded-lg bg-border p-1", className)}>
+    <View className={cn("flex-row border-b border-border", className)}>
       {tabs.map((tab) => {
         const isActive = tab.value === value;
         return (
@@ -37,15 +24,16 @@ export function SegmentedTabs({ tabs, value, onValueChange, className }: TabsPro
             key={tab.value}
             onPress={() => onValueChange(tab.value)}
             className={cn(
-              "flex-1 items-center justify-center rounded-md py-2",
-              isActive && "bg-card"
+              "flex-1 items-center justify-center pb-2.5 pt-1",
+              isActive && "border-b border-primary"
             )}
-            style={isActive ? activeTabShadow : undefined}
           >
             <Text
               className={cn(
-                "text-sm font-medium",
-                isActive ? "text-foreground" : "text-muted-foreground"
+                "text-sm",
+                isActive
+                  ? "text-foreground font-semibold"
+                  : "text-muted-foreground font-medium"
               )}
             >
               {tab.label}

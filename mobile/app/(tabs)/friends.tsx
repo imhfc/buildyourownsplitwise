@@ -13,7 +13,7 @@ import { useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
   UserPlus,
-  UsersThree,
+  Users,
   X,
   Clock,
   Check,
@@ -22,7 +22,7 @@ import {
   UserMinus,
 } from "phosphor-react-native";
 import { friendsAPI } from "../../services/api";
-import { Text, H3, Muted } from "~/components/ui/text";
+import { Text, Muted } from "~/components/ui/text";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Card, CardContent } from "~/components/ui/card";
@@ -209,13 +209,13 @@ export default function FriendsScreen() {
   );
 
   const renderFriendItem = ({ item, index }: { item: FriendItem; index: number }) => (
-    <Card className="mb-3">
-      <CardContent className="flex-row items-center p-4 gap-3">
+    <Card className="mb-2">
+      <CardContent className="flex-row items-center p-3.5 gap-3">
         {renderAvatar(item.friend.display_name, item.friend.avatar_url, index)}
-        <View className="flex-1">
-          <Text className="text-base font-medium">{item.friend.display_name}</Text>
+        <View className="flex-1 gap-0.5">
+          <Text className="text-sm font-medium text-foreground">{item.friend.display_name}</Text>
           {item.friend.email ? (
-            <Muted className="text-xs">{item.friend.email}</Muted>
+            <Text className="text-xs text-muted-foreground">{item.friend.email}</Text>
           ) : null}
         </View>
         <Pressable
@@ -230,15 +230,15 @@ export default function FriendsScreen() {
   );
 
   const renderPendingItem = ({ item }: { item: PendingRequest }) => (
-    <Card className="mb-3">
-      <CardContent className="flex-row items-center p-4 gap-3">
+    <Card className="mb-2">
+      <CardContent className="flex-row items-center p-3.5 gap-3">
         {renderAvatar(item.user.display_name, item.user.avatar_url)}
-        <View className="flex-1">
-          <Text className="text-sm font-medium">
+        <View className="flex-1 gap-0.5">
+          <Text className="text-sm font-medium text-foreground">
             {t("friend_request_from", { name: item.user.display_name })}
           </Text>
           {item.user.email ? (
-            <Muted className="text-xs">{item.user.email}</Muted>
+            <Text className="text-xs text-muted-foreground">{item.user.email}</Text>
           ) : null}
         </View>
         <View className="flex-row gap-2">
@@ -330,7 +330,7 @@ export default function FriendsScreen() {
           }
           ListEmptyComponent={
             <EmptyState
-              icon={UsersThree}
+              icon={Users}
               title={t("no_friends")}
               description={t("no_friends_desc")}
               actionLabel={t("add_friend")}
@@ -384,15 +384,15 @@ export default function FriendsScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <View className="flex-1 justify-end bg-black/50">
-            <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4 max-h-[80%]">
+            <View className="bg-background border-t border-border rounded-t-xl px-5 pb-10 pt-4 max-h-[80%]">
               <View className="items-center mb-4">
-                <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+                <View className="h-1 w-8 rounded-full bg-muted-foreground/20" />
               </View>
 
-              <View className="flex-row items-center justify-between mb-6">
-                <H3>{t("add_friend")}</H3>
-                <Pressable onPress={closeAddModal}>
-                  <X size={24} color="hsl(240 3.8% 46.1%)" />
+              <View className="flex-row items-center justify-between mb-5">
+                <Text className="text-base font-semibold">{t("add_friend")}</Text>
+                <Pressable onPress={closeAddModal} hitSlop={8}>
+                  <X size={20} color="hsl(240 3.8% 46.1%)" />
                 </Pressable>
               </View>
 
@@ -450,9 +450,9 @@ export default function FriendsScreen() {
       >
         <View className={`flex-1 ${themeClass}`}>
         <View className="flex-1 justify-center items-center bg-black/50 px-6">
-          <View className="bg-background rounded-xl p-6 w-full max-w-sm gap-4">
-            <H3>{t("remove_friend")}</H3>
-            <Text className="text-muted-foreground">
+          <View className="bg-background rounded-xl border border-border p-6 w-full max-w-sm gap-4">
+            <Text className="text-base font-semibold text-foreground">{t("remove_friend")}</Text>
+            <Text className="text-sm text-muted-foreground">
               {t("remove_friend_confirm")}
             </Text>
             <View className="flex-row gap-3 justify-end">
