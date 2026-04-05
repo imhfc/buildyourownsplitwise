@@ -11,8 +11,8 @@ from app.models.expense import Expense, ExpensePayer, ExpenseSplit
 from app.models.group import Group
 from app.models.settlement import Settlement
 from app.schemas.expense import (
-    ExpenseCreate, ExpensePayerResponse, ExpenseResponse, ExpenseSplitResponse, ExpenseUpdate,
-    SettledInfo,
+    ExpenseCreate, ExpensePayerInput, ExpensePayerResponse, ExpenseResponse, ExpenseSplitResponse,
+    ExpenseUpdate, SettledInfo,
 )
 from app.services.activity_log_service import log_activity
 from app.services.exchange_rate_service import get_rate
@@ -253,32 +253,15 @@ async def delete_expense(
     await notify_expense_deleted(db, group_id, user_id, deleter_name, expense.description)
 
 
-async def update_expense(
+async def _update_expense_in_place(
     db: AsyncSession,
+    expense: Expense,
     group_id: uuid.UUID,
-    expense_id: uuid.UUID,
     user_id: uuid.UUID,
     data: ExpenseUpdate,
+    member_ids: list[uuid.UUID],
 ) -> ExpenseResponse:
-    await check_membership(db, group_id, user_id)
-    member_ids = await get_group_member_ids(db, group_id)
-
-    result = await db.execute(
-        select(Expense)
-        .where(Expense.id == expense_id, Expense.deleted_at.is_(None))
-        .options(selectinload(Expense.splits))
-    )
-    expense = result.scalar_one_or_none()
-    if not expense:
-        raise NotFoundError("Expense not found")
-
-    # Allow any involved member (payer or split participant) to update
-    involved_user_ids = {expense.paid_by} | {s.user_id for s in expense.splits}
-    if user_id not in involved_user_ids:
-        raise ForbiddenError("Only involved members can update expense")
-    if await check_expense_settled(db, group_id, expense.created_at):
-        raise ValidationError("Cannot edit a settled expense")
-
+    """直接修改未結清消費（原地更新）。"""
     # Update non-None fields
     if data.description is not None:
         expense.description = data.description
@@ -386,12 +369,165 @@ async def update_expense(
     )
 
     # Expire the expense so get_expense_detail reloads from DB with proper eager loading.
-    # Without this, newly created ExpenseSplit objects in the identity map lack the `user`
-    # relationship, causing MissingGreenlet on lazy load in async mode.
     expense_id = expense.id
     db.expire(expense)
 
     return await get_expense_detail(db, expense_id)
+
+
+async def _adjust_settled_expense(
+    db: AsyncSession,
+    original: Expense,
+    group_id: uuid.UUID,
+    user_id: uuid.UUID,
+    data: ExpenseUpdate,
+    member_ids: list[uuid.UUID],
+) -> ExpenseResponse:
+    """沖銷+重建：軟刪除原始已結清消費，建立一筆新消費取代之。"""
+    # 軟刪除原始消費（從餘額計算中移除）
+    original_id = original.id
+    original_desc = original.description
+    original.deleted_at = datetime.now(timezone.utc)
+
+    # 合併原始值與更新值，決定新消費的欄位
+    new_description = data.description if data.description is not None else original.description
+    new_total = data.total_amount if data.total_amount is not None else original.total_amount
+    new_currency = data.currency if data.currency is not None else original.currency
+    new_split_method = data.split_method if data.split_method is not None else original.split_method
+    new_note = data.note if data.note is not None else original.note
+    new_expense_date = data.expense_date if data.expense_date is not None else original.expense_date
+
+    # 決定付款人
+    if data.payers is not None:
+        payer_total = sum(p.amount for p in data.payers)
+        if abs(payer_total - new_total) > Decimal("0.01"):
+            raise ValidationError("Payer amounts don't add up to total")
+        for p in data.payers:
+            if p.user_id not in member_ids:
+                raise ValidationError("Payer is not a group member")
+        primary_payer = data.payers[0].user_id
+        payers_data = data.payers
+    elif data.paid_by is not None:
+        if data.paid_by not in member_ids:
+            raise ValidationError("Payer is not a group member")
+        primary_payer = data.paid_by
+        payers_data = None
+    else:
+        primary_payer = original.paid_by
+        # 保留原始的多人付款資料
+        if original.payers:
+            payers_data = [
+                ExpensePayerInput(user_id=p.user_id, amount=p.amount)
+                for p in original.payers
+            ]
+        else:
+            payers_data = None
+
+    # 取得匯率
+    group_result = await db.execute(select(Group).where(Group.id == group_id))
+    group = group_result.scalar_one()
+    base_currency = group.default_currency
+    expense_currency = new_currency.upper()
+
+    if expense_currency != base_currency.upper():
+        rate, _ = await get_rate(db, expense_currency, base_currency)
+    else:
+        rate = Decimal("1")
+
+    # 建立新消費，記錄來源
+    new_expense = Expense(
+        group_id=group_id,
+        description=new_description,
+        total_amount=new_total,
+        currency=expense_currency,
+        base_currency=base_currency,
+        exchange_rate_to_base=rate,
+        paid_by=primary_payer,
+        split_method=new_split_method,
+        note=new_note,
+        expense_date=new_expense_date,
+        created_by=user_id,
+        adjusted_from_id=original_id,
+    )
+    db.add(new_expense)
+    await db.flush()
+
+    # 多人付款記錄
+    if payers_data and len(payers_data) > 1:
+        for p in payers_data:
+            db.add(ExpensePayer(
+                expense_id=new_expense.id, user_id=p.user_id, amount=p.amount,
+            ))
+
+    # 計算分帳
+    split_data = ExpenseCreate(
+        description=new_description,
+        total_amount=new_total,
+        paid_by=primary_payer,
+        split_method=new_split_method,
+        splits=data.splits or [],
+    )
+    splits = calculate_splits(split_data, member_ids)
+    for s in splits:
+        db.add(ExpenseSplit(
+            expense_id=new_expense.id,
+            user_id=s["user_id"],
+            amount=s["amount"],
+            shares=s.get("shares"),
+        ))
+
+    await db.flush()
+
+    await log_activity(
+        db, group_id=group_id, actor_id=user_id, action="expense_adjusted",
+        target_type="expense", target_id=new_expense.id,
+        description=new_description, amount=new_total, currency=expense_currency,
+    )
+
+    # Push 通知
+    from app.services.push_service import notify_expense_updated
+    from app.models.user import User
+    updater_result = await db.execute(select(User.display_name).where(User.id == user_id))
+    updater_name = updater_result.scalar_one_or_none() or "Unknown"
+    await notify_expense_updated(
+        db, group_id, user_id, updater_name, new_description, new_total, expense_currency,
+    )
+
+    return await get_expense_detail(db, new_expense.id)
+
+
+async def update_expense(
+    db: AsyncSession,
+    group_id: uuid.UUID,
+    expense_id: uuid.UUID,
+    user_id: uuid.UUID,
+    data: ExpenseUpdate,
+) -> ExpenseResponse:
+    await check_membership(db, group_id, user_id)
+    member_ids = await get_group_member_ids(db, group_id)
+
+    result = await db.execute(
+        select(Expense)
+        .where(Expense.id == expense_id, Expense.deleted_at.is_(None))
+        .options(selectinload(Expense.splits), selectinload(Expense.payers))
+    )
+    expense = result.scalar_one_or_none()
+    if not expense:
+        raise NotFoundError("Expense not found")
+
+    # Allow any involved member (payer or split participant) to update
+    involved_user_ids = {expense.paid_by} | {s.user_id for s in expense.splits}
+    if user_id not in involved_user_ids:
+        raise ForbiddenError("Only involved members can update expense")
+
+    is_settled = await check_expense_settled(db, group_id, expense.created_at)
+
+    if is_settled:
+        # 沖銷+重建：軟刪除原始消費，建立新消費取代
+        return await _adjust_settled_expense(db, expense, group_id, user_id, data, member_ids)
+    else:
+        # 一般更新：原地修改
+        return await _update_expense_in_place(db, expense, group_id, user_id, data, member_ids)
 
 
 async def get_expense_detail(
@@ -456,4 +592,5 @@ def format_expense(
         created_at=e.created_at,
         is_settled=is_settled,
         settled_info=settled_info if is_settled else None,
+        adjusted_from_id=e.adjusted_from_id,
     )

@@ -30,6 +30,9 @@ class Expense(Base):
     )
     created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    adjusted_from_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("expenses.id"), nullable=True, index=True,
+    )
 
     # Relationships
     group = relationship("Group", back_populates="expenses")
@@ -37,6 +40,7 @@ class Expense(Base):
     creator = relationship("User", foreign_keys=[created_by])
     splits = relationship("ExpenseSplit", back_populates="expense", cascade="all, delete-orphan")
     payers = relationship("ExpensePayer", back_populates="expense", cascade="all, delete-orphan")
+    adjusted_from = relationship("Expense", remote_side="Expense.id", foreign_keys=[adjusted_from_id])
 
 
 class ExpensePayer(Base):

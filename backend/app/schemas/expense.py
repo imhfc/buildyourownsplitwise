@@ -82,5 +82,6 @@ class ExpenseResponse(BaseModel):
     created_at: datetime
     is_settled: bool = False  # 是否已被結清覆蓋
     settled_info: SettledInfo | None = None  # 結清資訊（誰、什麼時候）
+    adjusted_from_id: uuid.UUID | None = None  # 沖銷重建來源（指向被調整的原始消費）
 
     model_config = {"from_attributes": True}

@@ -128,6 +128,7 @@ export default function GroupDetailScreen() {
   const [addError, setAddError] = useState("");
   const [splitInputs, setSplitInputs] = useState<Record<string, string>>({});
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  const [editingSettled, setEditingSettled] = useState(false);
   const [convertedHint, setConvertedHint] = useState("");
   const [multiPayer, setMultiPayer] = useState(false);
   const [payerInputs, setPayerInputs] = useState<Record<string, string>>({});
@@ -160,6 +161,11 @@ export default function GroupDetailScreen() {
   const [friendsLoading, setFriendsLoading] = useState(false);
   const [addingFriendId, setAddingFriendId] = useState<string | null>(null);
 
+  // Friend status for members tab
+  const [friendIdSet, setFriendIdSet] = useState<Set<string>>(new Set());
+  const [sentRequestToIds, setSentRequestToIds] = useState<Set<string>>(new Set());
+  const [sendingFriendRequestId, setSendingFriendRequestId] = useState<string | null>(null);
+
   // Email invitation
   const [inviteEmail, setInviteEmail] = useState("");
   const [sendingInvite, setSendingInvite] = useState(false);
@@ -188,6 +194,16 @@ export default function GroupDetailScreen() {
   const hasFetched = useRef(false);
 
   const isAdmin = members.find((m) => m.user.id === user?.id)?.role === "admin";
+
+  const fetchFriendIds = useCallback(async () => {
+    try {
+      const res = await friendsAPI.list();
+      const ids = new Set((res.data as any[]).map((f) => f.friend.id));
+      setFriendIdSet(ids);
+    } catch {
+      // silently fail
+    }
+  }, []);
 
   const fetchEmailInvitations = useCallback(async () => {
     if (!id) return;
@@ -243,14 +259,15 @@ export default function GroupDetailScreen() {
       hasFetched.current = true;
       if (isFirstLoad) setLoading(false);
 
-      // Phase 2: settlement suggestions + email invitations -- load in background
+      // Phase 2: settlement suggestions + email invitations + friend status -- load in background
       fetchEmailInvitations();
       refreshSettlements();
+      fetchFriendIds();
     } catch (e) {
       console.error("Failed to fetch group data", e);
       if (isFirstLoad) setLoading(false);
     }
-  }, [id, fetchEmailInvitations, refreshSettlements]);
+  }, [id, fetchEmailInvitations, refreshSettlements, fetchFriendIds]);
 
   useFocusEffect(
     useCallback(() => {
@@ -356,6 +373,7 @@ export default function GroupDetailScreen() {
 
   const openEditModal = (expense: ExpenseItem) => {
     setEditingExpenseId(expense.id);
+    setEditingSettled(!!expense.is_settled);
     setDesc(expense.description);
     setAmount(parseFloat(expense.total_amount).toString());
     setExpenseCurrency(expense.currency);
@@ -572,6 +590,7 @@ export default function GroupDetailScreen() {
       }
       setShowAdd(false);
       setEditingExpenseId(null);
+      setEditingSettled(false);
       setDesc("");
       setAmount("");
       setSplitMethod("equal");
@@ -716,10 +735,6 @@ export default function GroupDetailScreen() {
     return (
       <Pressable
         onPress={() => {
-          if (settled) {
-            setAddError(t("cannot_edit_settled"));
-            return;
-          }
           openEditModal(item);
         }}
       >
@@ -764,9 +779,29 @@ export default function GroupDetailScreen() {
   const hasPendingFor = (fromId: string, toId: string) =>
     pendingSettlements.some((s) => s.from_user === fromId && s.to_user === toId);
 
+  const handleSendFriendRequest = async (member: Member) => {
+    setSendingFriendRequestId(member.user.id);
+    try {
+      await friendsAPI.sendRequest(member.user.email);
+      setSentRequestToIds((prev) => new Set(prev).add(member.user.id));
+    } catch (e: any) {
+      const msg = e?.response?.data?.detail;
+      if (msg === "Already friends") {
+        setFriendIdSet((prev) => new Set(prev).add(member.user.id));
+      } else if (msg === "Friend request already pending") {
+        setSentRequestToIds((prev) => new Set(prev).add(member.user.id));
+      }
+    } finally {
+      setSendingFriendRequestId(null);
+    }
+  };
+
   const renderMember = ({ item }: { item: Member }) => {
     const isSelf = item.user.id === user?.id;
     const canRemove = isAdmin || isSelf;
+    const isFriend = friendIdSet.has(item.user.id);
+    const hasSentRequest = sentRequestToIds.has(item.user.id);
+    const isSending = sendingFriendRequestId === item.user.id;
 
     return (
       <Card className="mb-3">
@@ -785,6 +820,23 @@ export default function GroupDetailScreen() {
             <Badge variant={item.role === "admin" ? "default" : "secondary"}>
               {t(item.role === "admin" ? "role_admin" : "role_member")}
             </Badge>
+            {!isSelf && !isFriend && (
+              hasSentRequest ? (
+                <Badge variant="outline">{t("request_sent")}</Badge>
+              ) : (
+                <Pressable
+                  onPress={() => handleSendFriendRequest(item)}
+                  disabled={isSending}
+                  className="p-1"
+                >
+                  {isSending ? (
+                    <ActivityIndicator size="small" />
+                  ) : (
+                    <UserPlus size={18} color="hsl(var(--primary))" />
+                  )}
+                </Pressable>
+              )
+            )}
             {canRemove && (
               <Pressable onPress={() => handleRemoveMember(item)} className="p-1">
                 <UserMinus size={18} color="hsl(0 84.2% 60.2%)" />
@@ -931,7 +983,7 @@ export default function GroupDetailScreen() {
                     title={t("add_expense")}
                     description={t("no_expenses_hint")}
                     actionLabel={t("add_expense")}
-                    onAction={() => { setEditingExpenseId(null); setAddError(""); setDesc(""); setAmount(""); setSplitMethod("equal"); setSplitInputs({}); setSelectedMembers(new Set(members.map((m) => m.user.id))); setExpenseCurrency(groupCurrency); setMultiPayer(false); setPayerInputs({}); setShowAdd(true); }}
+                    onAction={() => { setEditingExpenseId(null); setEditingSettled(false); setAddError(""); setDesc(""); setAmount(""); setSplitMethod("equal"); setSplitInputs({}); setSelectedMembers(new Set(members.map((m) => m.user.id))); setExpenseCurrency(groupCurrency); setMultiPayer(false); setPayerInputs({}); setShowAdd(true); }}
                   />
                 ) : null
               }
@@ -1333,7 +1385,7 @@ export default function GroupDetailScreen() {
         />
       )}
 
-      {tab === "expenses" && <FAB label={t("add_expense")} onPress={() => { setEditingExpenseId(null); setAddError(""); setDesc(""); setAmount(""); setSplitMethod("equal"); setSplitInputs({}); setSelectedMembers(new Set(members.map((m) => m.user.id))); setExpenseCurrency(groupCurrency); setMultiPayer(false); setPayerInputs({}); setShowAdd(true); }} />}
+      {tab === "expenses" && <FAB label={t("add_expense")} onPress={() => { setEditingExpenseId(null); setEditingSettled(false); setAddError(""); setDesc(""); setAmount(""); setSplitMethod("equal"); setSplitInputs({}); setSelectedMembers(new Set(members.map((m) => m.user.id))); setExpenseCurrency(groupCurrency); setMultiPayer(false); setPayerInputs({}); setShowAdd(true); }} />}
       {tab === "members" && (
         <FAB label={t("add_member")} onPress={() => { setShowAddMember(true); setMemberEmail(""); setFoundUser(null); setLookupError(""); setInviteEmail(""); setInviteError(""); setInviteSuccess(""); }} />
       )}
@@ -1351,7 +1403,7 @@ export default function GroupDetailScreen() {
         visible={showAdd}
         transparent
         animationType="slide"
-        onRequestClose={() => { setShowAdd(false); setEditingExpenseId(null); }}
+        onRequestClose={() => { setShowAdd(false); setEditingExpenseId(null); setEditingSettled(false); }}
       >
         <View className={`flex-1 ${themeClass}`}>
         <KeyboardAvoidingView
@@ -1366,10 +1418,16 @@ export default function GroupDetailScreen() {
 
               <View className="flex-row items-center justify-between mb-6">
                 <H3>{editingExpenseId ? t("edit_expense") : t("add_expense")}</H3>
-                <Pressable onPress={() => { setShowAdd(false); setEditingExpenseId(null); }}>
+                <Pressable onPress={() => { setShowAdd(false); setEditingExpenseId(null); setEditingSettled(false); }}>
                   <X size={24} color="hsl(240 3.8% 46.1%)" />
                 </Pressable>
               </View>
+
+              {editingSettled && (
+                <View className="mb-4 p-3 rounded-lg bg-warning/10 border border-warning/30">
+                  <Text className="text-sm text-warning font-medium">{t("edit_settled_warning")}</Text>
+                </View>
+              )}
 
               <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 500 }}>
                 <View className="gap-4">

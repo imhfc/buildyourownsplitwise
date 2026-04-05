@@ -13,6 +13,7 @@ import { addNotificationReceivedCallback } from "~/lib/notifications";
 type ActivityType =
   | "expense_added"
   | "expense_updated"
+  | "expense_adjusted"
   | "expense_deleted"
   | "settlement_created"
   | "settlement_confirmed"
@@ -53,6 +54,7 @@ function getActivityStyle(type: ActivityType, isDark: boolean) {
   switch (type) {
     case "expense_added":
     case "expense_updated":
+    case "expense_adjusted":
       return { color: "#22c55e", bg: isDark ? "rgba(34,197,94,0.15)" : "#dcfce7" };
     case "expense_deleted":
       return { color: "#ef4444", bg: isDark ? "rgba(239,68,68,0.15)" : "#fee2e2" };
@@ -77,6 +79,7 @@ function ActivityIcon({ type, color }: { type: ActivityType; color: string }) {
   switch (type) {
     case "expense_added": return <Receipt {...props} />;
     case "expense_updated": return <PencilSimple {...props} />;
+    case "expense_adjusted": return <PencilSimple {...props} />;
     case "expense_deleted": return <Trash {...props} />;
     case "settlement_created":
     case "settlement_confirmed":
@@ -97,6 +100,7 @@ function buildDescription(item: ActivityItem, t: (key: string) => string): strin
   switch (item.type) {
     case "expense_added":
     case "expense_updated":
+    case "expense_adjusted":
     case "expense_deleted":
       return `${item.actor_name} ${action}${item.description ? `「${item.description}」` : ""}${t("in_group")} ${item.group_name}`;
     case "settlement_created":
@@ -125,6 +129,7 @@ const NAVIGABLE_TYPES: Set<ActivityType> = new Set([
   "settlement_forgiven",
   "expense_added",
   "expense_updated",
+  "expense_adjusted",
   "expense_deleted",
 ]);
 

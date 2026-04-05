@@ -9,6 +9,7 @@ from pydantic import BaseModel
 ActivityType = Literal[
     "expense_added",
     "expense_updated",
+    "expense_adjusted",
     "expense_deleted",
     "settlement_created",
     "settlement_confirmed",
