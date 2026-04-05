@@ -321,7 +321,7 @@ cd backend && pytest tests/
 ### 11.0 UI 設計核心原則（byosw 品牌）
 
 - **設計哲學**：Minimalist, organic-tech, fluid, connected（極簡、有機科技、流動、高連結性）
-- **色彩**：深炭灰（`HSL 222 47% 11%`，shadcn zinc）+ 純白高對比，accent 用 muted teal（`HSL 174`）極度克制
+- **色彩**：shadcn Neutral 純黑白灰（`HSL 0 0% 9%`）為預設，各色系只覆蓋 primary/ring/card
 - **圓角**：Card `rounded-xl`、Button/Input `rounded-lg`、FAB/Badge/Avatar `rounded-full`
 - **尺寸**：Button `h-10`(40px) / Input `h-10`(40px) / 文字統一 `text-sm`（shadcn 標準）
 - **無陰影**：卡片用 `border border-border` 取代 shadow，保持平面極簡
@@ -348,19 +348,13 @@ cd backend && pytest tests/
 - **所有互動按鈕必須使用 `bg-primary` 色系**：儲存、確認、送出等 CTA 按鈕，一律使用 `variant="default"`（即 `bg-primary text-primary-foreground`），禁止寫死顏色（例如 `bg-blue-500`），才能在使用者切換色系時自動更新。
 - **`<Button>` 元件預設即為 `variant="default"`**：新增消費、建立群組、登入等按鈕只需 `<Button>` 不帶 `variant` 即可正確跟隨色系。
 - **危險操作使用 `variant="destructive"`**：刪除、退出等操作使用 destructive variant，此 variant 固定為紅色（語義色），不隨色系改變。
-- **色系變數定義在 `global.css`，新色系必須同步更新 5 個地方**：
-  1. `mobile/lib/theme.tsx` — `ColorScheme` 型別 + `COLOR_SCHEMES` 陣列
-  2. `mobile/global.css` — light/dark CSS 變數
-  3. `mobile/app/_layout.tsx` — `SCHEME_CLASS` 映射
-  4. `mobile/i18n/*.json`（zh-TW、en、ja）— 顯示名稱翻譯
-- **Dark mode 設計規則（參照 Material Design 3 / Apple HIG）**（2026-04-03 回顧）：
-  - 背景/卡片/邊框必須帶該 scheme 的 hue（saturation 8-12%），禁止共用中性黑底（`0 0% X%`）
-  - Lightness 階梯：bg 5% → card 10% → secondary 13% → accent 15% → border 16%
-  - Primary 色：飽和度降 20-30%（保留 50-65%），亮度升 5-10%（55-65%）
-  - Foreground 亮度：86%
-  - 任何涉及視覺配色的設計，先搜尋業界 best practice（MD3/Apple HIG），禁止憑直覺調參數
-- **Preview 色必須與實際 primary 一致** — `COLOR_SCHEMES` 的 `preview.light` / `preview.dark` 必須是該 scheme light/dark mode `--primary` 的近似 hex 值（2026-04-03 回顧）
-- **色系間色相差距 >= 30 度** — 任意兩個 scheme 的主色 hue 差距不得小於 30 度，避免視覺無法區分（2026-04-03 回顧）
+- **shadcn 兩層主題系統**（2026-04-06 回顧）：
+  - **Base 層**（`:root` / `.dark`）：所有主題共用的結構色（background/card/foreground/border/secondary/muted），基底為 shadcn Neutral（純黑白灰）
+  - **Color 層**（`.scheme-xxx`）：只覆蓋 `--primary`、`--primary-foreground`、`--ring`、`--card`（淡色染色），禁止重新定義結構色
+  - 卡片染色：light `hue + saturation 35-40% + lightness 97%`，dark `hue + saturation 12% + lightness 8%`（99%/25% 肉眼不可見）
+- **新色系同步清單**：`global.css`（~6 行）+ `theme.tsx`（型別 + 陣列）+ `_layout.tsx`（SCHEME_CLASS）+ 三語 i18n
+- **硬寫 hex 必須用 Tailwind neutral 色階**（hue 0 純灰），禁止 zinc（hue 240 帶藍調）（2026-04-06 回顧）
+- **Preview 色必須與實際 primary 一致** — `COLOR_SCHEMES` 的 `preview.light` / `preview.dark` 必須是該 scheme light/dark mode `--primary` 的近似 hex 值
 
 ### 11.4 常見錯誤清單（禁止再犯）
 
@@ -386,10 +380,8 @@ cd backend && pytest tests/
 | 有方向性的操作（A->B）讓雙方都能發起 | 結清、轉帳等有方向性的操作，按鈕只能顯示給發起方；對方只能回應（確認/拒絕/提醒），禁止用 `\|\|` 條件讓雙方都能觸發同一個 action |
 | 後端未驗證有方向性關係的兩端不是同一人 | 建立 settlement/transfer 等有方向性的資料時，後端 service 層必須驗證 `from != to`，防止前端 bug 產生自我操作的垃圾資料 |
 | 待處理項目只在深層頁面顯示，無被動通知 | 需要使用者回應的 pending 項目（結清確認、邀請等），必須有 tab badge 或首頁 banner 等被動通知機制，不能只在特定子頁面才看得到 |
-| Dark mode 配色全部共用中性黑底 `0 0% X%` | 每個 theme 的 dark mode 背景/卡片/邊框必須帶自身色相（saturation 8-12%），參照 MD3 lightness 階梯（bg 5% → card 10% → secondary 13% → accent 15% → border 16%） |
-| 憑直覺設計 dark mode 飽和度/亮度 | 先搜尋 Material Design 3 / Apple HIG best practice 取得具體數值，再依規則設計；primary 飽和度降 20-30%（保留 50-65%），亮度升 5-10% |
+| 每個色系各自定義完整 background/card/border/muted 等結構色 | shadcn 兩層系統：base 定義結構色（所有主題共用 Neutral），color scheme 只覆蓋 primary/ring/card；參見 11.3（2026-04-06 回顧） |
 | `COLOR_SCHEMES` preview 色與實際 primary 不符 | preview hex 必須是 `global.css` 中對應 scheme light/dark `--primary` 的近似值，名稱也必須反映實際色調 |
-| 兩個 scheme 色相差距 < 30 度 | 新增 scheme 前檢查所有現有 hue，任意兩者差距 >= 30 度，否則視覺無法區分 |
 | 布林旗標只檢查「結果為零」就判定為「已完成」 | `is_settled` 等代表「完成」語意的旗標，必須同時檢查「曾經開始過」（如 `expense_count > 0`），零狀態實體（如新群組無費用）不等於已完成 |
 | 新增 `log_activity(action="xxx")` 但未同步更新 `ActivityType` | 新增任何 activity action 值時，必須同步更新 4 處：(1) `schemas/activity.py` ActivityType Literal (2) 前端 `activities.tsx` ActivityType union + switch cases (3) 三語 i18n JSON (4) 前端 icon/style/description。缺任一處 = 活動列表整頁 500 |
 | async session 中使用 `db.expire_all()` | `expire_all()` 會 expire 整個 identity map（含測試 fixture），觸發同步 lazy load → `MissingGreenlet`；改用 `db.expire(specific_obj)` 只 expire 需要重載的物件，且呼叫前先將後續需要的屬性存到區域變數 |
@@ -404,3 +396,11 @@ cd backend && pytest tests/
 | Tab bar 移除 web 端 `bottomInset` fallback（`Math.max(rawInsets.bottom, 8)`） | Web 上 `useSafeAreaInsets().bottom` 經常回傳 0，必須保留 `Platform.OS === "web" ? Math.max(rawInsets.bottom, 8) : rawInsets.bottom`；此防護已被誤刪至少 3 次，每次都導致 tab bar 文字被裁切 |
 | `bg-primary` 上圖示用 `color="white"` 或 `color="#fff"` | byosp dark mode primary 近白（HSL 0 0% 98%），白色圖示不可見；必須用 `hsl(var(--primary-foreground))` 跟隨主題（2026-04-05 回顧） |
 | 裝置 safe area / 工具列高度用 hardcode 常數（如 `8`、`44`） | 每台手機 safe area 不同，hardcode 無法適配；必須用瀏覽器 API 自動偵測（`viewport-fit=cover` + `env(safe-area-inset-*)` + `useSafeAreaInsets()`）（2026-04-05 回顧） |
+| 各頁面 Card 用不同 padding/margin（如 `p-4 mb-3` vs `p-3.5 mb-2`） | 全 app 統一 design token：Card `p-3.5 mb-2`、主文字 `text-sm font-medium text-foreground`、次要文字 `text-xs text-muted-foreground`、金額 `text-sm font-semibold tabular-nums`、icon circle `h-9 w-9`；詳見 `.claude/rules/project-standards.md`「UI Design Token」（2026-04-06 回顧） |
+| Modal 用 `rounded-t-2xl`、`<H3>`、`text-xl`、X `size={24}` | Bottom sheet 統一 `rounded-t-xl border-t border-border`、`h-1 w-8 bg-muted-foreground/20`、title `text-base font-semibold`、X `size={20} hitSlop={8}`、`mb-5`；Dialog 統一 `rounded-xl border border-border p-6`、title `text-base font-semibold text-foreground`；詳見 `docs/UI_DESIGN_SPEC.md` §10（2026-04-06 回顧） |
+| 只修改一個頁面的 UI 設計語言，未檢查其他頁面一致性 | 任何 UI design token 變更必須同時審查所有 tab 頁面（friends/groups/activities/account）+ group detail，確認全部對齊（2026-04-06 回顧） |
+| 變更 tab bar 圖標但未同步更新 EmptyState 圖標 | 同一功能的圖標必須全域一致；變更 tab bar icon 後必須 grep 舊圖標名稱，同步更新 EmptyState 及其他使用處（2026-04-06 回顧） |
+| Tab bar 未選中態用 `regular` weight、選中態用非 `fill` weight | phosphor 圖標 weight 分級：未選中/裝飾性用 `light`（纖細），選中用 `fill`（實心），頁面內互動用 `regular`（標準）；`light`→`fill` 的對比提供最佳選中回饋（2026-04-06 回顧） |
+| SegmentedTabs 使用 pill 背景 + shadow | 設計規範明確禁止陰影；SegmentedTabs 必須用底線指示器（`border-b border-primary`），禁止 pill 背景和 shadow（2026-04-06 回顧） |
+| 硬寫 hex 色碼用 zinc 色階（`#18181B` `#52525B` `#71717A` `#A1A1AA`） | zinc 帶 hue 240 藍紫調，品牌預設黑白灰時肉眼偏藍；必須用 neutral 色階（`#171717` `#525252` `#737373` `#A3A3A3`）（2026-04-06 回顧） |
+| 每個色系定義完整一套 CSS 變數（background/card/border 全部重複） | shadcn 是兩層系統：base 定義結構色（所有主題共用），color scheme 只覆蓋 `--primary`、`--primary-foreground`、`--ring`、`--card`（淡色染色）；新增主題只需 6 行 CSS，禁止複製整套結構色（2026-04-06 回顧） |

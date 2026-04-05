@@ -67,3 +67,7 @@
 
 - 配色/排版/動畫等視覺設計，先搜尋 MD3 / Apple HIG best practice 取得具體數值，禁止憑直覺
 - Dark mode 設計規則詳見 `project-standards.md`
+- 任何 UI 設計語言的變更，必須同時檢查所有 tab 頁面（friends/groups/activities/account）和子頁面（group detail）的一致性，不能只改觸發問題的那一個（2026-04-06 回顧）
+- 統一 UI Design Token 詳見 `project-standards.md`「UI Design Token」區塊（2026-04-06 回顧）
+- 變更圖標時，必須 grep 舊圖標名稱 + 搜尋同概念的其他圖標（如 tab bar 改了，EmptyState 也要改），確保全域一致（2026-04-06 回顧）
+- phosphor 圖標 weight 分級：tab bar 未選中/EmptyState 裝飾性用 `light`，tab bar 選中用 `fill`，頁面內互動用 `regular`（2026-04-06 回顧）

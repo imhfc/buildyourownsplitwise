@@ -73,7 +73,7 @@ export default function TabsLayout() {
         options={{
           title: t("friends"),
           tabBarIcon: ({ color, focused }) => (
-            <Users size={20} color={color} weight={focused ? "regular" : "light"} />
+            <Users size={20} color={color} weight={focused ? "fill" : "light"} />
           ),
         }}
       />
@@ -82,7 +82,7 @@ export default function TabsLayout() {
         options={{
           title: t("groups"),
           tabBarIcon: ({ color, focused }) => (
-            <SquaresFour size={20} color={color} weight={focused ? "regular" : "light"} />
+            <SquaresFour size={20} color={color} weight={focused ? "fill" : "light"} />
           ),
           tabBarBadge: pendingSettlementCount > 0 ? pendingSettlementCount : undefined,
           tabBarBadgeStyle: {
@@ -102,7 +102,7 @@ export default function TabsLayout() {
         options={{
           title: t("activities"),
           tabBarIcon: ({ color, focused }) => (
-            <ClockCounterClockwise size={20} color={color} weight={focused ? "regular" : "light"} />
+            <ClockCounterClockwise size={20} color={color} weight={focused ? "fill" : "light"} />
           ),
           tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
           tabBarBadgeStyle: {
@@ -122,7 +122,7 @@ export default function TabsLayout() {
         options={{
           title: t("account"),
           tabBarIcon: ({ color, focused }) => (
-            <UserCircle size={20} color={color} weight={focused ? "regular" : "light"} />
+            <UserCircle size={20} color={color} weight={focused ? "fill" : "light"} />
           ),
         }}
       />

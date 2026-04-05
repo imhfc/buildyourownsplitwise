@@ -60,6 +60,26 @@ backend/app/
 - 頁面內 logo 使用 `logo-transparent.png`（透明底），禁止直接引用 `icon.png`（有白底）；dark mode 用 `tintColor` 染色（2026-04-05 回顧）
 - `bg-primary` 上的圖示/spinner color 禁止 `white`/`#fff`，必須用 `hsl(var(--primary-foreground))`；dark mode primary 可能近白色（2026-04-05 回顧）
 - Mobile web 必須動態注入 `viewport-fit=cover`（啟用 safe-area-inset）+ `100dvh` CSS（排除瀏覽器工具列），裝置差異尺寸禁止 hardcode 常數（2026-04-05 回顧）
+- phosphor 圖標 weight 分級：tab bar 未選中/EmptyState 裝飾性用 `light`，tab bar 選中用 `fill`，頁面內互動用 `regular`；SegmentedTabs 使用底線指示器（`border-b border-primary`），禁止 pill 背景和 shadow（2026-04-06 回顧）
+- EmptyState 圖標必須與對應 tab bar 圖標一致（好友=Users、群組=SquaresFour、活動=ClockCounterClockwise）；變更 tab bar icon 後必須全域搜尋同步（2026-04-06 回顧）
+
+## UI Design Token（2026-04-06 回顧）
+
+所有頁面（四個 tab + group detail + 所有 modal）必須使用以下統一 token，禁止各頁面自行定義不同值：
+
+| 元素 | Token | 禁止 |
+|------|-------|------|
+| Card 間距 | `mb-2` | `mb-3` |
+| Card 內距 | `p-3.5` | `p-4` |
+| 主文字 | `text-sm font-medium text-foreground` | `text-base font-medium`、裸 `font-medium` |
+| 次要文字 | `text-xs text-muted-foreground` | `<Muted>` 無 `text-xs`、裸 `<Muted>` |
+| 金額 | `text-sm font-semibold tabular-nums` | `text-lg font-bold`、`text-base font-bold`、缺 `tabular-nums` |
+| Section header | `text-xs font-medium text-muted-foreground uppercase tracking-wider` | `font-semibold` 無 size/uppercase |
+| Icon circle | `h-9 w-9` + icon `size={18}` | `h-10 w-10` + `size={20}`（列表卡片中） |
+| Bottom sheet | `rounded-t-xl border-t border-border`、`h-1 w-8 bg-muted-foreground/20`、title `text-base font-semibold`、X `size={20} hitSlop={8}`、`mb-5` | `rounded-t-2xl`、`h-1 w-10`、`<H3>`、`text-xl`、X `size={24}`、`mb-6` |
+| Dialog | `rounded-xl border border-border p-6`、title `text-base font-semibold text-foreground`、body `text-sm text-muted-foreground` | 無 border、`<H3>`、body `text-base` |
+
+- 任何 UI 變更必須跨所有 tab 頁面檢查一致性，不能只改觸發問題的那一個（2026-04-06 回顧）
 
 ## 推播通知規則（2026-04-05 回顧）
 
@@ -69,15 +89,30 @@ backend/app/
 - 操作者自己不收推播（`exclude_user_id` 參數排除）
 - 前端每個 tab 頁面必須同時有 `useFocusEffect`（進入時拉資料）+ `addNotificationReceivedCallback`（推播時刷新）
 
-## Dark Mode 設計規則（2026-04-03 回顧）
+## 主題色系統（shadcn 兩層架構）（2026-04-06 回顧）
 
-參照 Material Design 3 / Apple HIG best practice：
+參照 shadcn/ui 官方色票，採用兩層系統：
 
-- 背景帶品牌色相染色（saturation 8-12%），禁止共用中性黑底 `0 0% X%`
-- Lightness 階梯：bg 5% → card 10% → secondary 13% → accent 15% → border 16%
-- Primary 色：飽和度降 20-30%（保留 50-65%），亮度升 5-10%（55-65%）
-- Foreground 亮度：86%
-- Preview hex 必須與實際 primary 一致
-- 任意兩個 scheme 色相差距 >= 30 度
-- 設計配色前先搜尋業界 best practice，禁止憑直覺
-- byosw 品牌色為預設主題（shadcn zinc 風格，primary HSL 222 47% 11%），變更預設 scheme 需同步 5 處：global.css :root/.dark、theme.tsx（ColorScheme 型別 + COLOR_SCHEMES + useState 預設值）、_layout.tsx SCHEME_CLASS、useThemeClassName、三語 i18n（2026-04-05 回顧）
+### Base 層（所有主題共用）
+- `global.css` `:root` / `.dark` 定義結構色（background/card/foreground/border/secondary/muted/accent/destructive）
+- 基底為 shadcn Neutral（hue 0，純黑白灰，零飽和度）
+- Light: background `0 0% 98%`（淡灰）、card `0 0% 100%`（純白）
+- Dark: background `0 0% 3.9%`（近黑）、card `0 0% 7%`（微亮）
+
+### Color 層（各 scheme 只覆蓋 4 個變數）
+- `--primary`、`--primary-foreground`、`--ring`：取自 shadcn 官方色票（Blue/Green/Violet/Orange/Rose）
+- `--card`（+ `--popover`）：極淡主題色染色，讓卡片帶一層色調
+  - Light: 取主題 hue，saturation 35-40%，lightness 97%（可見閾值，99% 肉眼不可見）
+  - Dark: 取主題 hue，saturation 12%，lightness 8%
+- 禁止在 scheme 中重新定義 background/foreground/border/secondary/muted 等結構色
+
+### 硬寫 hex 色碼規則
+- 品牌預設黑白灰，硬寫 hex 必須用 Tailwind **neutral** 色階（hue 0 純灰）
+- 禁止用 **zinc** 色階（hue 240 帶藍紫調）：`#18181B` `#52525B` `#71717A` `#A1A1AA` `#0A0C0F`
+- 正確對應：`#171717` `#525252` `#737373` `#A3A3A3` `#0A0A0A`
+
+### 新增/修改色系的同步清單
+- `global.css`：新增 `.scheme-xxx` + `.dark.scheme-xxx`（各 ~6 行）
+- `theme.tsx`：`ColorScheme` 型別 + `COLOR_SCHEMES` 陣列（preview hex 與實際 primary 一致）
+- `_layout.tsx`：`SCHEME_CLASS` 映射
+- 三語 i18n（zh-TW/en/ja）：顯示名稱必須反映實際顏色

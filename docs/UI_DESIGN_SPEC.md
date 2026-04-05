@@ -175,9 +175,13 @@ Card = rounded-xl + border border-border + bg-card
 
 - 圖示庫：**phosphor-react-native**（line art 風格，與 logo 一致）
 - 預設大小：`20px`（Tab bar / 列表圖示）、`22px`（Action icon）
-- Weight：未選中 `regular`（線條），選中 `fill`（填充）
+- Weight 分級（2026-04-06 回顧）：
+  - Tab bar 未選中 / EmptyState 裝飾性：`light`（纖細線條）
+  - Tab bar 選中：`fill`（實心填滿，與變色配合提供明確選中回饋）
+  - 頁面內互動圖標（header action、列表 icon）：`regular`（標準線條）
 - 顏色：跟隨文字色或 `muted-foreground`，不使用彩色圖示
 - Tab bar icon 大小：`20px`
+- **EmptyState 圖標必須與對應 tab bar 圖標一致**（2026-04-06 回顧）
 
 ---
 
@@ -196,15 +200,18 @@ Card = rounded-xl + border border-border + bg-card
 
 ## 10. Modal / Sheet 設計
 
-### Bottom Sheet（建立群組等）
-- `rounded-t-2xl` 頂部圓角
-- `border-t border-border` 頂部邊框
-- 頂部拖曳指示器：`h-1 w-8 rounded-full bg-muted-foreground/20`
-- 標題使用 `text-base font-semibold`
-- 關閉按鈕：`X` icon，`20px`，`muted-foreground` 色
+### Bottom Sheet（建立群組、新增消費、設定等）
+- `rounded-t-xl border-t border-border`（禁止 `rounded-t-2xl`）
+- 頂部拖曳指示器：`h-1 w-8 rounded-full bg-muted-foreground/20`（禁止 `w-10`、`/30`）
+- 標題列：`flex-row items-center justify-between mb-5`
+- 標題文字：`text-base font-semibold`（禁止 `<H3>`、`text-xl`）
+- 關閉按鈕：`X size={20}` + `hitSlop={8}`（禁止 `size={24}`）
+- Backdrop：`bg-black/50`
 
-### Dialog（確認刪除等）
-- `rounded-2xl border border-border`
+### Dialog（確認刪除、結清確認等）
+- `rounded-xl border border-border p-6 w-full max-w-sm`
+- 標題：`text-base font-semibold text-foreground`（禁止 `<H3>`）
+- 內文：`text-sm text-muted-foreground`
 - Backdrop：`bg-black/50`
 - 按鈕排列：`flex-row gap-2 justify-end`，使用 `size="sm"`
 
