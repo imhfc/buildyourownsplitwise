@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from "react";
-import { Image, Platform, View } from "react-native";
+import { Platform, View, Text } from "react-native";
 import { Tabs, useFocusEffect, usePathname } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { UserPlus, SquaresFour, ClockCounterClockwise, UserCircle } from "phosphor-react-native";
 import { useTheme, COLOR_SCHEMES } from "~/lib/theme";
@@ -11,6 +12,7 @@ import { useAuthStore } from "~/stores/auth";
 export default function TabsLayout() {
   const { t } = useTranslation();
   const { isDark, colorScheme } = useTheme();
+  const insets = useSafeAreaInsets();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const fetchUnreadCount = useNotificationStore((s) => s.fetchUnreadCount);
@@ -48,8 +50,8 @@ export default function TabsLayout() {
           backgroundColor: isDark ? "#0A0C0F" : "#FFFFFF",
           borderTopWidth: 1,
           borderTopColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
-          height: 50,
-          paddingBottom: 4,
+          height: 50 + insets.bottom,
+          paddingBottom: 4 + insets.bottom,
           paddingTop: 4,
         },
         tabBarIconStyle: {
@@ -82,15 +84,16 @@ export default function TabsLayout() {
         options={{
           title: t("groups"),
           headerTitle: () => (
-            <Image
-              source={require("../../assets/logo-transparent.png")}
+            <Text
               style={{
-                width: 28,
-                height: 28,
-                tintColor: isDark ? "#E2E8F0" : undefined,
+                fontSize: 18,
+                fontWeight: "700",
+                color: isDark ? "#FAFAFA" : "#18181B",
+                letterSpacing: 0.5,
               }}
-              resizeMode="contain"
-            />
+            >
+              byosp
+            </Text>
           ),
           tabBarIcon: ({ color, focused }) => (
             <SquaresFour size={20} color={color} weight={focused ? "fill" : "regular"} />

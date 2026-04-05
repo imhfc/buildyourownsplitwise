@@ -56,6 +56,8 @@ backend/app/
 - 數字輸入必須搭配 onChangeText 正規表達式過濾
 - 所有 API 呼叫需 try/catch 並顯示錯誤訊息
 - Modal 表單的 API 錯誤必須用 inline error state 顯示，禁止用 Alert.alert（Expo Web 上行為不穩定）
+- UI 元件尺寸/圓角/間距必須對齊 shadcn/ui 標準值（Button h-10、Input h-10、rounded-lg），禁止憑直覺自訂（2026-04-05 回顧）
+- 頁面內 logo 使用 `logo-transparent.png`（透明底），禁止直接引用 `icon.png`（有白底）；dark mode 用 `tintColor` 染色（2026-04-05 回顧）
 
 ## 推播通知規則（2026-04-05 回顧）
 
@@ -76,3 +78,4 @@ backend/app/
 - Preview hex 必須與實際 primary 一致
 - 任意兩個 scheme 色相差距 >= 30 度
 - 設計配色前先搜尋業界 best practice，禁止憑直覺
+- byosp 品牌色為預設主題（shadcn zinc 風格，primary HSL 222 47% 11%），變更預設 scheme 需同步 5 處：global.css :root/.dark、theme.tsx（ColorScheme 型別 + COLOR_SCHEMES + useState 預設值）、_layout.tsx SCHEME_CLASS、useThemeClassName、三語 i18n（2026-04-05 回顧）
