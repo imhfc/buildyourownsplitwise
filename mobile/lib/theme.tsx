@@ -103,6 +103,26 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     initializedRef.current = true;
   }, []);
 
+  // 已登入時從後端拉取最新主題設定（處理跨裝置同步）
+  const syncedRef = useRef(false);
+  const fetchAndSync = () => {
+    if (syncedRef.current) return;
+    syncedRef.current = true;
+    authAPI.getMe().then((res) => syncFromUser(res.data)).catch(() => {
+      syncedRef.current = false; // 失敗時允許重試
+    });
+  };
+  useEffect(() => {
+    // 訂閱 auth store 變化，等 hydration 完成且已登入才拉設定
+    const unsub = useAuthStore.subscribe((state) => {
+      if (state.isAuthenticated && state.hasHydrated) fetchAndSync();
+    });
+    // 也立即檢查一次（Web 上 localStorage hydration 是同步的，subscribe 可能錯過）
+    const { isAuthenticated, hasHydrated } = useAuthStore.getState();
+    if (isAuthenticated && hasHydrated) fetchAndSync();
+    return unsub;
+  }, []);
+
   const isDark =
     theme === "system" ? systemScheme === "dark" : theme === "dark";
 

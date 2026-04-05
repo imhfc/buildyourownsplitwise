@@ -136,17 +136,8 @@ export default function LoginScreen() {
       .then((res) => {
         setAuth(res.data.access_token, res.data.refresh_token, res.data.user);
         syncFromUser(res.data.user);
-        const pending = useAuthStore.getState().pendingInviteToken;
-        if (pending) {
-          useAuthStore.getState().setPendingInviteToken(null);
-          if (pending.startsWith("email:")) {
-            router.replace(`/invite/email/${pending.slice(6)}`);
-          } else {
-            router.replace(`/join/${pending}`);
-          }
-        } else {
-          router.replace("/(tabs)");
-        }
+        // 導航統一由 _layout.tsx 的 useEffect 處理（監聽 isAuthenticated 變化）
+        // 避免與 _layout.tsx 競爭 pendingInviteToken 導致新用戶被導到首頁
       })
       .catch((e: any) => {
         setError(e.response?.data?.detail || t("google_sign_in_failed"));

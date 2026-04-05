@@ -56,6 +56,14 @@ backend/app/
 - 所有 API 呼叫需 try/catch 並顯示錯誤訊息
 - Modal 表單的 API 錯誤必須用 inline error state 顯示，禁止用 Alert.alert（Expo Web 上行為不穩定）
 
+## 推播通知規則（2026-04-05 回顧）
+
+- 即時同步策略：推播通知 + REST re-fetch（Splitwise 模式），不使用 WebSocket
+- Service 層每個寫入操作（CREATE/UPDATE/DELETE）必須呼叫 `push_service` 對應通知函式
+- 通知對象：群組成員廣播用 `notify_group_members()`，特定對象用 `send_push()`
+- 操作者自己不收推播（`exclude_user_id` 參數排除）
+- 前端每個 tab 頁面必須同時有 `useFocusEffect`（進入時拉資料）+ `addNotificationReceivedCallback`（推播時刷新）
+
 ## Dark Mode 設計規則（2026-04-03 回顧）
 
 參照 Material Design 3 / Apple HIG best practice：

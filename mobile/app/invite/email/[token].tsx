@@ -1,13 +1,20 @@
 import { useCallback, useState } from "react";
-import { View, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator, Platform, Linking } from "react-native";
 import { useLocalSearchParams, router, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { EnvelopeSimple, UsersThree, CaretLeft, WarningCircle, CheckCircle } from "phosphor-react-native";
+import { EnvelopeSimple, UsersThree, CaretLeft, WarningCircle, CheckCircle, ArrowSquareOut } from "phosphor-react-native";
 import { inviteAPI } from "../../../services/api";
 import { useAuthStore } from "../../../stores/auth";
 import { Text, H1, Muted } from "~/components/ui/text";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/card";
+
+/** 偵測 LINE / Facebook / Instagram 等 in-app browser */
+function isInAppBrowser(): boolean {
+  if (Platform.OS !== "web") return false;
+  const ua = navigator.userAgent || "";
+  return /Line\/|FBAN|FBAV|Instagram|MicroMessenger|Weibo/i.test(ua);
+}
 
 interface EmailInviteInfo {
   id: string;
@@ -31,10 +38,11 @@ export default function EmailInviteScreen() {
   const [error, setError] = useState("");
   const [joinedGroupId, setJoinedGroupId] = useState<string | null>(null);
   const [declined, setDeclined] = useState(false);
+  const [inApp] = useState(() => isInAppBrowser());
 
   useFocusEffect(
     useCallback(() => {
-      if (!hasHydrated || !token) return;
+      if (!hasHydrated || !token || inApp) return;
 
       if (!isAuthenticated) {
         setPendingInviteToken(`email:${token}`);
@@ -99,6 +107,42 @@ export default function EmailInviteScreen() {
   const goBack = () => {
     router.canGoBack() ? router.back() : router.replace("/(tabs)");
   };
+
+  const handleOpenExternal = () => {
+    if (Platform.OS !== "web") return;
+    const url = window.location.href;
+    Linking.openURL(url).catch(() => {
+      window.open(url, "_system");
+    });
+  };
+
+  // In-app browser 攔截：優先引導使用者用系統瀏覽器開啟
+  if (inApp) {
+    return (
+      <View className="flex-1 bg-background justify-center px-6">
+        <View className="items-center gap-5">
+          <ArrowSquareOut size={48} color="hsl(var(--primary))" weight="regular" />
+          <Text className="text-lg font-semibold text-center">
+            {t("in_app_browser_title")}
+          </Text>
+          <Muted className="text-center leading-6">
+            {t("in_app_browser_hint")}
+          </Muted>
+          <Button onPress={handleOpenExternal} size="lg" className="w-full mt-2">
+            <View className="flex-row items-center gap-2">
+              <ArrowSquareOut size={18} color="hsl(var(--primary-foreground))" weight="bold" />
+              <Text className="text-primary-foreground font-semibold">
+                {t("open_in_browser")}
+              </Text>
+            </View>
+          </Button>
+          <Muted className="text-center text-xs leading-5 mt-2">
+            {t("in_app_browser_manual")}
+          </Muted>
+        </View>
+      </View>
+    );
+  }
 
   if (!hasHydrated || loading) {
     return (

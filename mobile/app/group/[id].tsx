@@ -986,7 +986,7 @@ export default function GroupDetailScreen() {
           </View>
         ) : (
           <FlatList
-            data={suggestions}
+            data={suggestions.filter((s) => s.from_user_id === user?.id || s.to_user_id === user?.id)}
             keyExtractor={(item) => `${item.from_user_id}-${item.to_user_id}`}
             renderItem={renderSuggestion}
             contentContainerStyle={{ padding: 20 }}
