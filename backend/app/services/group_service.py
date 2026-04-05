@@ -164,7 +164,7 @@ async def reorder_groups(
 async def update_group(
     db: AsyncSession, group_id: uuid.UUID, user_id: uuid.UUID, data: GroupUpdate
 ) -> GroupResponse:
-    await check_admin(db, group_id, user_id)
+    await check_membership(db, group_id, user_id)
 
     result = await db.execute(select(Group).where(Group.id == group_id))
     group = result.scalar_one()

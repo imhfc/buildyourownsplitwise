@@ -996,20 +996,18 @@ export default function GroupDetailScreen() {
         <Text className="flex-1 text-lg font-semibold text-foreground text-center" numberOfLines={1}>
           {groupName}
         </Text>
-        {isAdmin && (
-          <Pressable
-            onPress={() => {
-              setEditGroupName(groupName);
-              setEditGroupCurrency(groupCurrency);
-              setEditCoverUrl(coverImageUrl || "");
-              setSettingsError(null);
-              setShowSettings(true);
-            }}
-            className="p-2"
-          >
-            <GearSix size={22} color="hsl(var(--primary))" />
-          </Pressable>
-        )}
+        <Pressable
+          onPress={() => {
+            setEditGroupName(groupName);
+            setEditGroupCurrency(groupCurrency);
+            setEditCoverUrl(coverImageUrl || "");
+            setSettingsError(null);
+            setShowSettings(true);
+          }}
+          className="p-2"
+        >
+          <GearSix size={22} color="hsl(var(--primary))" />
+        </Pressable>
         <Pressable
           onPress={() => setShowInvite(true)}
           className="p-2 -mr-1"

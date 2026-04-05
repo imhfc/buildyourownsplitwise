@@ -69,15 +69,16 @@ class TestUpdateGroup:
         assert resp.status_code == 200
         assert resp.json()["name"] == "Renamed Group"
 
-    async def test_update_group_as_member_forbidden(
+    async def test_update_group_as_member_allowed(
         self, client: AsyncClient, user_b: User, group_with_members: Group
     ):
         resp = await client.patch(
             f"/api/v1/groups/{group_with_members.id}",
             headers=auth_header(user_b),
-            json={"name": "Nope"},
+            json={"name": "Updated by member"},
         )
-        assert resp.status_code == 403
+        assert resp.status_code == 200
+        assert resp.json()["name"] == "Updated by member"
 
 
 class TestDeleteGroup:
