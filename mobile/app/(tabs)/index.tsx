@@ -20,6 +20,7 @@ import { EmptyState } from "~/components/ui/empty-state";
 import { CurrencyPicker } from "~/components/ui/currency-picker";
 import { Separator } from "~/components/ui/separator";
 import { useThemeClassName, useTheme } from "~/lib/theme";
+import { Logo } from "~/components/Logo";
 import { addNotificationReceivedCallback } from "~/lib/notifications";
 
 interface SimplifiedDebt {
@@ -651,7 +652,14 @@ export default function GroupsScreen() {
               {invitationsSection}
             </>
           }
-          ListFooterComponent={settledFooter}
+          ListFooterComponent={
+            <>
+              {settledFooter}
+              <View className="items-center pb-8 pt-6 opacity-30">
+                <Logo size={32} />
+              </View>
+            </>
+          }
         />
       )}
 

@@ -8,6 +8,7 @@ import { EmptyState } from "~/components/ui/empty-state";
 import { activitiesAPI } from "../../services/api";
 import { useNotificationStore } from "~/stores/notification";
 import { useTheme } from "~/lib/theme";
+import { Logo } from "~/components/Logo";
 import { addNotificationReceivedCallback } from "~/lib/notifications";
 
 type ActivityType =
@@ -267,6 +268,13 @@ export default function ActivitiesScreen() {
             title={t("no_activities_hint")}
           />
         )
+      }
+      ListFooterComponent={
+        items.length > 0 ? (
+          <View className="items-center pb-8 pt-6 opacity-30">
+            <Logo size={32} />
+          </View>
+        ) : null
       }
       contentContainerStyle={items.length === 0 ? { flex: 1 } : undefined}
       className="flex-1 bg-background"

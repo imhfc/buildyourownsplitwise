@@ -12,7 +12,7 @@ export const COLOR_SCHEMES: {
   labelKey: string;
   preview: { light: string; dark: string };
 }[] = [
-  { id: "byosw",  labelKey: "scheme_byosw",  preview: { light: "#0F172A", dark: "#E2E8F0" } },
+  { id: "byosw",  labelKey: "scheme_byosw",  preview: { light: "#0F172A", dark: "#FAFAFA" } },
   { id: "blue",   labelKey: "scheme_blue",   preview: { light: "#3B82F6", dark: "#60A5FA" } },
   { id: "green",  labelKey: "scheme_green",  preview: { light: "#5BC5A7", dark: "#4DB899" } },
   { id: "purple", labelKey: "scheme_purple", preview: { light: "#6E4CE5", dark: "#8B6CF7" } },

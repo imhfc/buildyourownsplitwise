@@ -32,6 +32,7 @@ import { FAB } from "~/components/ui/fab";
 import { Avatar } from "~/components/ui/avatar";
 import { useThemeClassName } from "~/lib/theme";
 import { addNotificationReceivedCallback } from "~/lib/notifications";
+import { Logo } from "~/components/Logo";
 
 interface FriendUser {
   id: string;
@@ -336,6 +337,13 @@ export default function FriendsScreen() {
               onAction={() => setShowAdd(true)}
             />
           }
+          ListFooterComponent={
+            friends.length > 0 ? (
+              <View className="items-center pb-8 pt-6 opacity-30">
+                <Logo size={32} />
+              </View>
+            ) : null
+          }
         />
       ) : (
         <FlatList
@@ -350,6 +358,13 @@ export default function FriendsScreen() {
           }
           ListEmptyComponent={
             <EmptyState icon={Clock} title={t("no_pending")} />
+          }
+          ListFooterComponent={
+            pending.length > 0 ? (
+              <View className="items-center pb-8 pt-6 opacity-30">
+                <Logo size={32} />
+              </View>
+            ) : null
           }
         />
       )}

@@ -1,6 +1,7 @@
 import "../global.css";
 import "../i18n";
 import { useEffect } from "react";
+import { Platform } from "react-native";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { View } from "react-native";
@@ -12,6 +13,22 @@ import { useAuthStore } from "../stores/auth";
 import { registerForPushNotifications, setupNotificationHandlers, addNotificationReceivedCallback } from "~/lib/notifications";
 import { useNotificationStore } from "~/stores/notification";
 import { usePendingSettlementsStore } from "~/stores/pending-settlements";
+
+// Web: 動態注入 viewport-fit=cover + dvh，讓瀏覽器自動回報 safe-area-inset
+if (Platform.OS === "web" && typeof document !== "undefined") {
+  // 1. viewport-fit=cover 讓 env(safe-area-inset-*) 生效
+  const meta = document.querySelector('meta[name="viewport"]');
+  if (meta) {
+    const content = meta.getAttribute("content") || "";
+    if (!content.includes("viewport-fit")) {
+      meta.setAttribute("content", content + ", viewport-fit=cover");
+    }
+  }
+  // 2. 100dvh 排除手機瀏覽器工具列高度
+  const style = document.createElement("style");
+  style.textContent = "html,body,#root{height:100dvh!important}";
+  document.head.appendChild(style);
+}
 
 const SCHEME_CLASS: Record<string, string> = {
   byosw: "",

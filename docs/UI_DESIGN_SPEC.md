@@ -39,16 +39,16 @@
 | Muted Foreground | `215 16% 47%` | 次要文字 |
 | Border | `214 32% 91%` | 極淡邊框 |
 
-**Dark Mode**:
+**Dark Mode**（對齊 shadcn/ui zinc dark，hue 222 品牌色相）:
 
 | 角色 | HSL | 說明 |
 |------|-----|------|
-| Primary | `210 40% 98%` | 近白色前景（反轉高對比） |
-| Primary Foreground | `224 71% 4%` | 近黑背景作為按鈕文字 |
-| Background | `224 71% 4%` | 近黑背景帶深藍色相 |
-| Card | `224 71% 4%` | 卡片表面 |
+| Primary | `0 0% 98%` | 近白色（shadcn zinc 風格，深底淺字高對比） |
+| Primary Foreground | `222 6% 10%` | 近黑，按鈕文字 |
+| Background | `222 10% 4%` | 近黑，saturation 10%（極低，接近中性） |
+| Card | `222 10% 4%` | 與背景一致（shadcn zinc 風格） |
 | Accent | `174 20% 14%` | 深 teal accent |
-| Border | `216 34% 17%` | 微光邊框 |
+| Secondary/Border | `222 4% 16%` | 極低飽和度灰（shadcn: 3.7%） |
 
 ### 2.2 功能色
 
@@ -244,9 +244,11 @@ Card = rounded-xl + border border-border + bg-card
 
 延續 CLAUDE.md 既有規範，加上 byosw 品牌特化：
 
-- Background 帶 `hue 210`（blue-gray），saturation `8-10%`
-- Lightness 階梯：bg `4%` > card `9%` > secondary `13%` > accent `14%` > border `15%`
-- Primary 反轉為亮色（`86% lightness`），實現深底淺字高對比
+- 對齊 shadcn/ui zinc dark mode，hue `222`（品牌色相），saturation 極低（4-10%）
+- Background/Card: `222 10% 4%`（近黑中性灰）
+- Secondary/Muted/Border: `222 4% 16%`（saturation 僅 4%）
+- Primary 反轉為近白色（`0 0% 98%`），實現深底淺字高對比
+- Foreground: `0 0% 98%`（純白）
 - 功能色飽和度降低（`50%` range），亮度適度提升
 
 ---
