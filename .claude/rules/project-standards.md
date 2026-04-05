@@ -41,6 +41,7 @@ backend/app/
 - 代表「完成」語意的布林旗標（如 `is_settled`），必須同時檢查「曾經有過活動」（如 `expense_count > 0`），零狀態實體不等於已完成（2026-04-03 回顧）
 - `log_activity(action=...)` 的 action 值必須同步存在於 `ActivityType` Literal（後端 schema）+ 前端 ActivityType union + i18n + UI switch，缺任一處 = 活動列表整頁 500（2026-04-03 回顧）
 - async session 中禁止 `db.expire_all()`，改用 `db.expire(specific_obj)` 只 expire 需要重載的物件；expire 前必須先將後續需要的屬性存到區域變數，否則存取 expired 屬性觸發同步 lazy load → `MissingGreenlet`（2026-04-03 回顧）
+- 已結清消費的修改必須用沖銷+重建模式（soft-delete 原始 + create new with `adjusted_from_id`），禁止 in-place update；已確認結算不動，差額自然進入當前未結清餘額。被已確認記錄引用的金融資料，一律用 append-only 模式修改（2026-04-05 回顧）
 
 ## Docker / 部署規則
 

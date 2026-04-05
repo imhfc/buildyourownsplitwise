@@ -146,6 +146,14 @@ export default function GroupDetailScreen() {
   const [forgiving, setForgiving] = useState(false);
   const [forgiveError, setForgiveError] = useState("");
 
+  // Unified currency settlement
+  const [unifiedSettleTarget, setUnifiedSettleTarget] = useState<{ personId: string; personName: string; items: Suggestion[] } | null>(null);
+  const [unifiedSettleCurrency, setUnifiedSettleCurrency] = useState("");
+  const [unifiedSettleItems, setUnifiedSettleItems] = useState<{ currency: string; originalAmount: string; convertedAmount: number; rate: number | null }[]>([]);
+  const [unifiedSettling, setUnifiedSettling] = useState(false);
+  const [unifiedSettleError, setUnifiedSettleError] = useState("");
+  const [unifiedConverting, setUnifiedConverting] = useState(false);
+
   // Add member modal
   const [showAddMember, setShowAddMember] = useState(false);
   const [memberEmail, setMemberEmail] = useState("");
@@ -503,6 +511,88 @@ export default function GroupDetailScreen() {
       setForgiveError(msg);
     } finally {
       setForgiving(false);
+    }
+  };
+
+  // --- Unified currency settlement ---
+  const handleOpenUnifiedSettle = async (personId: string, personName: string, items: Suggestion[], targetCurrency: string) => {
+    setUnifiedSettleTarget({ personId, personName, items });
+    setUnifiedSettleCurrency(targetCurrency);
+    setUnifiedSettleError("");
+    setUnifiedConverting(true);
+    try {
+      const converted = await Promise.all(
+        items.map(async (item) => {
+          if (item.currency === targetCurrency) {
+            return {
+              currency: item.currency,
+              originalAmount: item.amount,
+              convertedAmount: Math.round(parseFloat(item.amount)),
+              rate: null,
+            };
+          }
+          const res = await exchangeRatesAPI.convert({
+            from_currency: item.currency,
+            to_currency: targetCurrency,
+            amount: parseFloat(item.amount),
+          });
+          return {
+            currency: item.currency,
+            originalAmount: item.amount,
+            convertedAmount: Math.round(res.data.converted_amount),
+            rate: res.data.rate,
+          };
+        })
+      );
+      setUnifiedSettleItems(converted);
+    } catch (e: any) {
+      const msg = e.response?.data?.detail || e.message || t("unknown_error");
+      setUnifiedSettleError(msg);
+      setUnifiedSettleItems([]);
+    } finally {
+      setUnifiedConverting(false);
+    }
+  };
+
+  const handleUnifiedSettleCurrencyChange = async (newCurrency: string) => {
+    if (!unifiedSettleTarget) return;
+    await handleOpenUnifiedSettle(
+      unifiedSettleTarget.personId,
+      unifiedSettleTarget.personName,
+      unifiedSettleTarget.items,
+      newCurrency,
+    );
+  };
+
+  const handleUnifiedSettleConfirm = async () => {
+    if (!id || !user || !unifiedSettleTarget || unifiedSettleItems.length === 0) return;
+    setUnifiedSettling(true);
+    setUnifiedSettleError("");
+    try {
+      for (const item of unifiedSettleItems) {
+        const isCurrencyChanged = unifiedSettleCurrency !== item.currency;
+        await settlementsAPI.create(id, {
+          to_user: unifiedSettleTarget.personId,
+          amount: item.convertedAmount,
+          currency: unifiedSettleCurrency,
+          ...(isCurrencyChanged && item.rate != null
+            ? {
+                original_currency: item.currency,
+                original_amount: parseFloat(item.originalAmount),
+                locked_rate: item.rate,
+              }
+            : {}),
+        });
+      }
+      setUnifiedSettleTarget(null);
+      setUnifiedSettleItems([]);
+      setSettleSuccessMsg(t("settlement_pending_hint"));
+      await fetchData();
+    } catch (e: any) {
+      const msg = e.response?.data?.detail || e.message || t("unknown_error");
+      setUnifiedSettleError(msg);
+    } finally {
+      setUnifiedSettling(false);
     }
   };
 
@@ -1192,49 +1282,79 @@ export default function GroupDetailScreen() {
                     </Card>
                   )}
 
-                  {/* Section: I owe others */}
-                  {iOwe.length > 0 && (
-                    <Card>
-                      <CardContent className="p-4 gap-3">
-                        <Text className="font-semibold text-destructive">{t("you_owe")}</Text>
-                        {iOwe.map((item) => {
-                          const alreadyPending = hasPendingFor(item.from_user_id, item.to_user_id);
-                          return (
-                            <View key={`${item.from_user_id}-${item.to_user_id}`} className="gap-2">
-                              <View className="flex-row items-center justify-between">
-                                <Text className="text-sm flex-1">
-                                  {t("you_owe_person", { name: item.to_user_name })}
-                                </Text>
-                                <Text className="text-base font-bold text-destructive">
-                                  {item.currency} {parseFloat(item.amount).toLocaleString()}
-                                </Text>
+                  {/* Section: I owe others (grouped by person) */}
+                  {iOwe.length > 0 && (() => {
+                    // Group iOwe by to_user_id
+                    const grouped = new Map<string, { name: string; items: Suggestion[] }>();
+                    for (const item of iOwe) {
+                      if (!grouped.has(item.to_user_id)) {
+                        grouped.set(item.to_user_id, { name: item.to_user_name, items: [] });
+                      }
+                      grouped.get(item.to_user_id)!.items.push(item);
+                    }
+                    return (
+                      <Card>
+                        <CardContent className="p-4 gap-3">
+                          <Text className="font-semibold text-destructive">{t("you_owe")}</Text>
+                          {Array.from(grouped).map(([personId, { name, items }]) => {
+                            const alreadyPending = hasPendingFor(items[0].from_user_id, personId);
+                            const canSettle = items[0].from_user_id === user?.id;
+                            const hasMultipleCurrencies = items.length > 1;
+                            return (
+                              <View key={personId} className="gap-2">
+                                {/* Person header: name + unified settle button */}
+                                <View className="flex-row items-center justify-between">
+                                  <Text className="text-sm font-medium flex-1">
+                                    {t("you_owe_person", { name })}
+                                  </Text>
+                                  {canSettle && hasMultipleCurrencies && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      disabled={alreadyPending}
+                                      onPress={() => {
+                                        setSettleSuccessMsg("");
+                                        handleOpenUnifiedSettle(personId, name, items, groupCurrency);
+                                      }}
+                                    >
+                                      {t("unified_settle")}
+                                    </Button>
+                                  )}
+                                </View>
+                                {alreadyPending && (
+                                  <Text className="text-xs text-warning pl-3">{t("settlement_pending_hint")}</Text>
+                                )}
+                                {/* Per-currency rows */}
+                                {items.map((item) => (
+                                  <View key={`${item.from_user_id}-${item.to_user_id}-${item.currency}`} className="flex-row items-center justify-between pl-3">
+                                    <Text className="text-base font-bold text-destructive flex-1">
+                                      {item.currency} {parseFloat(item.amount).toLocaleString()}
+                                    </Text>
+                                    {canSettle && (
+                                      <Button
+                                        size="sm"
+                                        disabled={alreadyPending}
+                                        onPress={() => {
+                                          setSettleSuccessMsg("");
+                                          setSettleTarget(item);
+                                          setSettleCurrency(item.currency);
+                                          setSettleAmount(item.amount);
+                                          setSettleRate(null);
+                                          setSettleError("");
+                                        }}
+                                      >
+                                        {alreadyPending ? t("settlement_pending_hint") : t("settle_up")}
+                                      </Button>
+                                    )}
+                                  </View>
+                                ))}
                               </View>
-                              {alreadyPending && (
-                                <Text className="text-xs text-warning">{t("settlement_pending_hint")}</Text>
-                              )}
-                              {/* Guard: only payer (from_user_id === user?.id) can settle */}
-                              {item.from_user_id === user?.id && (
-                              <Button
-                                size="sm"
-                                disabled={alreadyPending}
-                                onPress={() => {
-                                  setSettleSuccessMsg("");
-                                  setSettleTarget(item);
-                                  setSettleCurrency(item.currency);
-                                  setSettleAmount(item.amount);
-                                  setSettleRate(null);
-                                  setSettleError("");
-                                }}
-                              >
-                                {alreadyPending ? t("settlement_pending_hint") : t("settle_up")}
-                              </Button>
-                              )}
-                            </View>
-                          );
-                        })}
-                      </CardContent>
-                    </Card>
-                  )}
+                            );
+                          })}
+                        </CardContent>
+                      </Card>
+                    );
+                  })()}
 
                   {/* Section: All members balances */}
                   <Card>
@@ -2076,6 +2196,83 @@ export default function GroupDetailScreen() {
                   onPress={() => forgiveTarget && handleForgive(forgiveTarget)}
                   loading={forgiving}
                   disabled={forgiving}
+                  className="flex-1"
+                >
+                  {t("confirm")}
+                </Button>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      {/* Unified Currency Settlement Modal */}
+      <Modal
+        visible={!!unifiedSettleTarget}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { setUnifiedSettleTarget(null); setUnifiedSettleItems([]); }}
+      >
+        <View className={`flex-1 ${themeClass}`}>
+          <View className="flex-1 justify-center items-center bg-black/50 px-6">
+            <View className="bg-background rounded-xl px-5 py-6 w-full max-w-sm">
+              <H3 className="mb-4">{t("unified_settle_title")}</H3>
+              {unifiedSettleTarget && (
+                <>
+                  <CurrencyPicker
+                    value={unifiedSettleCurrency}
+                    onSelect={handleUnifiedSettleCurrencyChange}
+                    label={t("currency")}
+                    className="mb-3"
+                  />
+                  {unifiedConverting ? (
+                    <View className="items-center py-4">
+                      <ActivityIndicator />
+                      <Text className="text-sm text-muted-foreground mt-2">{t("unified_settle_converting")}</Text>
+                    </View>
+                  ) : (
+                    <>
+                      <Text className="text-sm text-muted-foreground mb-2">
+                        {t("unified_settle_msg", { currency: unifiedSettleCurrency, name: unifiedSettleTarget.personName })}
+                      </Text>
+                      {unifiedSettleItems.map((item) => (
+                        <View key={item.currency} className="flex-row items-center justify-between py-1.5 pl-2">
+                          <Text className="text-sm text-muted-foreground flex-1">
+                            {item.currency} {parseFloat(item.originalAmount).toLocaleString()}
+                          </Text>
+                          <Text className="text-sm font-medium">
+                            {unifiedSettleCurrency} {item.convertedAmount.toLocaleString()}
+                          </Text>
+                        </View>
+                      ))}
+                      {unifiedSettleItems.length > 1 && (
+                        <View className="flex-row items-center justify-between py-1.5 pl-2 border-t border-border mt-1 pt-2">
+                          <Text className="text-sm font-semibold">{t("unified_settle_total")}</Text>
+                          <Text className="text-base font-bold text-destructive">
+                            {unifiedSettleCurrency} {unifiedSettleItems.reduce((sum, i) => sum + i.convertedAmount, 0).toLocaleString()}
+                          </Text>
+                        </View>
+                      )}
+                      <Text className="text-xs text-muted-foreground mt-2 mb-3">{t("unified_settle_round_hint")}</Text>
+                    </>
+                  )}
+                </>
+              )}
+              {unifiedSettleError ? (
+                <Text className="text-sm text-destructive mb-3">{unifiedSettleError}</Text>
+              ) : null}
+              <View className="flex-row gap-3">
+                <Button
+                  variant="outline"
+                  onPress={() => { setUnifiedSettleTarget(null); setUnifiedSettleItems([]); }}
+                  className="flex-1"
+                  disabled={unifiedSettling || unifiedConverting}
+                >
+                  {t("cancel")}
+                </Button>
+                <Button
+                  onPress={handleUnifiedSettleConfirm}
+                  loading={unifiedSettling}
+                  disabled={unifiedSettling || unifiedConverting || unifiedSettleItems.length === 0}
                   className="flex-1"
                 >
                   {t("confirm")}
