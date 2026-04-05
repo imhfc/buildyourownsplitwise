@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from "react";
-import { Platform } from "react-native";
+import { Image, Platform, View } from "react-native";
 import { Tabs, useFocusEffect, usePathname } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { UserPlus, SquaresFour, ClockCounterClockwise, UserCircle } from "phosphor-react-native";
@@ -19,9 +19,8 @@ export default function TabsLayout() {
 
   const scheme = COLOR_SCHEMES.find((s) => s.id === colorScheme) ?? COLOR_SCHEMES[0];
   const activeTint = isDark ? scheme.preview.dark : scheme.preview.light;
-  const inactiveTint = isDark ? "#A1A1AA" : "#71717A";
+  const inactiveTint = isDark ? "#52525B" : "#A1A1AA";
 
-  // 每次 tab layout 獲得焦點時拉取未讀數量
   useFocusEffect(
     useCallback(() => {
       if (isAuthenticated) {
@@ -31,7 +30,6 @@ export default function TabsLayout() {
     }, [isAuthenticated, fetchUnreadCount, fetchPendingSettlementCount])
   );
 
-  // 定期輪詢未讀數量（每 30 秒）
   useEffect(() => {
     if (!isAuthenticated) return;
     const interval = setInterval(() => {
@@ -41,43 +39,32 @@ export default function TabsLayout() {
     return () => clearInterval(interval);
   }, [isAuthenticated, fetchUnreadCount, fetchPendingSettlementCount]);
 
-  const tabBarShadow = Platform.select({
-    web: {
-      boxShadow: "0 -1px 6px rgba(0,0,0,0.04)",
-    } as any,
-    default: {
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: -1 },
-      shadowOpacity: 0.04,
-      shadowRadius: 6,
-      elevation: 3,
-    },
-  });
-
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: activeTint,
         tabBarInactiveTintColor: inactiveTint,
         tabBarStyle: {
-          backgroundColor: isDark ? "#101318" : "#FFFFFF",
-          borderTopWidth: 0,
-          height: 52,
+          backgroundColor: isDark ? "#0A0C0F" : "#FFFFFF",
+          borderTopWidth: 1,
+          borderTopColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+          height: 50,
           paddingBottom: 4,
-          paddingTop: 2,
-          ...tabBarShadow,
+          paddingTop: 4,
         },
         tabBarIconStyle: {
           marginBottom: -2,
         },
         tabBarLabelStyle: {
           fontSize: 10,
+          fontWeight: "500",
           marginTop: -2,
+          letterSpacing: 0.2,
         },
         headerStyle: {
-          backgroundColor: isDark ? "#101318" : "#FFFFFF",
+          backgroundColor: isDark ? "#0A0C0F" : "#FFFFFF",
         },
-        headerTintColor: isDark ? "#FAFAFA" : "#101318",
+        headerTintColor: isDark ? "#FAFAFA" : "#18181B",
         headerShadowVisible: false,
       }}
     >
@@ -86,7 +73,7 @@ export default function TabsLayout() {
         options={{
           title: t("friends"),
           tabBarIcon: ({ color, focused }) => (
-            <UserPlus size={22} color={color} weight={focused ? "fill" : "regular"} />
+            <UserPlus size={20} color={color} weight={focused ? "fill" : "regular"} />
           ),
         }}
       />
@@ -94,19 +81,30 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: t("groups"),
+          headerTitle: () => (
+            <Image
+              source={require("../../assets/logo-transparent.png")}
+              style={{
+                width: 28,
+                height: 28,
+                tintColor: isDark ? "#E2E8F0" : undefined,
+              }}
+              resizeMode="contain"
+            />
+          ),
           tabBarIcon: ({ color, focused }) => (
-            <SquaresFour size={22} color={color} weight={focused ? "fill" : "regular"} />
+            <SquaresFour size={20} color={color} weight={focused ? "fill" : "regular"} />
           ),
           tabBarBadge: pendingSettlementCount > 0 ? pendingSettlementCount : undefined,
           tabBarBadgeStyle: {
-            backgroundColor: "#F59E0B",
+            backgroundColor: isDark ? "#52525B" : "#18181B",
             color: "#FFFFFF",
-            fontSize: 11,
-            fontWeight: "700",
-            minWidth: 18,
-            height: 18,
-            lineHeight: 18,
-            borderRadius: 9,
+            fontSize: 10,
+            fontWeight: "600",
+            minWidth: 16,
+            height: 16,
+            lineHeight: 16,
+            borderRadius: 8,
           },
         }}
       />
@@ -115,18 +113,18 @@ export default function TabsLayout() {
         options={{
           title: t("activities"),
           tabBarIcon: ({ color, focused }) => (
-            <ClockCounterClockwise size={22} color={color} weight={focused ? "fill" : "regular"} />
+            <ClockCounterClockwise size={20} color={color} weight={focused ? "fill" : "regular"} />
           ),
           tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
           tabBarBadgeStyle: {
-            backgroundColor: "#EF4444",
+            backgroundColor: isDark ? "#52525B" : "#18181B",
             color: "#FFFFFF",
-            fontSize: 11,
-            fontWeight: "700",
-            minWidth: 18,
-            height: 18,
-            lineHeight: 18,
-            borderRadius: 9,
+            fontSize: 10,
+            fontWeight: "600",
+            minWidth: 16,
+            height: 16,
+            lineHeight: 16,
+            borderRadius: 8,
           },
         }}
       />
@@ -135,7 +133,7 @@ export default function TabsLayout() {
         options={{
           title: t("account"),
           tabBarIcon: ({ color, focused }) => (
-            <UserCircle size={22} color={color} weight={focused ? "fill" : "regular"} />
+            <UserCircle size={20} color={color} weight={focused ? "fill" : "regular"} />
           ),
         }}
       />

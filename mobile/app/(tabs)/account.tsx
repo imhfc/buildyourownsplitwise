@@ -17,6 +17,7 @@ import {
 } from "phosphor-react-native";
 import { useAuthStore } from "../../stores/auth";
 import { useTheme, useThemeClassName, COLOR_SCHEMES, type ColorScheme } from "~/lib/theme";
+import { Logo } from "~/components/Logo";
 import i18n from "../../i18n";
 import { Text, Muted } from "~/components/ui/text";
 import { Button } from "~/components/ui/button";
@@ -242,11 +243,16 @@ export default function AccountScreen() {
         <Button
           variant="ghost"
           onPress={handleLogout}
-          className="mt-6 mb-8 bg-muted"
+          className="mt-6 mb-4 bg-muted"
           textClassName="text-destructive"
         >
           {t("logout")}
         </Button>
+
+        {/* Brand footer */}
+        <View className="items-center pb-8 pt-2 opacity-30">
+          <Logo size={32} />
+        </View>
       </View>
 
       {/* Edit Display Name Modal */}

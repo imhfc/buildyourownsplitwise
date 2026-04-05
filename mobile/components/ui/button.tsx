@@ -26,17 +26,17 @@ const variantTextStyles: Record<Variant, string> = {
 };
 
 const sizeStyles: Record<Size, string> = {
-  default: "h-12 px-5",
+  default: "h-10 px-4",
   sm: "h-9 px-3",
-  lg: "h-14 px-8",
+  lg: "h-11 px-6",
   icon: "h-10 w-10",
 };
 
 const sizeTextStyles: Record<Size, string> = {
-  default: "text-base",
+  default: "text-sm",
   sm: "text-sm",
-  lg: "text-lg",
-  icon: "text-base",
+  lg: "text-sm",
+  icon: "text-sm",
 };
 
 interface ButtonProps extends PressableProps {
@@ -75,7 +75,7 @@ export function Button({
       {loading ? (
         <ActivityIndicator
           size="small"
-          color={variant === "default" || variant === "destructive" ? "#fff" : "#2563EB"}
+          color={variant === "default" || variant === "destructive" ? "#fff" : undefined}
           className="mr-2"
         />
       ) : null}

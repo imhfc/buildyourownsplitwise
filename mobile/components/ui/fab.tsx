@@ -12,15 +12,15 @@ export function FAB({ className, icon, label, ...props }: FABProps) {
   return (
     <Pressable
       className={cn(
-        "absolute bottom-6 right-5 flex-row items-center justify-center bg-primary shadow-md active:scale-[0.97]",
-        label ? "h-12 gap-1.5 rounded-full px-4" : "h-14 w-14 rounded-xl",
+        "absolute bottom-6 right-5 flex-row items-center justify-center bg-primary shadow-md active:scale-[0.95]",
+        label ? "h-10 gap-1.5 rounded-full px-4" : "h-12 w-12 rounded-full",
         className
       )}
       {...props}
     >
-      {icon ?? <Plus size={label ? 20 : 24} color="#fff" />}
+      {icon ?? <Plus size={label ? 20 : 22} color="#fff" weight="regular" />}
       {label ? (
-        <Text className="text-sm font-semibold text-primary-foreground">{label}</Text>
+        <Text className="text-sm font-medium text-primary-foreground">{label}</Text>
       ) : null}
     </Pressable>
   );

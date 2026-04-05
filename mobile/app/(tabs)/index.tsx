@@ -18,6 +18,7 @@ import { Badge } from "~/components/ui/badge";
 import { FAB } from "~/components/ui/fab";
 import { EmptyState } from "~/components/ui/empty-state";
 import { CurrencyPicker } from "~/components/ui/currency-picker";
+import { Separator } from "~/components/ui/separator";
 import { useThemeClassName, useTheme } from "~/lib/theme";
 import { addNotificationReceivedCallback } from "~/lib/notifications";
 
@@ -56,7 +57,7 @@ export default function GroupsScreen() {
   const user = useAuthStore((s) => s.user);
   const themeClass = useThemeClassName();
   const { isDark } = useTheme();
-  const iconColor = isDark ? "#A1A1AA" : "#71717A";
+  const iconColor = isDark ? "#71717A" : "#A1A1AA";
   const syncBadgeCount = usePendingSettlementsStore((s) => s.fetchCount);
   const [groups, setGroups] = useState<GroupItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -231,7 +232,6 @@ export default function GroupsScreen() {
     }, [fetchGroups, fetchPendingInvitations, fetchPendingSettlements, fetchOverallBalance])
   );
 
-  // 收到推播時即時刷新首頁所有資料
   useEffect(() => {
     return addNotificationReceivedCallback(() => {
       fetchGroups();
@@ -322,8 +322,8 @@ export default function GroupsScreen() {
           onPress={() => isAdmin ? handleDeleteGroup(item) : handleLeaveGroup(item)}
         >
           {isAdmin
-            ? <Trash size={22} color="white" weight="regular" />
-            : <SignOut size={22} color="white" weight="regular" />}
+            ? <Trash size={20} color="white" weight="regular" />
+            : <SignOut size={20} color="white" weight="regular" />}
           <Text className="text-white text-xs mt-1 font-medium">
             {isAdmin ? t("delete") : t("leave_group")}
           </Text>
@@ -332,17 +332,14 @@ export default function GroupsScreen() {
     );
   };
 
-  // Compute per-group net balance for the current user (by currency)
   const computeGroupNetBalance = (debts: SimplifiedDebt[]): { currency: string; net: number }[] => {
     if (!user) return [];
     const byCurrency: Record<string, number> = {};
     for (const d of debts) {
       if (!byCurrency[d.currency]) byCurrency[d.currency] = 0;
       if (d.to_user_id === user.id) {
-        // someone owes me
         byCurrency[d.currency] += Number(d.amount);
       } else if (d.from_user_id === user.id) {
-        // I owe someone
         byCurrency[d.currency] -= Number(d.amount);
       }
     }
@@ -353,24 +350,23 @@ export default function GroupsScreen() {
 
   const renderDebtDetails = (debts: SimplifiedDebt[]) => {
     if (!user) return null;
-    // Filter to only show debts involving current user
     const relevantDebts = debts.filter(
       (d) => d.from_user_id === user.id || d.to_user_id === user.id
     );
     if (relevantDebts.length === 0) return null;
     return (
-      <View className="px-4 pb-3 -mt-1 gap-1">
+      <View className="px-4 pb-3 gap-1">
         {relevantDebts.map((d, i) => {
           const owesMe = d.to_user_id === user.id;
           const otherName = owesMe ? d.from_user_name : d.to_user_name;
           return (
-            <View key={i} className="flex-row items-center pl-9 gap-1">
-              <Text className="text-sm text-muted-foreground">
+            <View key={i} className="flex-row items-center pl-7 gap-1">
+              <Text className="text-xs text-muted-foreground">
                 {owesMe
                   ? t("owes_you", { name: otherName })
                   : t("you_owe_person", { name: otherName })}
               </Text>
-              <Text className={`text-sm font-semibold ${owesMe ? "text-income" : "text-destructive"}`}>
+              <Text className={`text-xs font-medium ${owesMe ? "text-income" : "text-destructive"}`}>
                 {d.currency} {Number(d.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </Text>
             </View>
@@ -383,7 +379,7 @@ export default function GroupsScreen() {
   const renderGroupBalance = (item: GroupItem) => {
     const netBalances = computeGroupNetBalance(item.unsettled_debts);
     if (netBalances.length === 0) {
-      return <Muted className="text-xs text-right">{t("balanced")}</Muted>;
+      return <Muted className="text-xs">{t("balanced")}</Muted>;
     }
     return (
       <View className="items-end">
@@ -392,7 +388,7 @@ export default function GroupsScreen() {
             <Text className={`text-xs ${net > 0 ? "text-income" : "text-destructive"}`}>
               {net > 0 ? t("you_are_owed") : t("you_owe")}
             </Text>
-            <Text className={`text-base font-bold ${net > 0 ? "text-income" : "text-destructive"}`}>
+            <Text className={`text-sm font-semibold tabular-nums ${net > 0 ? "text-income" : "text-destructive"}`}>
               {currency} {Math.abs(net).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </Text>
           </View>
@@ -414,24 +410,24 @@ export default function GroupsScreen() {
         enabled={!isActive}
       >
         <Card
-          className="mb-3"
+          className="mb-2"
           onPress={() => router.push(`/group/${item.id}`)}
         >
-          <CardContent className="flex-row items-center justify-between p-4">
+          <CardContent className="flex-row items-center justify-between p-3.5">
             <Pressable
               onLongPress={drag}
               delayLongPress={150}
               hitSlop={8}
-              className="justify-center mr-3"
+              className="justify-center mr-2.5"
             >
-              <DotsSixVertical size={20} color={iconColor} />
+              <DotsSixVertical size={18} color={iconColor} />
             </Pressable>
-            <View className="flex-1 gap-1">
-              <H3>{item.name}</H3>
+            <View className="flex-1 gap-0.5">
+              <Text className="text-sm font-medium text-foreground">{item.name}</Text>
               {item.description ? (
-                <Muted numberOfLines={1}>{item.description}</Muted>
+                <Text className="text-xs text-muted-foreground" numberOfLines={1}>{item.description}</Text>
               ) : null}
-              <Muted>{item.member_count} {t("members")}</Muted>
+              <Text className="text-xs text-muted-foreground">{item.member_count} {t("members")}</Text>
             </View>
             {renderGroupBalance(item)}
           </CardContent>
@@ -453,14 +449,14 @@ export default function GroupsScreen() {
       overshootRight={false}
     >
       <Card
-        className="mb-3 opacity-70"
+        className="mb-2 opacity-60"
         onPress={() => router.push(`/group/${item.id}`)}
       >
-        <CardContent className="flex-row items-center justify-between p-4">
-          <View className="flex-1 gap-1">
-            <H3>{item.name}</H3>
+        <CardContent className="flex-row items-center justify-between p-3.5">
+          <View className="flex-1 gap-0.5">
+            <Text className="text-sm font-medium text-foreground">{item.name}</Text>
             {item.description ? (
-              <Muted numberOfLines={1}>{item.description}</Muted>
+              <Text className="text-xs text-muted-foreground" numberOfLines={1}>{item.description}</Text>
             ) : null}
           </View>
           <Muted className="text-xs">{t("balanced")}</Muted>
@@ -469,14 +465,148 @@ export default function GroupsScreen() {
     </Swipeable>
   );
 
+  /* ── Overall Balance Header ── */
+  const balanceHeader = overallTotals.length > 0 ? (
+    <View className="mb-6">
+      {overallTotals.map((ct, i) => {
+        const net = Number(ct.net_balance);
+        const isPositive = net > 0;
+        const isZero = Math.abs(net) < 0.01;
+        return (
+          <View key={i} className="flex-row items-baseline gap-1.5">
+            <Text className="text-sm text-muted-foreground">
+              {isZero
+                ? t("overall_all_settled")
+                : isPositive
+                  ? t("overall_you_are_owed")
+                  : t("overall_you_owe")}
+            </Text>
+            {!isZero && (
+              <Text className={`text-lg font-semibold tabular-nums ${isPositive ? "text-income" : "text-destructive"}`}>
+                {ct.currency} {Math.abs(net).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </Text>
+            )}
+          </View>
+        );
+      })}
+    </View>
+  ) : null;
+
+  /* ── Pending Settlements ── */
+  const settlementsSection = pendingSettlements.length > 0 ? (
+    <View className="mb-5">
+      <Text className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+        {t("pending_settlements")}
+      </Text>
+      {pendingSettlements.map((s) => (
+        <Card key={s.id} className="mb-2">
+          <CardContent className="p-3.5 gap-2.5">
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1">
+                <Text className="text-sm font-medium">
+                  {t("settlement_from", { name: s.from_user_name })}
+                </Text>
+                {s.group_name ? (
+                  <Text className="text-xs text-muted-foreground mt-0.5">
+                    {t("settlement_in_group", { group: s.group_name })}
+                  </Text>
+                ) : null}
+              </View>
+              <Text className="text-sm font-semibold tabular-nums text-foreground">
+                {s.currency} {Number(s.amount).toLocaleString()}
+              </Text>
+            </View>
+            {s.original_currency && s.original_amount && (
+              <View className="bg-muted rounded-md px-3 py-2">
+                <Text className="text-xs text-muted-foreground">
+                  {t("settlement_converted_from", {
+                    original_currency: s.original_currency,
+                    original_amount: Number(s.original_amount).toLocaleString(),
+                  })}
+                </Text>
+                <Text className="text-xs text-muted-foreground">
+                  {t("settlement_actual_pay", {
+                    currency: s.currency,
+                    amount: Number(s.amount).toLocaleString(),
+                  })}
+                </Text>
+              </View>
+            )}
+            <View className="flex-row gap-2">
+              <Button
+                size="sm"
+                className="flex-1"
+                onPress={() => handleRespondSettlement(s, "confirm")}
+                loading={respondingSettlementId === s.id}
+                disabled={respondingSettlementId !== null}
+              >
+                {t("confirm_settlement")}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1"
+                onPress={() => handleRespondSettlement(s, "reject")}
+                disabled={respondingSettlementId !== null}
+              >
+                {t("reject_settlement")}
+              </Button>
+            </View>
+          </CardContent>
+        </Card>
+      ))}
+    </View>
+  ) : null;
+
+  /* ── Pending Invitations ── */
+  const invitationsSection = pendingInvitations.length > 0 ? (
+    <View className="mb-5">
+      <Text className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+        {t("pending_invitations")}
+      </Text>
+      {pendingInvitations.map((inv) => (
+        <Card key={inv.id} className="mb-2">
+          <CardContent className="p-3.5 gap-2.5">
+            <View>
+              <Text className="text-sm font-medium">{inv.group_name}</Text>
+              <Text className="text-xs text-muted-foreground mt-0.5">
+                {t("invited_by", { name: inv.inviter_name })} · {inv.member_count} {t("members_count")}
+              </Text>
+            </View>
+            <View className="flex-row gap-2">
+              <Button
+                size="sm"
+                className="flex-1"
+                onPress={() => handleRespondInvitation(inv.id, "accept")}
+                loading={respondingId === inv.id}
+                disabled={respondingId === inv.id}
+              >
+                {t("accept_invitation")}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1"
+                onPress={() => handleRespondInvitation(inv.id, "decline")}
+                disabled={respondingId === inv.id}
+              >
+                {t("decline_invitation")}
+              </Button>
+            </View>
+          </CardContent>
+        </Card>
+      ))}
+    </View>
+  ) : null;
+
+  /* ── Settled Groups Footer ── */
   const settledFooter = settledGroups.length > 0 ? (
-    <View className="mt-4">
-      <Muted className="text-center text-xs mb-3">{t("hiding_settled_groups")}</Muted>
+    <View className="mt-6">
       <Pressable
-        className="self-center border border-primary/30 rounded-full px-5 py-2"
+        className="self-center"
         onPress={() => setSettledExpanded((v) => !v)}
       >
-        <Text className="text-primary font-medium text-sm">
+        <Text className="text-xs text-muted-foreground">
           {settledExpanded
             ? t("settled_groups")
             : t("show_settled_groups", { count: settledGroups.length })}
@@ -510,142 +640,15 @@ export default function GroupsScreen() {
           keyExtractor={(item) => item.id}
           renderItem={renderGroup}
           onDragEnd={handleDragEnd}
-          contentContainerStyle={{ padding: 20 }}
+          contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
           ListHeaderComponent={
             <>
-              {overallTotals.length > 0 ? (
-                <View className="mb-4">
-                  {overallTotals.map((ct, i) => {
-                    const net = Number(ct.net_balance);
-                    const isPositive = net > 0;
-                    const isZero = Math.abs(net) < 0.01;
-                    return (
-                      <View key={i} className="flex-row items-baseline gap-1">
-                        <Text className="text-lg font-medium text-foreground">
-                          {isZero
-                            ? t("overall_all_settled")
-                            : isPositive
-                              ? t("overall_you_are_owed")
-                              : t("overall_you_owe")}
-                        </Text>
-                        {!isZero && (
-                          <Text className={`text-xl font-bold ${isPositive ? "text-income" : "text-destructive"}`}>
-                            {ct.currency} {Math.abs(net).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </Text>
-                        )}
-                      </View>
-                    );
-                  })}
-                </View>
-              ) : null}
-              {pendingSettlements.length > 0 ? (
-                <View className="mb-4">
-                  <Muted className="mb-2 text-sm font-medium">{t("pending_settlements")}</Muted>
-                  {pendingSettlements.map((s) => (
-                    <Card key={s.id} className="mb-2">
-                      <CardContent className="p-4 gap-2">
-                        <View className="flex-row items-center gap-3">
-                          <View className="h-10 w-10 rounded-full bg-income/10 items-center justify-center">
-                            <CurrencyCircleDollar size={20} color="hsl(142 71% 45%)" weight="regular" />
-                          </View>
-                          <View className="flex-1">
-                            <Text className="font-medium">
-                              {t("settlement_from", { name: s.from_user_name })}
-                            </Text>
-                            <Muted className="text-xs">
-                              {s.group_name ? t("settlement_in_group", { group: s.group_name }) : ""}
-                            </Muted>
-                          </View>
-                          <Text className="text-lg font-bold text-primary">
-                            {s.currency} {Number(s.amount).toLocaleString()}
-                          </Text>
-                        </View>
-                        {s.original_currency && s.original_amount && (
-                          <View className="bg-muted/50 rounded-lg px-3 py-2">
-                            <Text className="text-xs text-muted-foreground">
-                              {t("settlement_converted_from", {
-                                original_currency: s.original_currency,
-                                original_amount: Number(s.original_amount).toLocaleString(),
-                              })}
-                            </Text>
-                            <Text className="text-xs text-muted-foreground">
-                              {t("settlement_actual_pay", {
-                                currency: s.currency,
-                                amount: Number(s.amount).toLocaleString(),
-                              })}
-                            </Text>
-                          </View>
-                        )}
-                        <View className="flex-row gap-2 mt-1">
-                          <Button
-                            size="sm"
-                            className="flex-1"
-                            onPress={() => handleRespondSettlement(s, "confirm")}
-                            loading={respondingSettlementId === s.id}
-                            disabled={respondingSettlementId !== null}
-                          >
-                            {t("confirm_settlement")}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="flex-1"
-                            onPress={() => handleRespondSettlement(s, "reject")}
-                            disabled={respondingSettlementId !== null}
-                          >
-                            {t("reject_settlement")}
-                          </Button>
-                        </View>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </View>
-              ) : null}
-              {pendingInvitations.length > 0 ? (
-                <View className="mb-4">
-                  <Muted className="mb-2 text-sm font-medium">{t("pending_invitations")}</Muted>
-                  {pendingInvitations.map((inv) => (
-                    <Card key={inv.id} className="mb-2">
-                      <CardContent className="p-4 gap-2">
-                        <View className="flex-row items-center gap-3">
-                          <View className="h-10 w-10 rounded-full bg-primary/10 items-center justify-center">
-                            <EnvelopeSimple size={20} color="hsl(240 3.8% 46.1%)" weight="regular" />
-                          </View>
-                          <View className="flex-1">
-                            <Text className="font-medium">{inv.group_name}</Text>
-                            <Muted className="text-xs">
-                              {t("invited_by", { name: inv.inviter_name })} · {inv.member_count} {t("members_count")}
-                            </Muted>
-                          </View>
-                        </View>
-                        <View className="flex-row gap-2 mt-1">
-                          <Button
-                            size="sm"
-                            className="flex-1"
-                            onPress={() => handleRespondInvitation(inv.id, "accept")}
-                            loading={respondingId === inv.id}
-                            disabled={respondingId === inv.id}
-                          >
-                            {t("accept_invitation")}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="flex-1"
-                            onPress={() => handleRespondInvitation(inv.id, "decline")}
-                            disabled={respondingId === inv.id}
-                          >
-                            {t("decline_invitation")}
-                          </Button>
-                        </View>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </View>
-              ) : null}
+              {balanceHeader}
+              {settlementsSection}
+              {invitationsSection}
             </>
           }
           ListFooterComponent={settledFooter}
@@ -654,6 +657,7 @@ export default function GroupsScreen() {
 
       <FAB onPress={handleOpenCreate} />
 
+      {/* ── Delete/Leave Confirm ── */}
       <Modal
         visible={!!confirmTarget}
         transparent
@@ -662,18 +666,18 @@ export default function GroupsScreen() {
       >
         <View className={`flex-1 ${themeClass}`}>
         <Pressable className="flex-1 justify-center items-center bg-black/50 px-6" onPress={() => setConfirmTarget(null)}>
-          <Pressable className="bg-background rounded-xl p-6 w-full max-w-sm gap-4">
-            <H3>
+          <Pressable className="bg-background rounded-xl border border-border p-6 w-full max-w-sm gap-4">
+            <Text className="text-base font-semibold text-foreground">
               {confirmTarget?.action === "delete" ? t("delete_group") : t("leave_group")}
-            </H3>
-            <Text className="text-muted-foreground">
+            </Text>
+            <Text className="text-sm text-muted-foreground">
               {confirmTarget?.action === "delete" ? t("delete_group_confirm") : t("leave_group_confirm")}
             </Text>
-            <View className="flex-row gap-3 justify-end">
-              <Button variant="outline" onPress={() => setConfirmTarget(null)}>
+            <View className="flex-row gap-2 justify-end">
+              <Button variant="outline" size="sm" onPress={() => setConfirmTarget(null)}>
                 {t("cancel")}
               </Button>
-              <Button variant="destructive" onPress={handleConfirmAction}>
+              <Button variant="destructive" size="sm" onPress={handleConfirmAction}>
                 {confirmTarget?.action === "delete" ? t("delete") : t("leave_group")}
               </Button>
             </View>
@@ -682,6 +686,7 @@ export default function GroupsScreen() {
         </View>
       </Modal>
 
+      {/* ── Create Group Sheet ── */}
       <Modal
         visible={showCreate}
         transparent
@@ -694,15 +699,15 @@ export default function GroupsScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <Pressable className="flex-1" onPress={handleCloseCreate} />
-          <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4">
+          <View className="bg-background border-t border-border rounded-t-xl px-5 pb-10 pt-4">
             <View className="items-center mb-4">
-              <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+              <View className="h-1 w-8 rounded-full bg-muted-foreground/20" />
             </View>
 
-            <View className="flex-row items-center justify-between mb-6">
-              <H3>{t("create_group")}</H3>
-              <Pressable onPress={handleCloseCreate}>
-                <X size={24} color={iconColor} />
+            <View className="flex-row items-center justify-between mb-5">
+              <Text className="text-base font-semibold">{t("create_group")}</Text>
+              <Pressable onPress={handleCloseCreate} hitSlop={8}>
+                <X size={20} color={isDark ? "#71717A" : "#A1A1AA"} />
               </Pressable>
             </View>
 
@@ -734,7 +739,7 @@ export default function GroupsScreen() {
                 loading={creating}
                 disabled={creating || !newName}
                 size="lg"
-                className="mt-2"
+                className="mt-1"
               >
                 {t("save")}
               </Button>

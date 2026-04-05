@@ -13,7 +13,8 @@ import { useNotificationStore } from "~/stores/notification";
 import { usePendingSettlementsStore } from "~/stores/pending-settlements";
 
 const SCHEME_CLASS: Record<string, string> = {
-  blue: "",
+  byosp: "",
+  blue: "scheme-blue",
   green: "scheme-green",
   purple: "scheme-purple",
   warm: "scheme-warm",

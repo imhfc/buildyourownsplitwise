@@ -1,26 +1,5 @@
-import { Pressable, View, Platform, type PressableProps, type ViewProps, type ViewStyle } from "react-native";
+import { Pressable, View, type PressableProps, type ViewProps } from "react-native";
 import { cn } from "~/lib/utils";
-import { useTheme } from "~/lib/theme";
-
-const lightShadow: ViewStyle = Platform.select({
-  web: {
-    boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-  } as any,
-  default: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-}) ?? {};
-
-const darkShadow: ViewStyle = Platform.select({
-  web: {
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)",
-  } as any,
-  default: {},
-}) ?? {};
 
 interface CardProps extends PressableProps {
   className?: string;
@@ -28,19 +7,13 @@ interface CardProps extends PressableProps {
 }
 
 export function Card({ className, children, onPress, ...props }: CardProps) {
-  const { isDark } = useTheme();
-  const shadow = isDark ? darkShadow : lightShadow;
-  const borderCls = isDark ? "border border-border" : "";
-
   if (onPress) {
     return (
       <Pressable
         className={cn(
-          "rounded-xl bg-card",
-          borderCls,
+          "rounded-xl border border-border bg-card",
           className
         )}
-        style={shadow}
         onPress={onPress}
         {...props}
       >
@@ -52,11 +25,9 @@ export function Card({ className, children, onPress, ...props }: CardProps) {
   return (
     <View
       className={cn(
-        "rounded-xl bg-card",
-        borderCls,
+        "rounded-xl border border-border bg-card",
         className
       )}
-      style={shadow}
     >
       {children}
     </View>

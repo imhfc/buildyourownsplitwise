@@ -316,6 +316,20 @@ cd backend && pytest tests/
 
 ## 11. Mobile 開發規範（React Native / Expo）
 
+> **UI 設計規範完整版**：`docs/UI_DESIGN_SPEC.md` -- 色彩系統、排版、圓角、間距、元件設計的唯一真相來源。
+
+### 11.0 UI 設計核心原則（byosp 品牌）
+
+- **設計哲學**：Minimalist, organic-tech, fluid, connected（極簡、有機科技、流動、高連結性）
+- **色彩**：深炭灰（`HSL 222 47% 11%`，shadcn zinc）+ 純白高對比，accent 用 muted teal（`HSL 174`）極度克制
+- **圓角**：Card `rounded-xl`、Button/Input `rounded-lg`、FAB/Badge/Avatar `rounded-full`
+- **尺寸**：Button `h-10`(40px) / Input `h-10`(40px) / 文字統一 `text-sm`（shadcn 標準）
+- **無陰影**：卡片用 `border border-border` 取代 shadow，保持平面極簡
+- **圖示**：phosphor-react-native，`regular` weight（line art），與 logo 風格一致
+- **留白**：寧多不少，用空間分組取代分隔線
+- **品牌格式**：app name / tab label 使用小寫，呼應 logo "byosp" 的小寫風格
+- **詳細規範**：所有色值、間距、元件尺寸請查閱 `docs/UI_DESIGN_SPEC.md`
+
 ### 11.1 表單輸入驗證
 
 - **數字欄位必須限制輸入**：金額等數字輸入不能只靠 `keyboardType`，必須在 `onChangeText` 中用正規表達式過濾非法字元（例如 `/^\d*\.?\d{0,2}$/`），因為使用者可以透過貼上或第三方鍵盤輸入任意文字
@@ -384,3 +398,5 @@ cd backend && pytest tests/
 | 新增 tab 頁面但沒有推播回調 | 所有顯示資料的 tab 頁面，除了 `useFocusEffect` 拉資料外，必須同時加上 `useEffect` + `addNotificationReceivedCallback` 刷新同一組資料；否則收到推播時該頁面不會即時更新（2026-04-05 回顧） |
 | `<Badge>` 內包裹 `<Text>` 等 JSX 元素 | Badge 元件的 children 型別為 `string`，直接傳 `{t("key")}` 字串即可，包 `<Text>` 會觸發 TS2745 錯誤（2026-04-05 回顧） |
 | 已結清消費用 in-place update 直接修改 | 已結清消費必須用沖銷+重建（soft-delete 原始消費 + 建立新消費帶 `adjusted_from_id`），禁止原地修改；已確認結算仍在 DB 貢獻餘額，原地修改會導致結算對應的抵消效果失真、餘額計算不一致（2026-04-05 回顧） |
+| 直接用 `icon.png` 作為頁面內 logo | `icon.png` 自帶白底，放在非白底頁面會出現白色方塊；頁面內 logo 必須用 `logo-transparent.png`（透明底），dark mode 用 `tintColor` 染色 |
+| UI 元件尺寸憑直覺設定（如 Button `h-12`、Input `h-12`） | 先查 shadcn/ui 標準值再設定：Button `h-10`(default)/`h-9`(sm)/`h-11`(lg)、Input `h-10`、文字統一 `text-sm`；詳見 `docs/UI_DESIGN_SPEC.md` |

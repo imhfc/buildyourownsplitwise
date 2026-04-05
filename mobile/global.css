@@ -4,9 +4,65 @@
 
 @layer base {
   /* ===========================
-     Default: 經典信任藍 (blue)
+     Default: byosp 品牌色（極簡炭灰）
+     shadcn/ui zinc 風格 + logo 色調
      =========================== */
   :root {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 222 47% 11%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 174 30% 94%;
+    --accent-foreground: 174 30% 25%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 222 47% 11%;
+    --income: 160 84% 39%;
+    --expense: 0 84% 60%;
+    --settled: 210 5% 47%;
+    --warning: 38 92% 50%;
+  }
+
+  .dark {
+    --background: 224 71% 4%;
+    --foreground: 213 31% 91%;
+    --card: 224 71% 4%;
+    --card-foreground: 213 31% 91%;
+    --popover: 224 71% 4%;
+    --popover-foreground: 213 31% 91%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 224 71% 4%;
+    --secondary: 223 47% 11%;
+    --secondary-foreground: 213 31% 91%;
+    --muted: 223 47% 11%;
+    --muted-foreground: 215 20% 46%;
+    --accent: 174 20% 14%;
+    --accent-foreground: 174 25% 70%;
+    --destructive: 0 50% 52%;
+    --destructive-foreground: 0 0% 95%;
+    --border: 216 34% 17%;
+    --input: 216 34% 17%;
+    --ring: 213 31% 91%;
+    --income: 160 50% 48%;
+    --expense: 0 50% 52%;
+    --settled: 210 4% 42%;
+    --warning: 38 55% 52%;
+  }
+
+  /* ===========================
+     方案一：經典信任藍 (blue)
+     =========================== */
+  .scheme-blue {
     --background: 240 6% 96%;
     --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
@@ -32,7 +88,7 @@
     --warning: 38 92% 50%;
   }
 
-  .dark {
+  .dark.scheme-blue {
     --background: 217 10% 5%;
     --foreground: 217 8% 86%;
     --card: 217 8% 10%;
@@ -59,7 +115,7 @@
   }
 
   /* ===========================
-     方案二：活力綠意 (green)
+     方案三：活力綠意 (green)
      =========================== */
   .scheme-green {
     --primary: 160 41% 56%;
@@ -112,7 +168,7 @@
   }
 
   /* ===========================
-     方案三：科技紫夜 (purple)
+     方案四：科技紫夜 (purple)
      =========================== */
   .scheme-purple {
     --primary: 258 60% 60%;
@@ -165,7 +221,7 @@
   }
 
   /* ===========================
-     方案四：翡翠金 (warm)
+     方案五：翡翠金 (warm)
      =========================== */
   .scheme-warm {
     --primary: 165 40% 22%;
@@ -218,7 +274,7 @@
   }
 
   /* ===========================
-     方案五：珊瑚橘 (coral)
+     方案六：珊瑚橘 (coral)
      =========================== */
   .scheme-coral {
     --primary: 16 75% 55%;
@@ -271,7 +327,7 @@
   }
 
   /* ===========================
-     方案六：石板灰 (slate)
+     方案七：石板灰 (slate)
      =========================== */
   .scheme-slate {
     --primary: 215 20% 47%;

@@ -156,8 +156,8 @@ export default function LoginScreen() {
   return (
     <View className="flex-1 bg-background">
       <View
-        className="flex-1 justify-center px-8"
-        style={{ maxWidth: 420, alignSelf: "center", width: "100%" }}
+        className="flex-1 justify-center px-10"
+        style={{ maxWidth: 360, alignSelf: "center", width: "100%" }}
       >
         {/* ── Brand area ── */}
         <Animated.View
@@ -166,22 +166,14 @@ export default function LoginScreen() {
             transform: [{ scale: brandScale }],
           }}
         >
-          <View className="items-center mb-16">
+          <View className="items-center mb-20">
             {/* App logo */}
-            <View className="mb-7">
-              <Logo size={96} />
+            <View className="mb-8">
+              <Logo size={120} />
             </View>
 
-            {/* App name */}
-            <Text className="text-3xl font-bold text-primary tracking-[0.35em]">
-              {t("app_name")}
-            </Text>
-
-            {/* Decorative line */}
-            <View className="bg-border mt-4 mb-3" style={{ width: 48, height: 2 }} />
-
             {/* Subtitle */}
-            <Text className="text-base text-muted-foreground text-center px-4 leading-6">
+            <Text className="text-sm text-muted-foreground text-center tracking-wide">
               {t("app_subtitle")}
             </Text>
           </View>
@@ -200,14 +192,14 @@ export default function LoginScreen() {
 
         {/* ── Google sign-in CTA ── */}
         <FadeUp delay={600}>
-          <Button onPress={handleGoogleLogin} loading={loading} size="lg">
+          <Button onPress={handleGoogleLogin} loading={loading}>
             {t("sign_in_with_google")}
           </Button>
         </FadeUp>
 
         {/* ── Footer tagline ── */}
         <FadeUp delay={800}>
-          <Text className="text-xs text-muted-foreground text-center mt-8 opacity-60">
+          <Text className="text-xs text-muted-foreground text-center mt-10 opacity-50">
             {t("login_footer")}
           </Text>
         </FadeUp>
