@@ -235,6 +235,13 @@ async def delete_expense(
         description=expense.description, amount=expense.total_amount, currency=expense.currency,
     )
 
+    # Push 通知群組所有成員（排除刪除者自己）
+    from app.services.push_service import notify_expense_deleted
+    from app.models.user import User
+    deleter_result = await db.execute(select(User.display_name).where(User.id == user_id))
+    deleter_name = deleter_result.scalar_one_or_none() or "Unknown"
+    await notify_expense_deleted(db, group_id, user_id, deleter_name, expense.description)
+
 
 async def update_expense(
     db: AsyncSession,
@@ -357,6 +364,15 @@ async def update_expense(
         db, group_id=group_id, actor_id=user_id, action="expense_updated",
         target_type="expense", target_id=expense.id,
         description=expense.description, amount=expense.total_amount, currency=expense.currency,
+    )
+
+    # Push 通知群組所有成員（排除更新者自己）
+    from app.services.push_service import notify_expense_updated
+    from app.models.user import User
+    updater_result = await db.execute(select(User.display_name).where(User.id == user_id))
+    updater_name = updater_result.scalar_one_or_none() or "Unknown"
+    await notify_expense_updated(
+        db, group_id, user_id, updater_name, expense.description, expense.total_amount, expense.currency,
     )
 
     # Expire the expense so get_expense_detail reloads from DB with proper eager loading.

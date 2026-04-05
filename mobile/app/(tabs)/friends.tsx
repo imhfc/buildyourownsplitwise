@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   View,
   FlatList,
@@ -31,6 +31,7 @@ import { SegmentedTabs } from "~/components/ui/tabs";
 import { FAB } from "~/components/ui/fab";
 import { Avatar } from "~/components/ui/avatar";
 import { useThemeClassName } from "~/lib/theme";
+import { addNotificationReceivedCallback } from "~/lib/notifications";
 
 interface FriendUser {
   id: string;
@@ -113,6 +114,13 @@ export default function FriendsScreen() {
       fetchAll().finally(() => setLoading(false));
     }, [fetchAll])
   );
+
+  // 收到推播時即時刷新好友列表
+  useEffect(() => {
+    return addNotificationReceivedCallback(() => {
+      fetchAll();
+    });
+  }, [fetchAll]);
 
   const onRefresh = async () => {
     setRefreshing(true);

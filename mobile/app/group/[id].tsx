@@ -1381,6 +1381,7 @@ export default function GroupDetailScreen() {
                           initSplitInputs(method);
                         } else {
                           setSplitInputs({});
+                          setSelectedMembers(new Set(members.map((m) => m.user.id)));
                         }
                       }}
                     />

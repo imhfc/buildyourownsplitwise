@@ -197,10 +197,11 @@ export default function GroupsScreen() {
   useEffect(() => {
     return addNotificationReceivedCallback(() => {
       fetchGroups();
+      fetchPendingInvitations();
       fetchPendingSettlements();
       fetchOverallBalance();
     });
-  }, [fetchGroups, fetchPendingSettlements, fetchOverallBalance]);
+  }, [fetchGroups, fetchPendingInvitations, fetchPendingSettlements, fetchOverallBalance]);
 
   const onRefresh = async () => {
     setRefreshing(true);

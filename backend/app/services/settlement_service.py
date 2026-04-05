@@ -598,6 +598,14 @@ async def confirm_settlement(
     )
 
     user_map = await _load_user_names(db, [settlement.from_user, settlement.to_user])
+
+    # Push 通知付款方：結算已確認
+    from app.services.push_service import notify_settlement_confirmed
+    confirmer_name = user_map.get(user_id, "Unknown")
+    await notify_settlement_confirmed(
+        db, settlement.from_user, confirmer_name, settlement.amount, settlement.currency, group_id,
+    )
+
     return _build_response(settlement, user_map)
 
 
@@ -637,6 +645,14 @@ async def reject_settlement(
     )
 
     user_map = await _load_user_names(db, [settlement.from_user, settlement.to_user])
+
+    # Push 通知付款方：結算被拒絕
+    from app.services.push_service import notify_settlement_rejected
+    rejecter_name = user_map.get(user_id, "Unknown")
+    await notify_settlement_rejected(
+        db, settlement.from_user, rejecter_name, settlement.amount, settlement.currency, group_id,
+    )
+
     return _build_response(settlement, user_map)
 
 

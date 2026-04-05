@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { View, FlatList, RefreshControl, ActivityIndicator, Pressable } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -8,6 +8,7 @@ import { EmptyState } from "~/components/ui/empty-state";
 import { activitiesAPI } from "../../services/api";
 import { useNotificationStore } from "~/stores/notification";
 import { useTheme } from "~/lib/theme";
+import { addNotificationReceivedCallback } from "~/lib/notifications";
 
 type ActivityType =
   | "expense_added"
@@ -213,6 +214,14 @@ export default function ActivitiesScreen() {
       markAsRead();
     }, [fetchActivities, markAsRead])
   );
+
+  // 收到推播時即時刷新活動列表
+  useEffect(() => {
+    return addNotificationReceivedCallback(() => {
+      fetchActivities();
+      markAsRead();
+    });
+  }, [fetchActivities, markAsRead]);
 
   const onRefresh = async () => {
     setRefreshing(true);

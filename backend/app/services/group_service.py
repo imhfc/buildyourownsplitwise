@@ -172,6 +172,12 @@ async def update_group(
         setattr(group, field, value)
     await db.flush()
 
+    # Push 通知群組所有成員
+    from app.services.push_service import notify_group_updated
+    actor_result = await db.execute(select(User.display_name).where(User.id == user_id))
+    actor_name = actor_result.scalar_one_or_none() or "Unknown"
+    await notify_group_updated(db, group_id, user_id, actor_name, group.name)
+
     return await get_group_detail(db, group_id)
 
 
@@ -182,6 +188,13 @@ async def delete_group(
 
     result = await db.execute(select(Group).where(Group.id == group_id))
     group = result.scalar_one()
+
+    # Push 通知群組所有成員（在軟刪除前發送，否則查不到成員）
+    from app.services.push_service import notify_group_deleted
+    actor_result = await db.execute(select(User.display_name).where(User.id == user_id))
+    actor_name = actor_result.scalar_one_or_none() or "Unknown"
+    await notify_group_deleted(db, group_id, user_id, actor_name, group.name)
+
     group.deleted_at = datetime.now(timezone.utc)
 
 
@@ -207,13 +220,19 @@ async def add_member(
     member = GroupMember(group_id=group_id, user_id=target_user_id)
     db.add(member)
 
-    # 查目標使用者名稱
+    # 查目標使用者名稱與群組名稱
     target_result = await db.execute(select(User.display_name).where(User.id == target_user_id))
     target_name = target_result.scalar_one_or_none() or "Unknown"
+    group_result = await db.execute(select(Group.name).where(Group.id == group_id))
+    group_name = group_result.scalar_one_or_none() or "Unknown"
     await log_activity(
         db, group_id=group_id, actor_id=requester_id, action="member_added",
         target_type="member", target_id=target_user_id, extra_name=target_name,
     )
+
+    # Push 通知群組所有成員（新成員加入）
+    from app.services.push_service import notify_member_joined
+    await notify_member_joined(db, group_id, target_user_id, target_name, group_name)
 
 
 async def remove_member(
@@ -232,12 +251,28 @@ async def remove_member(
     if not target:
         raise NotFoundError("Member not found")
 
-    # 查目標使用者名稱
+    # 查目標使用者名稱與群組名稱
     target_name_result = await db.execute(select(User.display_name).where(User.id == target_user_id))
     target_name = target_name_result.scalar_one_or_none() or "Unknown"
+    group_result = await db.execute(select(Group.name).where(Group.id == group_id))
+    group_name = group_result.scalar_one_or_none() or "Unknown"
     await log_activity(
         db, group_id=group_id, actor_id=requester_id, action="member_removed",
         target_type="member", target_id=target_user_id, extra_name=target_name,
+    )
+
+    # Push 通知被移除的成員（如果不是自己退出）
+    if requester_id != target_user_id:
+        from app.services.push_service import notify_member_removed
+        await notify_member_removed(db, target_user_id, group_name, group_id)
+
+    # Push 通知群組其他成員有人離開
+    from app.services.push_service import notify_group_members
+    await notify_group_members(
+        db, group_id, target_user_id,
+        title="Member Left",
+        body=f"{target_name} left {group_name}",
+        notification_type="member_removed",
     )
 
     await db.delete(target)
@@ -364,4 +399,12 @@ async def accept_invite(
         raise ConflictError("Already a member of this group")
     member = GroupMember(group_id=group.id, user_id=user_id, role="member")
     db.add(member)
+    await db.flush()
+
+    # Push 通知群組所有成員（新成員透過邀請連結加入）
+    from app.services.push_service import notify_member_joined
+    user_result = await db.execute(select(User.display_name).where(User.id == user_id))
+    member_name = user_result.scalar_one_or_none() or "Unknown"
+    await notify_member_joined(db, group.id, user_id, member_name, group.name)
+
     return group.id
