@@ -155,7 +155,6 @@
   "settle_up_confirm_msg": "{{from}} が {{amount}} を {{to}} に支払いますか？",
   "settlement_created_success": "精算が作成されました",
   "settlement_failed": "精算に失敗しました",
-  "balance_summary": "残高サマリー",
   "owed_to_you": "受取予定",
   "you_owe": "支払い予定",
   "net_balance": "純残高",

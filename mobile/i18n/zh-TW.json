@@ -155,7 +155,6 @@
   "settle_up_confirm_msg": "確認由 {{from}} 支付 {{amount}} 給 {{to}}？",
   "settlement_created_success": "結算已建立",
   "settlement_failed": "結算失敗",
-  "balance_summary": "餘額摘要",
   "owed_to_you": "別人欠你",
   "you_owe": "你欠別人",
   "net_balance": "淨餘額",

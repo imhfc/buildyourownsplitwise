@@ -18,7 +18,7 @@ import {
   CaretRight,
 } from "phosphor-react-native";
 import { CurrencyPicker } from "~/components/ui/currency-picker";
-import { expensesAPI, settlementsAPI, groupsAPI, authAPI, balancesAPI, exchangeRatesAPI, friendsAPI, ExpenseSplitInput, ExpensePayerInput, ExpenseUpdatePayload } from "../../services/api";
+import { expensesAPI, settlementsAPI, groupsAPI, authAPI, exchangeRatesAPI, friendsAPI, ExpenseSplitInput, ExpensePayerInput, ExpenseUpdatePayload } from "../../services/api";
 import { useAuthStore } from "../../stores/auth";
 import { addNotificationReceivedCallback } from "~/lib/notifications";
 import { Card, CardContent } from "~/components/ui/card";
@@ -93,17 +93,6 @@ interface PendingSettlement {
   settled_at: string;
 }
 
-interface CurrencyBalance {
-  currency: string;
-  balances: { user_id: string; display_name: string; balance: string }[];
-}
-
-interface BalanceSummary {
-  group_id: string;
-  group_name: string;
-  by_currency: CurrencyBalance[];
-}
-
 interface Member {
   user: { id: string; display_name: string; email: string };
   role: string;
@@ -141,7 +130,6 @@ export default function GroupDetailScreen() {
   const [multiPayer, setMultiPayer] = useState(false);
   const [payerInputs, setPayerInputs] = useState<Record<string, string>>({});
   // Balance & settlement
-  const [balances, setBalances] = useState<BalanceSummary | null>(null);
   const [settleTarget, setSettleTarget] = useState<Suggestion | null>(null);
   const [settling, setSettling] = useState(false);
   const [settleError, setSettleError] = useState("");
@@ -209,9 +197,8 @@ export default function GroupDetailScreen() {
     if (!id) return;
     setSugLoading(true);
     try {
-      const [sugRes, balRes, settleRes] = await Promise.all([
+      const [sugRes, settleRes] = await Promise.all([
         settlementsAPI.suggestions(id),
-        balancesAPI.group(id),
         settlementsAPI.list(id),
       ]);
       const data = sugRes.data;
@@ -223,11 +210,10 @@ export default function GroupDetailScreen() {
       } else {
         setSuggestions([]);
       }
-      setBalances(balRes.data);
       const pending = (settleRes.data as PendingSettlement[]).filter((s) => s.status === "pending");
       setPendingSettlements(pending);
     } catch (e) {
-      console.error("Failed to fetch suggestions/balances", e);
+      console.error("Failed to fetch suggestions", e);
     } finally {
       setSugLoading(false);
     }
@@ -251,7 +237,7 @@ export default function GroupDetailScreen() {
       hasFetched.current = true;
       if (isFirstLoad) setLoading(false);
 
-      // Phase 2: settlement suggestions + balances + email invitations -- load in background
+      // Phase 2: settlement suggestions + email invitations -- load in background
       fetchEmailInvitations();
       refreshSettlements();
     } catch (e) {
@@ -1017,33 +1003,6 @@ export default function GroupDetailScreen() {
                     </CardContent>
                   </Card>
                 )}
-                {balances && balances.by_currency.length > 0 ? (
-                  <Card className="mb-4">
-                    <CardContent className="p-4 gap-2">
-                      <Text className="font-semibold text-sm text-muted-foreground">{t("balance_summary")}</Text>
-                      {balances.by_currency.map((cb) => (
-                        <View key={cb.currency} className="gap-1">
-                          {balances.by_currency.length > 1 ? (
-                            <Text className="text-xs font-semibold text-primary mt-1">{cb.currency}</Text>
-                          ) : null}
-                          {cb.balances.map((b) => {
-                            const val = parseFloat(b.balance);
-                            const isPositive = val > 0;
-                            const isZero = Math.abs(val) < 0.01;
-                            return (
-                              <View key={b.user_id} className="flex-row items-center justify-between">
-                                <Text className="text-sm">{b.display_name}</Text>
-                                <Text className={`text-sm font-medium ${isZero ? "text-muted-foreground" : isPositive ? "text-income" : "text-destructive"}`}>
-                                  {isZero ? "0" : `${isPositive ? "+" : ""}${val.toLocaleString()}`} {cb.currency}
-                                </Text>
-                              </View>
-                            );
-                          })}
-                        </View>
-                      ))}
-                    </CardContent>
-                  </Card>
-                ) : null}
               </View>
             }
             ListFooterComponent={
