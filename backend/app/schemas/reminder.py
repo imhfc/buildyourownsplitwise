@@ -11,6 +11,10 @@ class ReminderCreate(BaseModel):
     currency: str
 
 
+class BatchReminderCreate(BaseModel):
+    reminders: list[ReminderCreate]
+
+
 class ReminderResponse(BaseModel):
     id: uuid.UUID
     group_id: uuid.UUID
@@ -23,3 +27,8 @@ class ReminderResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class BatchReminderResponse(BaseModel):
+    sent: list[ReminderResponse]
+    skipped: list[dict]  # {"to_user": uuid, "reason": str}

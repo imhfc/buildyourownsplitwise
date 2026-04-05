@@ -16,6 +16,7 @@ import {
   GearSix,
   CaretDown,
   CaretRight,
+  Megaphone,
 } from "phosphor-react-native";
 import { CurrencyPicker } from "~/components/ui/currency-picker";
 import { expensesAPI, settlementsAPI, groupsAPI, authAPI, exchangeRatesAPI, friendsAPI, ExpenseSplitInput, ExpensePayerInput, ExpenseUpdatePayload } from "../../services/api";
@@ -33,7 +34,7 @@ import { useThemeClassName } from "~/lib/theme";
 import { InviteShareModal } from "~/components/InviteShareModal";
 import { CoverImagePicker } from "~/components/ui/cover-image-picker";
 
-type Tab = "expenses" | "settlements" | "members";
+type Tab = "expenses" | "balances" | "members";
 
 interface ExpenseSplitItem {
   user_id: string;
@@ -108,6 +109,7 @@ export default function GroupDetailScreen() {
   const themeClass = useThemeClassName();
 
   const [tab, setTab] = useState<Tab>("expenses");
+  const [batchReminding, setBatchReminding] = useState(false);
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -737,80 +739,6 @@ export default function GroupDetailScreen() {
   const hasPendingFor = (fromId: string, toId: string) =>
     pendingSettlements.some((s) => s.from_user === fromId && s.to_user === toId);
 
-  const renderSuggestion = ({ item }: { item: Suggestion }) => {
-    const alreadyPending = hasPendingFor(item.from_user_id, item.to_user_id);
-    return (
-    <Card className="mb-3">
-      <CardContent className="p-4 gap-3">
-        <View className="flex-row items-center justify-between">
-          <View className="flex-1">
-            <Text>
-              <Text className="font-bold text-destructive">
-                {item.from_user_name}
-              </Text>
-              {"  "}
-              {t("owes")}
-              {"  "}
-              <Text className="font-bold text-income">
-                {item.to_user_name}
-              </Text>
-            </Text>
-          </View>
-          <Text className="text-lg font-bold text-primary">
-            {item.currency} {parseFloat(item.amount).toLocaleString()}
-          </Text>
-        </View>
-        {alreadyPending && (
-          <Text className="text-sm text-warning">{t("settlement_pending_hint")}</Text>
-        )}
-        {(item.from_user_id === user?.id || item.to_user_id === user?.id) && (
-          <View className="flex-row gap-2">
-            {item.from_user_id === user?.id && (
-            <Button
-              size="sm"
-              disabled={alreadyPending}
-              onPress={() => {
-                setSettleSuccessMsg("");
-                setSettleTarget(item);
-                setSettleCurrency(item.currency);
-                setSettleAmount(item.amount);
-                setSettleRate(null);
-                setSettleError("");
-              }}
-              className="flex-1"
-            >
-              {alreadyPending ? t("settlement_pending_hint") : t("settle_up")}
-            </Button>
-            )}
-            {item.to_user_id === user?.id && (
-              <Button
-                size="sm"
-                variant="outline"
-                onPress={async () => {
-                  try {
-                    await settlementsAPI.sendReminder(id!, {
-                      to_user: item.from_user_id,
-                      amount: parseFloat(item.amount),
-                      currency: item.currency,
-                    });
-                    setAddError(t("reminder_sent"));
-                  } catch (e: any) {
-                    const msg = e.response?.data?.detail || t("reminder_cooldown");
-                    setAddError(msg);
-                  }
-                }}
-                className="flex-1"
-              >
-                {t("send_reminder")}
-              </Button>
-            )}
-          </View>
-        )}
-      </CardContent>
-    </Card>
-    );
-  };
-
   const renderMember = ({ item }: { item: Member }) => {
     const isSelf = item.user.id === user?.id;
     const canRemove = isAdmin || isSelf;
@@ -889,16 +817,63 @@ export default function GroupDetailScreen() {
         </View>
       ) : null}
 
+      {/* Balance summary above tabs (Splitwise style) */}
+      {(() => {
+        const mySuggestions = suggestions.filter((s) => s.from_user_id === user?.id || s.to_user_id === user?.id);
+        const owedToMe = mySuggestions.filter((s) => s.to_user_id === user?.id);
+        const iOwe = mySuggestions.filter((s) => s.from_user_id === user?.id);
+        // Group by currency for totals
+        const owedByCurrency: Record<string, number> = {};
+        owedToMe.forEach((s) => { owedByCurrency[s.currency] = (owedByCurrency[s.currency] || 0) + parseFloat(s.amount); });
+        const oweByCurrency: Record<string, number> = {};
+        iOwe.forEach((s) => { oweByCurrency[s.currency] = (oweByCurrency[s.currency] || 0) + parseFloat(s.amount); });
+        const hasOwed = owedToMe.length > 0;
+        const hasOwe = iOwe.length > 0;
+        if (!hasOwed && !hasOwe) return null;
+        return (
+          <View className="mx-5 mt-3 mb-1">
+            {hasOwed && (
+              <View className="mb-2">
+                <Text className="text-base font-semibold text-income">
+                  {Object.entries(owedByCurrency).map(([cur, amt]) =>
+                    t("gets_back_total", { currency: cur, amount: amt.toLocaleString() })
+                  ).join(" + ")}
+                </Text>
+                {owedToMe.map((s) => (
+                  <Text key={`${s.from_user_id}-${s.to_user_id}`} className="text-sm text-muted-foreground ml-2 mt-0.5">
+                    {t("owes_you", { name: s.from_user_name })} {s.currency} {parseFloat(s.amount).toLocaleString()}
+                  </Text>
+                ))}
+              </View>
+            )}
+            {hasOwe && (
+              <View className="mb-1">
+                <Text className="text-base font-semibold text-destructive">
+                  {Object.entries(oweByCurrency).map(([cur, amt]) =>
+                    t("owes_total", { currency: cur, amount: amt.toLocaleString() })
+                  ).join(" + ")}
+                </Text>
+                {iOwe.map((s) => (
+                  <Text key={`${s.from_user_id}-${s.to_user_id}`} className="text-sm text-muted-foreground ml-2 mt-0.5">
+                    {t("you_owe_person", { name: s.to_user_name })} {s.currency} {parseFloat(s.amount).toLocaleString()}
+                  </Text>
+                ))}
+              </View>
+            )}
+          </View>
+        );
+      })()}
+
       <SegmentedTabs
         tabs={[
           { value: "expenses", label: t("expenses") },
-          { value: "settlements", label: t("settlements") },
+          { value: "balances", label: t("balances") },
           { value: "members", label: t("members") },
         ]}
         value={tab}
         onValueChange={(v) => {
           setTab(v as Tab);
-          if (v === "settlements") {
+          if (v === "balances") {
             refreshSettlements();
           }
         }}
@@ -965,104 +940,279 @@ export default function GroupDetailScreen() {
             />
           );
         })()
-      ) : tab === "settlements" ? (
+      ) : tab === "balances" ? (
         sugLoading && suggestions.length === 0 ? (
           <View className="flex-1 items-center justify-center">
             <ActivityIndicator size="large" />
           </View>
         ) : (
-          <FlatList
-            data={suggestions.filter((s) => s.from_user_id === user?.id || s.to_user_id === user?.id)}
-            keyExtractor={(item) => `${item.from_user_id}-${item.to_user_id}`}
-            renderItem={renderSuggestion}
-            contentContainerStyle={{ padding: 20 }}
+          <ScrollView
+            contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
-            ListHeaderComponent={
-              <View>
-                {settleSuccessMsg ? (
-                  <View className="bg-primary/10 rounded-lg px-4 py-3 mb-4">
-                    <Text className="text-sm text-primary font-medium">{settleSuccessMsg}</Text>
-                  </View>
-                ) : null}
-                {pendingSettlements.length > 0 && (
-                  <Card className="mb-4">
-                    <CardContent className="p-4 gap-2">
-                      <Text className="font-semibold text-sm text-muted-foreground">{t("pending_settlements")}</Text>
-                      {pendingSettlements.map((s) => (
-                        <View key={s.id} className="flex-row items-center justify-between py-1">
-                          <Text className="text-sm flex-1">
-                            {s.from_user_name} → {s.to_user_name}
-                          </Text>
-                          <Text className="text-sm font-medium text-warning">
-                            {s.currency} {s.amount.toLocaleString()}
-                          </Text>
+          >
+            {settleSuccessMsg ? (
+              <View className="bg-primary/10 rounded-lg px-4 py-3 mb-4">
+                <Text className="text-sm text-primary font-medium">{settleSuccessMsg}</Text>
+              </View>
+            ) : null}
+
+            {/* Pending settlements */}
+            {pendingSettlements.length > 0 && (
+              <Card className="mb-4">
+                <CardContent className="p-4 gap-2">
+                  <Text className="font-semibold text-sm text-muted-foreground">{t("pending_settlements")}</Text>
+                  {pendingSettlements.map((s) => (
+                    <View key={s.id} className="flex-row items-center justify-between py-1">
+                      <Text className="text-sm flex-1">
+                        {s.from_user_name} → {s.to_user_name}
+                      </Text>
+                      <Text className="text-sm font-medium text-warning">
+                        {s.currency} {s.amount.toLocaleString()}
+                      </Text>
+                    </View>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {(() => {
+              const mySuggestions = suggestions.filter((s) => s.from_user_id === user?.id || s.to_user_id === user?.id);
+              const owedToMe = mySuggestions.filter((s) => s.to_user_id === user?.id);
+              const iOwe = mySuggestions.filter((s) => s.from_user_id === user?.id);
+
+              if (mySuggestions.length === 0) {
+                return (
+                  <EmptyState
+                    icon={ArrowsLeftRight}
+                    title={t("balanced")}
+                    description={t("all_balanced_hint")}
+                  />
+                );
+              }
+
+              return (
+                <View className="gap-4">
+                  {/* Section: Others owe me */}
+                  {owedToMe.length > 0 && (
+                    <Card>
+                      <CardContent className="p-4 gap-3">
+                        <View className="flex-row items-center justify-between">
+                          <Text className="font-semibold text-income">{t("owed_to_you")}</Text>
+                          {owedToMe.length > 1 && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={batchReminding}
+                              onPress={async () => {
+                                setBatchReminding(true);
+                                try {
+                                  const res = await settlementsAPI.sendBatchReminders(id!, {
+                                    reminders: owedToMe.map((s) => ({
+                                      to_user: s.from_user_id,
+                                      amount: parseFloat(s.amount),
+                                      currency: s.currency,
+                                    })),
+                                  });
+                                  const sentCount = res.data.sent?.length || 0;
+                                  const skippedCount = res.data.skipped?.length || 0;
+                                  let msg = t("batch_remind_sent", { count: sentCount });
+                                  if (skippedCount > 0) {
+                                    msg += "\n" + t("batch_remind_skipped", { count: skippedCount });
+                                  }
+                                  setSettleSuccessMsg(msg);
+                                } catch (e: any) {
+                                  setAddError(e.response?.data?.detail || t("unknown_error"));
+                                } finally {
+                                  setBatchReminding(false);
+                                }
+                              }}
+                            >
+                              <View className="flex-row items-center gap-1">
+                                <Megaphone size={14} color="hsl(var(--primary))" />
+                                <Text className="text-xs">{t("batch_remind_all")}</Text>
+                              </View>
+                            </Button>
+                          )}
                         </View>
-                      ))}
+                        {owedToMe.map((item) => {
+                          const alreadyPending = hasPendingFor(item.from_user_id, item.to_user_id);
+                          return (
+                            <View key={`${item.from_user_id}-${item.to_user_id}`} className="gap-2">
+                              <View className="flex-row items-center justify-between">
+                                <Text className="text-sm flex-1">
+                                  {t("owes_you", { name: item.from_user_name })}
+                                </Text>
+                                <Text className="text-base font-bold text-income">
+                                  {item.currency} {parseFloat(item.amount).toLocaleString()}
+                                </Text>
+                              </View>
+                              {alreadyPending && (
+                                <Text className="text-xs text-warning">{t("settlement_pending_hint")}</Text>
+                              )}
+                              <View className="flex-row gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onPress={async () => {
+                                    try {
+                                      await settlementsAPI.sendReminder(id!, {
+                                        to_user: item.from_user_id,
+                                        amount: parseFloat(item.amount),
+                                        currency: item.currency,
+                                      });
+                                      setSettleSuccessMsg(t("reminder_sent"));
+                                    } catch (e: any) {
+                                      setAddError(e.response?.data?.detail || t("reminder_cooldown"));
+                                    }
+                                  }}
+                                  className="flex-1"
+                                >
+                                  {t("remind")}
+                                </Button>
+                              </View>
+                            </View>
+                          );
+                        })}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Section: I owe others */}
+                  {iOwe.length > 0 && (
+                    <Card>
+                      <CardContent className="p-4 gap-3">
+                        <Text className="font-semibold text-destructive">{t("you_owe")}</Text>
+                        {iOwe.map((item) => {
+                          const alreadyPending = hasPendingFor(item.from_user_id, item.to_user_id);
+                          return (
+                            <View key={`${item.from_user_id}-${item.to_user_id}`} className="gap-2">
+                              <View className="flex-row items-center justify-between">
+                                <Text className="text-sm flex-1">
+                                  {t("you_owe_person", { name: item.to_user_name })}
+                                </Text>
+                                <Text className="text-base font-bold text-destructive">
+                                  {item.currency} {parseFloat(item.amount).toLocaleString()}
+                                </Text>
+                              </View>
+                              {alreadyPending && (
+                                <Text className="text-xs text-warning">{t("settlement_pending_hint")}</Text>
+                              )}
+                              {/* Guard: only payer (from_user_id === user?.id) can settle */}
+                              {item.from_user_id === user?.id && (
+                              <Button
+                                size="sm"
+                                disabled={alreadyPending}
+                                onPress={() => {
+                                  setSettleSuccessMsg("");
+                                  setSettleTarget(item);
+                                  setSettleCurrency(item.currency);
+                                  setSettleAmount(item.amount);
+                                  setSettleRate(null);
+                                  setSettleError("");
+                                }}
+                              >
+                                {alreadyPending ? t("settlement_pending_hint") : t("settle_up")}
+                              </Button>
+                              )}
+                            </View>
+                          );
+                        })}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Section: All members balances */}
+                  <Card>
+                    <CardContent className="p-4 gap-2">
+                      <Text className="font-semibold text-sm text-muted-foreground">{t("all_members_balances")}</Text>
+                      {members.map((m) => {
+                        // Calculate net balance for this member from all suggestions
+                        const owedSum = suggestions
+                          .filter((s) => s.to_user_id === m.user.id)
+                          .reduce((sum, s) => sum + parseFloat(s.amount), 0);
+                        const owesSum = suggestions
+                          .filter((s) => s.from_user_id === m.user.id)
+                          .reduce((sum, s) => sum + parseFloat(s.amount), 0);
+                        const net = owedSum - owesSum;
+                        const isSettled = Math.abs(net) < 0.01;
+                        return (
+                          <View key={m.user.id} className="flex-row items-center justify-between py-1.5">
+                            <Text className={`text-sm ${isSettled ? "text-muted-foreground" : ""}`}>
+                              {m.user.display_name}
+                              {m.user.id === user?.id ? "  " + "(" + t("role_member").charAt(0) + ")" : ""}
+                            </Text>
+                            {isSettled ? (
+                              <Text className="text-sm text-muted-foreground">{t("is_settled_up")}</Text>
+                            ) : net > 0 ? (
+                              <Text className="text-sm font-medium text-income">
+                                +{groupCurrency} {net.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </Text>
+                            ) : (
+                              <Text className="text-sm font-medium text-destructive">
+                                -{groupCurrency} {Math.abs(net).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </Text>
+                            )}
+                          </View>
+                        );
+                      })}
                     </CardContent>
                   </Card>
-                )}
-              </View>
-            }
-            ListFooterComponent={
-              suggestions.length > 0 ? (
-                <View className="mt-2 mb-4">
-                  <Pressable
-                    className="flex-row items-center gap-2 py-3 px-1"
-                    onPress={async () => {
-                      if (showDetails) {
-                        setShowDetails(false);
-                        return;
-                      }
-                      if (pairwiseDetails.length === 0) {
-                        setDetailsLoading(true);
-                        try {
-                          const res = await settlementsAPI.pairwiseDetails(id!);
-                          setPairwiseDetails(res.data);
-                        } catch (e) {
-                          console.error("Failed to fetch pairwise details", e);
-                        } finally {
-                          setDetailsLoading(false);
-                        }
-                      }
-                      setShowDetails(true);
-                    }}
-                  >
-                    {showDetails
-                      ? <CaretDown size={18} color="hsl(240 3.8% 46.1%)" />
-                      : <CaretRight size={18} color="hsl(240 3.8% 46.1%)" />}
-                    <Text className="text-muted-foreground font-medium">
-                      {showDetails ? t("hide_details") : t("show_details")}
-                    </Text>
-                    {detailsLoading && <ActivityIndicator size="small" />}
-                  </Pressable>
-                  {showDetails && pairwiseDetails.length > 0 && (
-                    <View className="gap-2 mt-1">
-                      <Muted className="text-xs px-1">{t("debt_details")}</Muted>
-                      {pairwiseDetails.map((d, i) => (
-                        <View key={i} className="flex-row items-center justify-between px-3 py-2 bg-muted/50 rounded-lg">
-                          <Text className="text-sm flex-1">
-                            {d.from_user_name} → {d.to_user_name}
-                          </Text>
-                          <Text className="text-sm font-medium">
-                            {d.currency} {parseFloat(d.amount).toLocaleString()}
-                          </Text>
+
+                  {/* Pairwise debt details (expandable) */}
+                  {suggestions.length > 0 && (
+                    <View className="mt-1 mb-4">
+                      <Pressable
+                        className="flex-row items-center gap-2 py-3 px-1"
+                        onPress={async () => {
+                          if (showDetails) {
+                            setShowDetails(false);
+                            return;
+                          }
+                          if (pairwiseDetails.length === 0) {
+                            setDetailsLoading(true);
+                            try {
+                              const res = await settlementsAPI.pairwiseDetails(id!);
+                              setPairwiseDetails(res.data);
+                            } catch (e) {
+                              console.error("Failed to fetch pairwise details", e);
+                            } finally {
+                              setDetailsLoading(false);
+                            }
+                          }
+                          setShowDetails(true);
+                        }}
+                      >
+                        {showDetails
+                          ? <CaretDown size={18} color="hsl(240 3.8% 46.1%)" />
+                          : <CaretRight size={18} color="hsl(240 3.8% 46.1%)" />}
+                        <Text className="text-muted-foreground font-medium">
+                          {showDetails ? t("hide_details") : t("show_details")}
+                        </Text>
+                        {detailsLoading && <ActivityIndicator size="small" />}
+                      </Pressable>
+                      {showDetails && pairwiseDetails.length > 0 && (
+                        <View className="gap-2 mt-1">
+                          <Muted className="text-xs px-1">{t("debt_details")}</Muted>
+                          {pairwiseDetails.map((d, i) => (
+                            <View key={i} className="flex-row items-center justify-between px-3 py-2 bg-muted/50 rounded-lg">
+                              <Text className="text-sm flex-1">
+                                {d.from_user_name} → {d.to_user_name}
+                              </Text>
+                              <Text className="text-sm font-medium">
+                                {d.currency} {parseFloat(d.amount).toLocaleString()}
+                              </Text>
+                            </View>
+                          ))}
                         </View>
-                      ))}
+                      )}
                     </View>
                   )}
                 </View>
-              ) : null
-            }
-            ListEmptyComponent={
-              <EmptyState
-                icon={ArrowsLeftRight}
-                title={t("balanced")}
-                description={t("all_balanced_hint")}
-              />
-            }
-          />
+              );
+            })()}
+          </ScrollView>
         )
       ) : (
         <FlatList

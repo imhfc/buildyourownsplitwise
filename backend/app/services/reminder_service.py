@@ -77,3 +77,23 @@ async def create_reminder(
         currency=data.currency,
         created_at=reminder.created_at,
     )
+
+
+async def create_batch_reminders(
+    db: AsyncSession,
+    group_id: uuid.UUID,
+    from_user_id: uuid.UUID,
+    reminders: list[ReminderCreate],
+) -> tuple[list[ReminderResponse], list[dict]]:
+    """批次發送付款提醒，跳過 24 小時內已提醒或無效的對象"""
+    sent: list[ReminderResponse] = []
+    skipped: list[dict] = []
+
+    for item in reminders:
+        try:
+            result = await create_reminder(db, group_id, from_user_id, item)
+            sent.append(result)
+        except (ValidationError, ForbiddenError) as e:
+            skipped.append({"to_user": str(item.to_user), "reason": str(e)})
+
+    return sent, skipped

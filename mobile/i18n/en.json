@@ -233,5 +233,15 @@
   "settled_by_at": "Settled by {{name}} on {{date}}",
   "expense_settled_readonly": "This expense is settled and cannot be edited",
   "cannot_edit_settled": "Settled expenses cannot be edited",
-  "not_involved_expenses": "Not involved"
+  "not_involved_expenses": "Not involved",
+  "balances": "Balances",
+  "gets_back_total": "owed {{currency}} {{amount}}",
+  "owes_total": "owe {{currency}} {{amount}} total",
+  "is_settled_up": "settled up",
+  "all_members_balances": "All Members",
+  "batch_remind_all": "Remind All",
+  "batch_remind_sent": "{{count}} reminders sent",
+  "batch_remind_skipped": "{{count}} skipped (already reminded within 24h)",
+  "owes_to": "owes {{name}}",
+  "remind": "Remind"
 }

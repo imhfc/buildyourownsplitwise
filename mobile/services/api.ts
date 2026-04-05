@@ -194,6 +194,8 @@ export const settlementsAPI = {
     api.get(`/groups/${groupId}/settlements/details`),
   sendReminder: (groupId: string, data: { to_user: string; amount: number; currency: string }) =>
     api.post(`/groups/${groupId}/settlements/reminders`, data),
+  sendBatchReminders: (groupId: string, data: { reminders: { to_user: string; amount: number; currency: string }[] }) =>
+    api.post(`/groups/${groupId}/settlements/reminders/batch`, data),
 };
 
 // Balances

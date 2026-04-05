@@ -233,5 +233,15 @@
   "settled_by_at": "由 {{name}} 於 {{date}} 結清",
   "expense_settled_readonly": "此消費已結清，無法編輯",
   "cannot_edit_settled": "已結清的消費不可編輯",
-  "not_involved_expenses": "與我無關的消費"
+  "not_involved_expenses": "與我無關的消費",
+  "balances": "餘額",
+  "gets_back_total": "被欠 {{currency}} {{amount}}",
+  "owes_total": "共欠 {{currency}} {{amount}}",
+  "is_settled_up": "已結清",
+  "all_members_balances": "所有成員餘額",
+  "batch_remind_all": "一鍵提醒全部",
+  "batch_remind_sent": "已發送 {{count}} 筆提醒",
+  "batch_remind_skipped": "{{count}} 筆因 24 小時內已提醒而跳過",
+  "owes_to": "欠 {{name}}",
+  "remind": "提醒"
 }

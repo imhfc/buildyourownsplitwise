@@ -233,5 +233,15 @@
   "settled_by_at": "{{name}} が {{date}} に精算",
   "expense_settled_readonly": "この費用は精算済みのため編集できません",
   "cannot_edit_settled": "精算済みの費用は編集できません",
-  "not_involved_expenses": "自分に関係のない費用"
+  "not_involved_expenses": "自分に関係のない費用",
+  "balances": "残高",
+  "gets_back_total": "{{currency}} {{amount}} の受取",
+  "owes_total": "合計 {{currency}} {{amount}} の支払い",
+  "is_settled_up": "精算済み",
+  "all_members_balances": "全メンバー",
+  "batch_remind_all": "一括リマインド",
+  "batch_remind_sent": "{{count}} 件のリマインダーを送信",
+  "batch_remind_skipped": "{{count}} 件は24時間以内に送信済みのためスキップ",
+  "owes_to": "{{name}} に支払い",
+  "remind": "リマインド"
 }

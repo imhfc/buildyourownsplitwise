@@ -7,7 +7,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.exceptions import ForbiddenError, NotFoundError, ValidationError
 from app.models.user import User
-from app.schemas.reminder import ReminderCreate
+from app.schemas.reminder import BatchReminderCreate, BatchReminderResponse, ReminderCreate
 from app.schemas.settlement import SettlementCreate, SettlementResponse, SettlementSuggestionsResponse
 from app.services import settlement_service
 
@@ -131,6 +131,24 @@ async def send_reminder(
         raise HTTPException(status_code=403, detail=e.message)
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=e.message)
+
+
+@router.post("/reminders/batch", response_model=BatchReminderResponse, status_code=status.HTTP_200_OK)
+async def send_batch_reminders(
+    group_id: uuid.UUID,
+    data: BatchReminderCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """批次發送付款提醒，跳過 24 小時內已提醒或無效的對象"""
+    from app.services import reminder_service
+    try:
+        sent, skipped = await reminder_service.create_batch_reminders(
+            db, group_id, current_user.id, data.reminders,
+        )
+        return BatchReminderResponse(sent=sent, skipped=skipped)
+    except ForbiddenError as e:
+        raise HTTPException(status_code=403, detail=e.message)
 
 
 # --- 跨群組端點 ---
