@@ -991,40 +991,8 @@ export default function GroupDetailScreen() {
     );
   };
 
-  return (
-    <View className="flex-1 bg-background">
-      {/* Custom header with back button */}
-      <View className="flex-row items-center px-3 pt-3 pb-1 gap-1">
-        <Pressable
-          onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)")}
-          className="flex-row items-center p-2 -ml-1"
-        >
-          <CaretLeft size={24} color="hsl(var(--primary))" weight="regular" />
-          <Text className="text-primary text-base">{t("groups")}</Text>
-        </Pressable>
-        <Text className="flex-1 text-lg font-semibold text-foreground text-center" numberOfLines={1}>
-          {groupName}
-        </Text>
-        <Pressable
-          onPress={() => {
-            setEditGroupName(groupName);
-            setEditGroupCurrency(groupCurrency);
-            setEditCoverUrl(coverImageUrl || "");
-            setSettingsError(null);
-            setShowSettings(true);
-          }}
-          className="p-2"
-        >
-          <GearSix size={22} color="hsl(var(--primary))" />
-        </Pressable>
-        <Pressable
-          onPress={() => setShowInvite(true)}
-          className="p-2 -mr-1"
-        >
-          <Link size={22} color="hsl(var(--primary))" />
-        </Pressable>
-      </View>
-
+  const listHeader = (
+    <View>
       {coverImageUrl ? (
         <View className="mx-5 mt-2 rounded-xl overflow-hidden" style={{ height: 120 }}>
           <Image
@@ -1040,7 +1008,6 @@ export default function GroupDetailScreen() {
         const mySuggestions = suggestions.filter((s) => s.from_user_id === user?.id || s.to_user_id === user?.id);
         const owedToMe = mySuggestions.filter((s) => s.to_user_id === user?.id);
         const iOwe = mySuggestions.filter((s) => s.from_user_id === user?.id);
-        // Group by currency for totals
         const owedByCurrency: Record<string, number> = {};
         owedToMe.forEach((s) => { owedByCurrency[s.currency] = (owedByCurrency[s.currency] || 0) + parseFloat(s.amount); });
         const oweByCurrency: Record<string, number> = {};
@@ -1111,13 +1078,52 @@ export default function GroupDetailScreen() {
             refreshSettlements();
           }
         }}
-        className="mx-5 mt-4"
+        className="mx-5 mt-4 mb-2"
       />
+    </View>
+  );
+
+  return (
+    <View className="flex-1 bg-background">
+      {/* Custom header with back button */}
+      <View className="flex-row items-center px-3 pt-3 pb-1 gap-1">
+        <Pressable
+          onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)")}
+          className="flex-row items-center p-2 -ml-1"
+        >
+          <CaretLeft size={24} color="hsl(var(--primary))" weight="regular" />
+          <Text className="text-primary text-base">{t("groups")}</Text>
+        </Pressable>
+        <Text className="flex-1 text-lg font-semibold text-foreground text-center" numberOfLines={1}>
+          {groupName}
+        </Text>
+        <Pressable
+          onPress={() => {
+            setEditGroupName(groupName);
+            setEditGroupCurrency(groupCurrency);
+            setEditCoverUrl(coverImageUrl || "");
+            setSettingsError(null);
+            setShowSettings(true);
+          }}
+          className="p-2"
+        >
+          <GearSix size={22} color="hsl(var(--primary))" />
+        </Pressable>
+        <Pressable
+          onPress={() => setShowInvite(true)}
+          className="p-2 -mr-1"
+        >
+          <Link size={22} color="hsl(var(--primary))" />
+        </Pressable>
+      </View>
 
       {loading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" />
-        </View>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}>
+          {listHeader}
+          <View className="items-center justify-center py-20">
+            <ActivityIndicator size="large" />
+          </View>
+        </ScrollView>
       ) : tab === "expenses" ? (
         (() => {
           const unsettled = expenses.filter((e) => !e.is_settled);
@@ -1129,7 +1135,8 @@ export default function GroupDetailScreen() {
               data={myUnsettled}
               keyExtractor={(item) => item.id}
               renderItem={renderExpense}
-              contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
+              ListHeaderComponent={listHeader}
+              contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
               }
@@ -1201,16 +1208,20 @@ export default function GroupDetailScreen() {
         })()
       ) : tab === "balances" ? (
         sugLoading && suggestions.length === 0 ? (
-          <View className="flex-1 items-center justify-center">
-            <ActivityIndicator size="large" />
-          </View>
+          <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}>
+            {listHeader}
+            <View className="items-center justify-center py-20">
+              <ActivityIndicator size="large" />
+            </View>
+          </ScrollView>
         ) : (
           <ScrollView
-            contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
           >
+            {listHeader}
             {settleSuccessMsg ? (
               <View className="bg-primary/10 rounded-lg px-4 py-3 mb-4">
                 <Text className="text-sm text-primary font-medium">{settleSuccessMsg}</Text>
@@ -1519,7 +1530,8 @@ export default function GroupDetailScreen() {
           data={members}
           keyExtractor={(item) => item.user.id}
           renderItem={renderMember}
-          contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
+          ListHeaderComponent={listHeader}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }

@@ -57,6 +57,12 @@
 - **測試**：pytest + pytest-asyncio（後端）、Jest（前端）
 - **部署**：Docker Compose + GCP VM + GitHub Actions CI/CD
 
+## 修 bug 前先查歷史（2026-04-05 回顧）
+
+- 修復反覆出現的 bug 前，必須先 `git log -p -- <檔案>` 查看該檔案的變更歷史
+- 理解之前為什麼這樣寫，才能避免「修了又被改回來」的循環
+- 帶有平台條件判斷（`Platform.OS`）的邏輯，重構時禁止當作冗餘刪除，必須理解其防護目的
+
 ## UI 設計規則（2026-04-03 回顧）
 
 - 配色/排版/動畫等視覺設計，先搜尋 MD3 / Apple HIG best practice 取得具體數值，禁止憑直覺

@@ -400,5 +400,7 @@ cd backend && pytest tests/
 | 已結清消費用 in-place update 直接修改 | 已結清消費必須用沖銷+重建（soft-delete 原始消費 + 建立新消費帶 `adjusted_from_id`），禁止原地修改；已確認結算仍在 DB 貢獻餘額，原地修改會導致結算對應的抵消效果失真、餘額計算不一致（2026-04-05 回顧） |
 | 直接用 `icon.png` 作為頁面內 logo | `icon.png` 自帶白底，放在非白底頁面會出現白色方塊；頁面內 logo 必須用 `logo-transparent.png`（透明底），dark mode 用 `tintColor` 染色 |
 | UI 元件尺寸憑直覺設定（如 Button `h-12`、Input `h-12`） | 先查 shadcn/ui 標準值再設定：Button `h-10`(default)/`h-9`(sm)/`h-11`(lg)、Input `h-10`、文字統一 `text-sm`；詳見 `docs/UI_DESIGN_SPEC.md` |
+| `tabBarStyle` 只設 padding 不設 height，或設了任意 height 不配套 padding | 框架內部固定 height=49+insets.bottom，自訂 padding 會吃掉內容空間；正確公式：`height: 49 + bottomInset, paddingBottom: bottomInset`，確保內容空間永遠 49px（UIKit 標準） |
+| Tab bar 移除 web 端 `bottomInset` fallback（`Math.max(rawInsets.bottom, 8)`） | Web 上 `useSafeAreaInsets().bottom` 經常回傳 0，必須保留 `Platform.OS === "web" ? Math.max(rawInsets.bottom, 8) : rawInsets.bottom`；此防護已被誤刪至少 3 次，每次都導致 tab bar 文字被裁切 |
 | `bg-primary` 上圖示用 `color="white"` 或 `color="#fff"` | byosp dark mode primary 近白（HSL 0 0% 98%），白色圖示不可見；必須用 `hsl(var(--primary-foreground))` 跟隨主題（2026-04-05 回顧） |
 | 裝置 safe area / 工具列高度用 hardcode 常數（如 `8`、`44`） | 每台手機 safe area 不同，hardcode 無法適配；必須用瀏覽器 API 自動偵測（`viewport-fit=cover` + `env(safe-area-inset-*)` + `useSafeAreaInsets()`）（2026-04-05 回顧） |

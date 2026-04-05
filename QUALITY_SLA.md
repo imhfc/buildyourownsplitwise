@@ -115,6 +115,7 @@ pytest backend/tests/                  # SLA-5：後端測試
 | C-19 | `backend/.env` 的 `TEST_DATABASE_URL` 必須指向本機（包含 `127.0.0.1` 且包含 `ssl=disable`），禁止指向外部主機（Neon、RDS 等雲端 DB） | SLA-5 | 2026-04-03 TEST_DATABASE_URL 指向 Neon 美東，195 個測試要跑 10+ 分鐘（每次 TRUNCATE 3.5 秒 RTT），改本機後 8 秒 |
 | C-20 | `mobile/components/ui/fab.tsx`、`mobile/components/ui/button.tsx`、`mobile/app/group/[id].tsx`、`mobile/app/(tabs)/friends.tsx` 中 `bg-primary` 上的圖示 color 不得為 `white`/`#fff`，必須使用 `hsl(var(--primary-foreground))` | SLA-4 | FAB/Button 在 byosp dark mode（primary 近白）上圖示不可見 |
 | C-21 | `mobile/app/_layout.tsx` 包含 `viewport-fit=cover` 動態注入和 `100dvh` CSS 注入 | SLA-2 | Mobile web 上 safe area 自動偵測 + 排除瀏覽器工具列 |
+| C-22 | `mobile/app/(tabs)/_layout.tsx` 的 tab bar 必須包含 `Platform.OS === "web"` 的 `Math.max` bottomInset fallback，且 `tabBarStyle` 必須同時設定 `height: 49 + bottomInset` 和 `paddingBottom: bottomInset`（配套公式，確保內容空間永遠 49px） | SLA-2 | 2026-04-05 tab bar 文字被裁切（同一 bug 第 5 次） |
 
 ---
 
@@ -140,3 +141,5 @@ pytest backend/tests/                  # SLA-5：後端測試
 | 2026-04-03 | P2 | 後端測試跑 10+ 分鐘（應 < 30 秒） | `backend/.env` 的 `TEST_DATABASE_URL` 仍指向 Neon 雲端 DB（美東），每次 TRUNCATE CASCADE 因跨洋 RTT 花 3.5 秒。testing-standards.md 寫了兩次要用本機但 .env 從未修正。解法：改為 `127.0.0.1:5432?ssl=disable`，新增 C-19 自動檢查 | C-19 |
 | 2026-04-05 | P2 | byosp dark mode 下 FAB/Button 圖示不可見 | `bg-primary` 上的圖示 `color` 硬編碼為 `"white"`，而 byosp dark mode primary 為 HSL 0 0% 98%（近白），白色圖示在白底上不可見。解法：改為 `hsl(var(--primary-foreground))` 跟隨色系 | C-20 |
 | 2026-04-05 | P2 | Mobile web tab bar 文字/內容被手機瀏覽器工具列裁切 | Expo 預設 viewport meta 無 `viewport-fit=cover`，且頁面高度使用 `100%` 而非 `100dvh`，無法自動排除瀏覽器工具列佔用空間。解法：`_layout.tsx` 動態注入 `viewport-fit=cover` 及 `height: 100dvh` CSS | C-21 |
+| 2026-04-05 | P2 | Tab bar 文字在手機上被裁切（第 4 次復發） | **雙重根因**：(1) `tabBarStyle` 寫死 `height: 56 + insets.bottom`，不同裝置字體渲染不同導致文字被裁切；(2) 上個 commit 重構時移除了 web 端 `bottomInset = Math.max(rawInsets.bottom, 8)` fallback，web 上 `insets.bottom` 回傳 0 導致底部無間距。此 bug 已反覆出現 4 次，每次都是重構時把 web fallback 當冗餘刪除。解法：移除固定 height、恢復 web fallback、新增 C-22 自動檢查 | C-22 |
+| 2026-04-05 | P2 | Tab bar 文字完全消失（第 5 次復發） | **根因**：ebe1e7d 依照「禁止固定 height」規則移除了 `height`，但只靠 `paddingBottom/paddingTop` 控制間距。React Navigation 內部 `getTabBarHeight()` 在沒有自訂 height 時回傳 `49 + insets.bottom`，而自訂 padding 會吃掉這 49px 的內容空間。web 上 insets.bottom=0 → height=49、paddingBottom=8、paddingTop=8 → 內容空間只剩 33px，icon 20px + label 14px = 34px → label 被擠出。**「禁止固定 height」規則本身就是錯的**，正確公式是 `height: 49 + bottomInset, paddingBottom: bottomInset`，讓內容空間永遠 = 49px（UIKit 標準） | C-22（更新） |
