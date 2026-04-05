@@ -245,9 +245,9 @@
   "batch_remind_skipped": "{{count}} 筆因 24 小時內已提醒而跳過",
   "owes_to": "欠 {{name}}",
   "remind": "提醒",
-  "forgive_debt": "免除",
-  "forgive_debt_confirm": "確認免除債務",
-  "forgive_debt_confirm_msg": "確定要免除 {{name}} 的 {{amount}} 債務嗎？此操作將直接結清這筆欠款。",
-  "settlement_forgiven_success": "債務已免除",
-  "settlement_forgiven": "免除了一筆債務"
+  "forgive_debt": "已收款/免除",
+  "forgive_debt_confirm": "確認結清債務",
+  "forgive_debt_confirm_msg": "確定要結清 {{name}} 的 {{amount}} 債務嗎？適用於對方已付款或你決定免除這筆欠款。",
+  "settlement_forgiven_success": "債務已結清",
+  "settlement_forgiven": "直接結清了一筆債務"
 }

@@ -245,9 +245,9 @@
   "batch_remind_skipped": "{{count}} skipped (already reminded within 24h)",
   "owes_to": "owes {{name}}",
   "remind": "Remind",
-  "forgive_debt": "Forgive",
-  "forgive_debt_confirm": "Forgive Debt",
-  "forgive_debt_confirm_msg": "Are you sure you want to forgive {{name}}'s {{amount}} debt? This will settle the balance immediately.",
-  "settlement_forgiven_success": "Debt forgiven",
-  "settlement_forgiven": "forgave a debt"
+  "forgive_debt": "Received / Forgive",
+  "forgive_debt_confirm": "Settle Debt",
+  "forgive_debt_confirm_msg": "Settle {{name}}'s {{amount}} debt? Use this if they've already paid you or you want to forgive the debt.",
+  "settlement_forgiven_success": "Debt settled",
+  "settlement_forgiven": "settled a debt directly"
 }
