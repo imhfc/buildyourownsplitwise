@@ -21,7 +21,9 @@ import {
 import { CurrencyPicker } from "~/components/ui/currency-picker";
 import { expensesAPI, settlementsAPI, groupsAPI, authAPI, exchangeRatesAPI, friendsAPI, ExpenseSplitInput, ExpensePayerInput, ExpenseUpdatePayload } from "../../services/api";
 import { useAuthStore } from "../../stores/auth";
+import { useDraftStore } from "../../stores/draft";
 import { addNotificationReceivedCallback } from "~/lib/notifications";
+import { DiscardDraftDialog } from "~/components/ui/discard-draft-dialog";
 import { Card, CardContent } from "~/components/ui/card";
 import { Text, H3, Muted } from "~/components/ui/text";
 import { Button } from "~/components/ui/button";
@@ -202,6 +204,54 @@ export default function GroupDetailScreen() {
   const hasFetched = useRef(false);
 
   const isAdmin = members.find((m) => m.user.id === user?.id)?.role === "admin";
+
+  // --- Draft / discard logic for expense modal ---
+  const { saveDraft, getDraft, clearDraft } = useDraftStore();
+  const EXPENSE_DRAFT_KEY = `expense-${id}`;
+  const [showExpenseDiscardConfirm, setShowExpenseDiscardConfirm] = useState(false);
+
+  const isExpenseDirty = !!(desc || amount) && !editingExpenseId;
+
+  const resetExpenseForm = () => {
+    setDesc("");
+    setAmount("");
+    setSplitMethod("equal");
+    setSplitInputs({});
+    setMultiPayer(false);
+    setPayerInputs({});
+    setAddError("");
+    setEditingExpenseId(null);
+    setEditingSettled(false);
+  };
+
+  const handleOpenAddExpense = () => {
+    if (!editingExpenseId) {
+      const draft = getDraft(EXPENSE_DRAFT_KEY);
+      if (draft) {
+        setDesc((draft.desc as string) || "");
+        setAmount((draft.amount as string) || "");
+        if (draft.expenseCurrency) setExpenseCurrency(draft.expenseCurrency as string);
+        if (draft.splitMethod) setSplitMethod(draft.splitMethod as (typeof SPLIT_METHODS)[number]);
+      }
+    }
+    setShowAdd(true);
+  };
+
+  const handleCloseExpenseModal = () => {
+    if (isExpenseDirty) {
+      setShowExpenseDiscardConfirm(true);
+    } else {
+      resetExpenseForm();
+      setShowAdd(false);
+    }
+  };
+
+  const handleDiscardExpense = () => {
+    saveDraft(EXPENSE_DRAFT_KEY, { desc, amount, expenseCurrency, splitMethod });
+    setShowExpenseDiscardConfirm(false);
+    resetExpenseForm();
+    setShowAdd(false);
+  };
 
   const fetchFriendIds = useCallback(async () => {
     try {
@@ -678,15 +728,9 @@ export default function GroupDetailScreen() {
           ...(multiPayer && payersData ? { payers: payersData } : {}),
         });
       }
+      clearDraft(EXPENSE_DRAFT_KEY);
       setShowAdd(false);
-      setEditingExpenseId(null);
-      setEditingSettled(false);
-      setDesc("");
-      setAmount("");
-      setSplitMethod("equal");
-      setSplitInputs({});
-      setMultiPayer(false);
-      setPayerInputs({});
+      resetExpenseForm();
       await fetchData();
     } catch (e: any) {
       const msg = e.response?.data?.detail || e.message || t("unknown_error");
@@ -1073,7 +1117,7 @@ export default function GroupDetailScreen() {
                     title={t("add_expense")}
                     description={t("no_expenses_hint")}
                     actionLabel={t("add_expense")}
-                    onAction={() => { setEditingExpenseId(null); setEditingSettled(false); setAddError(""); setDesc(""); setAmount(""); setSplitMethod("equal"); setSplitInputs({}); setSelectedMembers(new Set(members.map((m) => m.user.id))); setExpenseCurrency(groupCurrency); setMultiPayer(false); setPayerInputs({}); setShowAdd(true); }}
+                    onAction={() => { resetExpenseForm(); setSelectedMembers(new Set(members.map((m) => m.user.id))); setExpenseCurrency(groupCurrency); handleOpenAddExpense(); }}
                   />
                 ) : null
               }
@@ -1505,7 +1549,7 @@ export default function GroupDetailScreen() {
         />
       )}
 
-      {tab === "expenses" && <FAB label={t("add_expense")} onPress={() => { setEditingExpenseId(null); setEditingSettled(false); setAddError(""); setDesc(""); setAmount(""); setSplitMethod("equal"); setSplitInputs({}); setSelectedMembers(new Set(members.map((m) => m.user.id))); setExpenseCurrency(groupCurrency); setMultiPayer(false); setPayerInputs({}); setShowAdd(true); }} />}
+      {tab === "expenses" && <FAB label={t("add_expense")} onPress={() => { resetExpenseForm(); setSelectedMembers(new Set(members.map((m) => m.user.id))); setExpenseCurrency(groupCurrency); handleOpenAddExpense(); }} />}
       {tab === "members" && (
         <FAB label={t("add_member")} onPress={() => { setShowAddMember(true); setMemberEmail(""); setFoundUser(null); setLookupError(""); setInviteEmail(""); setInviteError(""); setInviteSuccess(""); }} />
       )}
@@ -1523,25 +1567,25 @@ export default function GroupDetailScreen() {
         visible={showAdd}
         transparent
         animationType="slide"
-        onRequestClose={() => { setShowAdd(false); setEditingExpenseId(null); setEditingSettled(false); }}
+        onRequestClose={handleCloseExpenseModal}
       >
         <View className={`flex-1 ${themeClass}`}>
         <KeyboardAvoidingView
           className="flex-1 justify-end"
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <View className="flex-1 justify-end bg-black/50">
-            <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4">
-              <View className="items-center mb-4">
-                <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
-              </View>
+          <Pressable className="flex-1" onPress={handleCloseExpenseModal} />
+          <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4">
+            <View className="items-center mb-4">
+              <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+            </View>
 
-              <View className="flex-row items-center justify-between mb-6">
-                <H3>{editingExpenseId ? t("edit_expense") : t("add_expense")}</H3>
-                <Pressable onPress={() => { setShowAdd(false); setEditingExpenseId(null); setEditingSettled(false); }}>
-                  <X size={24} color="hsl(240 3.8% 46.1%)" />
-                </Pressable>
-              </View>
+            <View className="flex-row items-center justify-between mb-6">
+              <H3>{editingExpenseId ? t("edit_expense") : t("add_expense")}</H3>
+              <Pressable onPress={handleCloseExpenseModal}>
+                <X size={24} color="hsl(240 3.8% 46.1%)" />
+              </Pressable>
+            </View>
 
               {editingSettled && (
                 <View className="mb-4 p-3 rounded-lg bg-warning/10 border border-warning/30">
@@ -1839,10 +1883,15 @@ export default function GroupDetailScreen() {
                 </View>
               </ScrollView>
             </View>
-          </View>
         </KeyboardAvoidingView>
         </View>
       </Modal>
+
+      <DiscardDraftDialog
+        visible={showExpenseDiscardConfirm}
+        onDiscard={handleDiscardExpense}
+        onCancel={() => setShowExpenseDiscardConfirm(false)}
+      />
 
       {/* Add Member Bottom Sheet */}
       <Modal
@@ -1857,18 +1906,18 @@ export default function GroupDetailScreen() {
           className="flex-1 justify-end"
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <View className="flex-1 justify-end bg-black/50">
-            <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4 max-h-[80%]">
-              <View className="items-center mb-4">
-                <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
-              </View>
+          <Pressable className="flex-1" onPress={() => setShowAddMember(false)} />
+          <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4 max-h-[80%]">
+            <View className="items-center mb-4">
+              <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+            </View>
 
-              <View className="flex-row items-center justify-between mb-4">
-                <H3>{t("add_member_title")}</H3>
-                <Pressable onPress={() => setShowAddMember(false)}>
-                  <X size={24} color="hsl(240 3.8% 46.1%)" />
-                </Pressable>
-              </View>
+            <View className="flex-row items-center justify-between mb-4">
+              <H3>{t("add_member_title")}</H3>
+              <Pressable onPress={() => setShowAddMember(false)}>
+                <X size={24} color="hsl(240 3.8% 46.1%)" />
+              </Pressable>
+            </View>
 
               <ScrollView className="flex-shrink" showsVerticalScrollIndicator={false}>
                 <View className="gap-4">
@@ -2015,7 +2064,6 @@ export default function GroupDetailScreen() {
                 </View>
               </ScrollView>
             </View>
-          </View>
         </KeyboardAvoidingView>
         </View>
       </Modal>
@@ -2032,17 +2080,17 @@ export default function GroupDetailScreen() {
           className="flex-1 justify-end"
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <View className="flex-1 justify-end bg-black/50">
-            <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4">
-              <View className="items-center mb-4">
-                <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
-              </View>
-              <View className="flex-row items-center justify-between mb-6">
-                <H3>{t("group_settings")}</H3>
-                <Pressable onPress={() => setShowSettings(false)}>
-                  <X size={24} color="hsl(240 3.8% 46.1%)" />
-                </Pressable>
-              </View>
+          <Pressable className="flex-1" onPress={() => setShowSettings(false)} />
+          <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4">
+            <View className="items-center mb-4">
+              <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+            </View>
+            <View className="flex-row items-center justify-between mb-6">
+              <H3>{t("group_settings")}</H3>
+              <Pressable onPress={() => setShowSettings(false)}>
+                <X size={24} color="hsl(240 3.8% 46.1%)" />
+              </Pressable>
+            </View>
               <View className="gap-4">
                 <Input
                   label={t("group_name")}
@@ -2095,7 +2143,6 @@ export default function GroupDetailScreen() {
                 </Button>
               </View>
             </View>
-          </View>
         </KeyboardAvoidingView>
         </View>
       </Modal>
@@ -2108,8 +2155,8 @@ export default function GroupDetailScreen() {
         onRequestClose={() => setSettleTarget(null)}
       >
         <View className={`flex-1 ${themeClass}`}>
-          <View className="flex-1 justify-center items-center bg-black/50 px-6">
-            <View className="bg-background rounded-xl px-5 py-6 w-full max-w-sm">
+          <Pressable className="flex-1 justify-center items-center bg-black/50 px-6" onPress={() => setSettleTarget(null)}>
+            <Pressable className="bg-background rounded-xl px-5 py-6 w-full max-w-sm">
               <H3 className="mb-4">{t("settle_up_confirm")}</H3>
               {settleTarget && (
                 <>
@@ -2157,8 +2204,8 @@ export default function GroupDetailScreen() {
                   {t("confirm")}
                 </Button>
               </View>
-            </View>
-          </View>
+            </Pressable>
+          </Pressable>
         </View>
       </Modal>
       {/* Forgive debt confirmation Modal */}
@@ -2169,8 +2216,8 @@ export default function GroupDetailScreen() {
         onRequestClose={() => setForgiveTarget(null)}
       >
         <View className={`flex-1 ${themeClass}`}>
-          <View className="flex-1 justify-center items-center bg-black/50 px-6">
-            <View className="bg-background rounded-xl px-5 py-6 w-full max-w-sm">
+          <Pressable className="flex-1 justify-center items-center bg-black/50 px-6" onPress={() => setForgiveTarget(null)}>
+            <Pressable className="bg-background rounded-xl px-5 py-6 w-full max-w-sm">
               <H3 className="mb-4">{t("forgive_debt_confirm")}</H3>
               {forgiveTarget && (
                 <Text className="text-base mb-3">
@@ -2201,8 +2248,8 @@ export default function GroupDetailScreen() {
                   {t("confirm")}
                 </Button>
               </View>
-            </View>
-          </View>
+            </Pressable>
+          </Pressable>
         </View>
       </Modal>
       {/* Unified Currency Settlement Modal */}
@@ -2213,8 +2260,8 @@ export default function GroupDetailScreen() {
         onRequestClose={() => { setUnifiedSettleTarget(null); setUnifiedSettleItems([]); }}
       >
         <View className={`flex-1 ${themeClass}`}>
-          <View className="flex-1 justify-center items-center bg-black/50 px-6">
-            <View className="bg-background rounded-xl px-5 py-6 w-full max-w-sm">
+          <Pressable className="flex-1 justify-center items-center bg-black/50 px-6" onPress={() => { setUnifiedSettleTarget(null); setUnifiedSettleItems([]); }}>
+            <Pressable className="bg-background rounded-xl px-5 py-6 w-full max-w-sm">
               <H3 className="mb-4">{t("unified_settle_title")}</H3>
               {unifiedSettleTarget && (
                 <>
@@ -2278,8 +2325,8 @@ export default function GroupDetailScreen() {
                   {t("confirm")}
                 </Button>
               </View>
-            </View>
-          </View>
+            </Pressable>
+          </Pressable>
         </View>
       </Modal>
     </View>

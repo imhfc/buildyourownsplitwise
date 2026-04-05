@@ -8,6 +8,8 @@ import DraggableFlatList, { ScaleDecorator, RenderItemParams } from "react-nativ
 import { groupsAPI, inviteAPI, settlementsAPI, balancesAPI } from "../../services/api";
 import { useAuthStore } from "../../stores/auth";
 import { usePendingSettlementsStore } from "../../stores/pending-settlements";
+import { useDraftStore } from "../../stores/draft";
+import { DiscardDraftDialog } from "~/components/ui/discard-draft-dialog";
 import { Card, CardContent } from "~/components/ui/card";
 import { Text, H3, Muted } from "~/components/ui/text";
 import { Button } from "~/components/ui/button";
@@ -70,6 +72,42 @@ export default function GroupsScreen() {
   const [settledExpanded, setSettledExpanded] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [overallTotals, setOverallTotals] = useState<CurrencyTotal[]>([]);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const { saveDraft, getDraft, clearDraft } = useDraftStore();
+  const CREATE_DRAFT_KEY = "create-group";
+
+  const isCreateDirty = !!(newName || newDesc);
+
+  const handleOpenCreate = () => {
+    const draft = getDraft(CREATE_DRAFT_KEY);
+    if (draft) {
+      setNewName((draft.newName as string) || "");
+      setNewDesc((draft.newDesc as string) || "");
+      if (draft.newCurrency) setNewCurrency(draft.newCurrency as string);
+    }
+    setShowCreate(true);
+  };
+
+  const handleCloseCreate = () => {
+    if (isCreateDirty) {
+      setShowDiscardConfirm(true);
+    } else {
+      resetAndCloseCreate();
+    }
+  };
+
+  const handleDiscardCreate = () => {
+    saveDraft(CREATE_DRAFT_KEY, { newName, newDesc, newCurrency });
+    setShowDiscardConfirm(false);
+    resetAndCloseCreate();
+  };
+
+  const resetAndCloseCreate = () => {
+    setShowCreate(false);
+    setNewName("");
+    setNewDesc("");
+    setFormError(null);
+  };
 
   // Pending email invitations
   interface PendingInvitation {
@@ -219,10 +257,8 @@ export default function GroupsScreen() {
         description: newDesc || undefined,
         default_currency: newCurrency,
       });
-      setShowCreate(false);
-      setNewName("");
-      setNewDesc("");
-      setFormError(null);
+      clearDraft(CREATE_DRAFT_KEY);
+      resetAndCloseCreate();
       await Promise.all([fetchGroups(), fetchOverallBalance()]);
     } catch (e: any) {
       const msg = e.response?.data?.detail || e.message || t("unknown_error");
@@ -465,7 +501,7 @@ export default function GroupsScreen() {
             title={t("create_group")}
             description={t("create_group_hint")}
             actionLabel={t("create_group")}
-            onAction={() => setShowCreate(true)}
+            onAction={handleOpenCreate}
           />
         </View>
       ) : (
@@ -616,7 +652,7 @@ export default function GroupsScreen() {
         />
       )}
 
-      <FAB onPress={() => setShowCreate(true)} />
+      <FAB onPress={handleOpenCreate} />
 
       <Modal
         visible={!!confirmTarget}
@@ -625,8 +661,8 @@ export default function GroupsScreen() {
         onRequestClose={() => setConfirmTarget(null)}
       >
         <View className={`flex-1 ${themeClass}`}>
-        <View className="flex-1 justify-center items-center bg-black/50 px-6">
-          <View className="bg-background rounded-xl p-6 w-full max-w-sm gap-4">
+        <Pressable className="flex-1 justify-center items-center bg-black/50 px-6" onPress={() => setConfirmTarget(null)}>
+          <Pressable className="bg-background rounded-xl p-6 w-full max-w-sm gap-4">
             <H3>
               {confirmTarget?.action === "delete" ? t("delete_group") : t("leave_group")}
             </H3>
@@ -641,8 +677,8 @@ export default function GroupsScreen() {
                 {confirmTarget?.action === "delete" ? t("delete") : t("leave_group")}
               </Button>
             </View>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
         </View>
       </Modal>
 
@@ -650,64 +686,69 @@ export default function GroupsScreen() {
         visible={showCreate}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowCreate(false)}
+        onRequestClose={handleCloseCreate}
       >
         <View className={`flex-1 ${themeClass}`}>
         <KeyboardAvoidingView
           className="flex-1 justify-end"
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <View className="flex-1 justify-end bg-black/50">
-            <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4">
-              <View className="items-center mb-4">
-                <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
-              </View>
+          <Pressable className="flex-1" onPress={handleCloseCreate} />
+          <View className="bg-background rounded-t-2xl px-5 pb-10 pt-4">
+            <View className="items-center mb-4">
+              <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+            </View>
 
-              <View className="flex-row items-center justify-between mb-6">
-                <H3>{t("create_group")}</H3>
-                <Pressable onPress={() => setShowCreate(false)}>
-                  <X size={24} color={iconColor} />
-                </Pressable>
-              </View>
+            <View className="flex-row items-center justify-between mb-6">
+              <H3>{t("create_group")}</H3>
+              <Pressable onPress={handleCloseCreate}>
+                <X size={24} color={iconColor} />
+              </Pressable>
+            </View>
 
-              <View className="gap-4">
-                <Input
-                  label={t("group_name")}
-                  value={newName}
-                  onChangeText={(v) => { setNewName(v); setFormError(null); }}
-                  placeholder={t("group_name")}
-                />
-                <Input
-                  label={t("description")}
-                  value={newDesc}
-                  onChangeText={setNewDesc}
-                  placeholder={t("description")}
-                />
-                <CurrencyPicker
-                  label={t("default_currency")}
-                  value={newCurrency}
-                  onSelect={setNewCurrency}
-                />
+            <View className="gap-4">
+              <Input
+                label={t("group_name")}
+                value={newName}
+                onChangeText={(v) => { setNewName(v); setFormError(null); }}
+                placeholder={t("group_name")}
+              />
+              <Input
+                label={t("description")}
+                value={newDesc}
+                onChangeText={setNewDesc}
+                placeholder={t("description")}
+              />
+              <CurrencyPicker
+                label={t("default_currency")}
+                value={newCurrency}
+                onSelect={setNewCurrency}
+              />
 
-                {formError ? (
-                  <Text className="text-destructive text-sm">{formError}</Text>
-                ) : null}
+              {formError ? (
+                <Text className="text-destructive text-sm">{formError}</Text>
+              ) : null}
 
-                <Button
-                  onPress={handleCreate}
-                  loading={creating}
-                  disabled={creating || !newName}
-                  size="lg"
-                  className="mt-2"
-                >
-                  {t("save")}
-                </Button>
-              </View>
+              <Button
+                onPress={handleCreate}
+                loading={creating}
+                disabled={creating || !newName}
+                size="lg"
+                className="mt-2"
+              >
+                {t("save")}
+              </Button>
             </View>
           </View>
         </KeyboardAvoidingView>
         </View>
       </Modal>
+
+      <DiscardDraftDialog
+        visible={showDiscardConfirm}
+        onDiscard={handleDiscardCreate}
+        onCancel={() => setShowDiscardConfirm(false)}
+      />
     </View>
   );
 }
