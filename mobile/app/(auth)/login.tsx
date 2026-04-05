@@ -9,6 +9,7 @@ import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { authAPI } from "../../services/api";
 import { useAuthStore } from "../../stores/auth";
+import { useTheme } from "../../lib/theme";
 import { Logo } from "~/components/Logo";
 import { Text } from "~/components/ui/text";
 import { Button } from "~/components/ui/button";
@@ -96,6 +97,7 @@ function getHashParams(): Record<string, string> {
 export default function LoginScreen() {
   const { t } = useTranslation();
   const setAuth = useAuthStore((s) => s.setAuth);
+  const { syncFromUser } = useTheme();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -133,6 +135,7 @@ export default function LoginScreen() {
       .googleLogin(accessToken)
       .then((res) => {
         setAuth(res.data.access_token, res.data.refresh_token, res.data.user);
+        syncFromUser(res.data.user);
         const pending = useAuthStore.getState().pendingInviteToken;
         if (pending) {
           useAuthStore.getState().setPendingInviteToken(null);

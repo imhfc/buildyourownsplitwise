@@ -229,5 +229,6 @@
   "settled_expense_count": "{{count}} 件精算済み",
   "settled_by_at": "{{name}} が {{date}} に精算",
   "expense_settled_readonly": "この費用は精算済みのため編集できません",
-  "cannot_edit_settled": "精算済みの費用は編集できません"
+  "cannot_edit_settled": "精算済みの費用は編集できません",
+  "not_involved_expenses": "自分に関係のない費用"
 }

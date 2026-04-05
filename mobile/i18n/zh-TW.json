@@ -229,5 +229,6 @@
   "settled_expense_count": "{{count}} 筆已結清",
   "settled_by_at": "由 {{name}} 於 {{date}} 結清",
   "expense_settled_readonly": "此消費已結清，無法編輯",
-  "cannot_edit_settled": "已結清的消費不可編輯"
+  "cannot_edit_settled": "已結清的消費不可編輯",
+  "not_involved_expenses": "與我無關的消費"
 }

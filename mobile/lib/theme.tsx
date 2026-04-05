@@ -1,6 +1,8 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useColorScheme as useRNColorScheme } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { authAPI } from "../services/api";
+import { useAuthStore } from "../stores/auth";
 
 type Theme = "light" | "dark" | "system";
 export type ColorScheme = "blue" | "green" | "purple" | "warm" | "coral" | "slate";
@@ -25,6 +27,8 @@ interface ThemeContext {
   toggleTheme: () => void;
   colorScheme: ColorScheme;
   setColorScheme: (scheme: ColorScheme) => void;
+  /** 登入後從後端 user 物件同步主題設定到本地 */
+  syncFromUser: (user: { color_scheme?: string; theme_mode?: string }) => void;
 }
 
 const ThemeCtx = createContext<ThemeContext>({
@@ -34,6 +38,7 @@ const ThemeCtx = createContext<ThemeContext>({
   toggleTheme: () => {},
   colorScheme: "blue",
   setColorScheme: () => {},
+  syncFromUser: () => {},
 });
 
 const THEME_KEY = "byosw-theme";
@@ -58,15 +63,45 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  // 避免初始化載入時觸發後端推送
+  const initializedRef = useRef(false);
+
+  const pushToBackend = (patch: Record<string, string>) => {
+    if (!initializedRef.current) return;
+    const isAuthenticated = useAuthStore.getState().isAuthenticated;
+    if (!isAuthenticated) return;
+    authAPI.updateMe(patch).catch(() => {
+      // 靜默失敗 -- 本地設定已生效，下次登入會再同步
+    });
+  };
+
   const setTheme = (t: Theme) => {
     setThemeState(t);
     AsyncStorage.setItem(THEME_KEY, t);
+    pushToBackend({ theme_mode: t });
   };
 
   const setColorScheme = (s: ColorScheme) => {
     setColorSchemeState(s);
     AsyncStorage.setItem(COLOR_SCHEME_KEY, s);
+    pushToBackend({ color_scheme: s });
   };
+
+  const syncFromUser = (user: { color_scheme?: string; theme_mode?: string }) => {
+    if (user.color_scheme && COLOR_SCHEMES.some((s) => s.id === user.color_scheme)) {
+      setColorSchemeState(user.color_scheme as ColorScheme);
+      AsyncStorage.setItem(COLOR_SCHEME_KEY, user.color_scheme);
+    }
+    if (user.theme_mode && (user.theme_mode === "light" || user.theme_mode === "dark" || user.theme_mode === "system")) {
+      setThemeState(user.theme_mode as Theme);
+      AsyncStorage.setItem(THEME_KEY, user.theme_mode);
+    }
+  };
+
+  // 初始化完成後才允許推送
+  useEffect(() => {
+    initializedRef.current = true;
+  }, []);
 
   const isDark =
     theme === "system" ? systemScheme === "dark" : theme === "dark";
@@ -76,7 +111,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <ThemeCtx.Provider value={{ theme, isDark, setTheme, toggleTheme, colorScheme, setColorScheme }}>
+    <ThemeCtx.Provider value={{ theme, isDark, setTheme, toggleTheme, colorScheme, setColorScheme, syncFromUser }}>
       {children}
     </ThemeCtx.Provider>
   );

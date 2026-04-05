@@ -16,6 +16,8 @@ interface User {
   auth_provider: string;
   preferred_currency: string;
   locale: string;
+  color_scheme: string;
+  theme_mode: string;
 }
 
 interface AuthState {

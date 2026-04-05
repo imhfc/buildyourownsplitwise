@@ -21,6 +21,8 @@ class User(Base):
     preferred_currency: Mapped[str] = mapped_column(String(3), default="TWD")
     locale: Mapped[str] = mapped_column(String(5), default="zh-TW")
     push_token: Mapped[str | None] = mapped_column(String(255))
+    color_scheme: Mapped[str] = mapped_column(String(20), default="blue")
+    theme_mode: Mapped[str] = mapped_column(String(10), default="system")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

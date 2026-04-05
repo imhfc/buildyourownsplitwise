@@ -229,5 +229,6 @@
   "settled_expense_count": "{{count}} settled",
   "settled_by_at": "Settled by {{name}} on {{date}}",
   "expense_settled_readonly": "This expense is settled and cannot be edited",
-  "cannot_edit_settled": "Settled expenses cannot be edited"
+  "cannot_edit_settled": "Settled expenses cannot be edited",
+  "not_involved_expenses": "Not involved"
 }

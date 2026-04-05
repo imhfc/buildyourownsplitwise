@@ -190,7 +190,7 @@ export default function GroupDetailScreen() {
 
   const [loading, setLoading] = useState(true);
   const [sugLoading, setSugLoading] = useState(false);
-  const [showSettled, setShowSettled] = useState(false);
+  const [showNotInvolved, setShowNotInvolved] = useState(false);
   const hasFetched = useRef(false);
 
   const isAdmin = members.find((m) => m.user.id === user?.id)?.role === "admin";
@@ -689,6 +689,15 @@ export default function GroupDetailScreen() {
     ]);
   };
 
+  const isUserInvolved = (item: ExpenseItem): boolean => {
+    const uid = user?.id;
+    if (!uid) return false;
+    if (item.paid_by === uid) return true;
+    if (item.payers?.some((p) => p.user_id === uid)) return true;
+    if (item.splits?.some((s) => s.user_id === uid)) return true;
+    return false;
+  };
+
   const renderExpense = ({ item }: { item: ExpenseItem }) => {
     const settled = item.is_settled;
     return (
@@ -917,10 +926,11 @@ export default function GroupDetailScreen() {
       ) : tab === "expenses" ? (
         (() => {
           const unsettled = expenses.filter((e) => !e.is_settled);
-          const settled = expenses.filter((e) => e.is_settled);
+          const myUnsettled = unsettled.filter((e) => isUserInvolved(e));
+          const otherUnsettled = unsettled.filter((e) => !isUserInvolved(e));
           return (
             <FlatList
-              data={unsettled}
+              data={myUnsettled}
               keyExtractor={(item) => item.id}
               renderItem={renderExpense}
               contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
@@ -928,7 +938,7 @@ export default function GroupDetailScreen() {
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
               }
               ListEmptyComponent={
-                settled.length === 0 ? (
+                otherUnsettled.length === 0 ? (
                   <EmptyState
                     icon={Receipt}
                     title={t("add_expense")}
@@ -939,41 +949,32 @@ export default function GroupDetailScreen() {
                 ) : null
               }
               ListFooterComponent={
-                settled.length > 0 ? (
-                  <View className="mt-4">
-                    <Pressable
-                      onPress={() => setShowSettled(!showSettled)}
-                      className="flex-row items-center justify-between py-3 px-1"
-                    >
-                      <View className="flex-row items-center gap-2">
-                        <Check size={16} color="hsl(142 71% 45%)" weight="bold" />
+                <>
+                  {otherUnsettled.length > 0 && (
+                    <View className="mt-4">
+                      <Pressable
+                        onPress={() => setShowNotInvolved(!showNotInvolved)}
+                        className="flex-row items-center justify-between py-3 px-1"
+                      >
                         <Text className="text-sm font-medium text-muted-foreground">
-                          {t("settled_expenses")} ({settled.length})
+                          {t("not_involved_expenses")} ({otherUnsettled.length})
                         </Text>
-                      </View>
-                      {showSettled ? (
-                        <CaretDown size={16} color="hsl(240 3.8% 46.1%)" />
-                      ) : (
-                        <CaretRight size={16} color="hsl(240 3.8% 46.1%)" />
-                      )}
-                    </Pressable>
-                    {showSettled && (
-                      <View>
-                        {settled[0]?.settled_info && (
-                          <Muted className="text-xs mb-3 px-1">
-                            {t("settled_by_at", {
-                              name: settled[0].settled_info.settled_by,
-                              date: new Date(settled[0].settled_info.settled_at).toLocaleDateString(),
-                            })}
-                          </Muted>
+                        {showNotInvolved ? (
+                          <CaretDown size={16} color="hsl(240 3.8% 46.1%)" />
+                        ) : (
+                          <CaretRight size={16} color="hsl(240 3.8% 46.1%)" />
                         )}
-                        {settled.map((item) => (
-                          <View key={item.id}>{renderExpense({ item })}</View>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-                ) : null
+                      </Pressable>
+                      {showNotInvolved && (
+                        <View>
+                          {otherUnsettled.map((item) => (
+                            <View key={item.id}>{renderExpense({ item })}</View>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </>
               }
             />
           );

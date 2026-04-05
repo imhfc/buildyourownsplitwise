@@ -12,6 +12,8 @@ class UserResponse(BaseModel):
     auth_provider: str
     preferred_currency: str
     locale: str
+    color_scheme: str
+    theme_mode: str
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -23,6 +25,8 @@ class UserUpdate(BaseModel):
     preferred_currency: str | None = None
     locale: str | None = None
     push_token: str | None = None
+    color_scheme: str | None = None
+    theme_mode: str | None = None
 
 
 class TokenResponse(BaseModel):

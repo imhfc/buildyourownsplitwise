@@ -37,12 +37,23 @@ function InnerLayout() {
     const inTabsGroup = segments[0] === "(tabs)";
     const inGroupPage = segments[0] === "group";
     const inJoinPage = segments[0] === "join";
+    const inInvitePage = segments[0] === "invite";
 
-    if (!isAuthenticated && !inAuthGroup && !inJoinPage) {
+    if (!isAuthenticated && !inAuthGroup && !inJoinPage && !inInvitePage) {
       router.replace("/(auth)/login");
-    } else if (isAuthenticated && !inTabsGroup && !inGroupPage && !inJoinPage) {
-      // 涵蓋 index.tsx（spinner）和 auth 頁面，都導向 tabs
-      router.replace("/(tabs)");
+    } else if (isAuthenticated && !inTabsGroup && !inGroupPage && !inJoinPage && !inInvitePage) {
+      // 登入後檢查是否有待處理的邀請連結
+      const pending = useAuthStore.getState().pendingInviteToken;
+      if (pending) {
+        useAuthStore.getState().setPendingInviteToken(null);
+        if (pending.startsWith("email:")) {
+          router.replace(`/invite/email/${pending.slice(6)}`);
+        } else {
+          router.replace(`/join/${pending}`);
+        }
+      } else {
+        router.replace("/(tabs)");
+      }
     }
   }, [isAuthenticated, hasHydrated, segments]);
 
