@@ -1969,9 +1969,9 @@ export default function GroupDetailScreen() {
                                 className="h-8 w-8 rounded-full bg-primary items-center justify-center"
                               >
                                 {addingFriendId === friend.id ? (
-                                  <ActivityIndicator size="small" color="white" />
+                                  <ActivityIndicator size="small" color="hsl(var(--primary-foreground))" />
                                 ) : (
-                                  <UserPlus size={16} color="white" weight="bold" />
+                                  <UserPlus size={16} color="hsl(var(--primary-foreground))" weight="bold" />
                                 )}
                               </Pressable>
                             </CardContent>

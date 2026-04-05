@@ -18,7 +18,7 @@ export function FAB({ className, icon, label, ...props }: FABProps) {
       )}
       {...props}
     >
-      {icon ?? <Plus size={label ? 20 : 22} color="#fff" weight="regular" />}
+      {icon ?? <Plus size={label ? 20 : 22} color="hsl(var(--primary-foreground))" weight="regular" />}
       {label ? (
         <Text className="text-sm font-medium text-primary-foreground">{label}</Text>
       ) : null}

@@ -318,7 +318,7 @@ cd backend && pytest tests/
 
 > **UI 設計規範完整版**：`docs/UI_DESIGN_SPEC.md` -- 色彩系統、排版、圓角、間距、元件設計的唯一真相來源。
 
-### 11.0 UI 設計核心原則（byosp 品牌）
+### 11.0 UI 設計核心原則（byosw 品牌）
 
 - **設計哲學**：Minimalist, organic-tech, fluid, connected（極簡、有機科技、流動、高連結性）
 - **色彩**：深炭灰（`HSL 222 47% 11%`，shadcn zinc）+ 純白高對比，accent 用 muted teal（`HSL 174`）極度克制
@@ -327,7 +327,7 @@ cd backend && pytest tests/
 - **無陰影**：卡片用 `border border-border` 取代 shadow，保持平面極簡
 - **圖示**：phosphor-react-native，`regular` weight（line art），與 logo 風格一致
 - **留白**：寧多不少，用空間分組取代分隔線
-- **品牌格式**：app name / tab label 使用小寫，呼應 logo "byosp" 的小寫風格
+- **品牌格式**：app name / tab label 使用小寫，呼應 logo "byosw" 的小寫風格
 - **詳細規範**：所有色值、間距、元件尺寸請查閱 `docs/UI_DESIGN_SPEC.md`
 
 ### 11.1 表單輸入驗證

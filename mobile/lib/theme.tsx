@@ -5,14 +5,14 @@ import { authAPI } from "../services/api";
 import { useAuthStore } from "../stores/auth";
 
 type Theme = "light" | "dark" | "system";
-export type ColorScheme = "byosp" | "blue" | "green" | "purple" | "warm" | "coral" | "slate";
+export type ColorScheme = "byosw" | "blue" | "green" | "purple" | "warm" | "coral" | "slate";
 
 export const COLOR_SCHEMES: {
   id: ColorScheme;
   labelKey: string;
   preview: { light: string; dark: string };
 }[] = [
-  { id: "byosp",  labelKey: "scheme_byosp",  preview: { light: "#0F172A", dark: "#E2E8F0" } },
+  { id: "byosw",  labelKey: "scheme_byosw",  preview: { light: "#0F172A", dark: "#E2E8F0" } },
   { id: "blue",   labelKey: "scheme_blue",   preview: { light: "#3B82F6", dark: "#60A5FA" } },
   { id: "green",  labelKey: "scheme_green",  preview: { light: "#5BC5A7", dark: "#4DB899" } },
   { id: "purple", labelKey: "scheme_purple", preview: { light: "#6E4CE5", dark: "#8B6CF7" } },
@@ -48,7 +48,7 @@ const COLOR_SCHEME_KEY = "byosw-color-scheme";
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useRNColorScheme();
   const [theme, setThemeState] = useState<Theme>("system");
-  const [colorScheme, setColorSchemeState] = useState<ColorScheme>("byosp");
+  const [colorScheme, setColorSchemeState] = useState<ColorScheme>("byosw");
 
   useEffect(() => {
     Promise.all([
@@ -147,6 +147,6 @@ export function useThemeClassName() {
   const { isDark, colorScheme } = useTheme();
   const parts: string[] = [];
   if (isDark) parts.push("dark");
-  if (colorScheme !== "byosp") parts.push(`scheme-${colorScheme}`);
+  if (colorScheme !== "byosw") parts.push(`scheme-${colorScheme}`);
   return parts.join(" ");
 }

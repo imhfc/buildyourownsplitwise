@@ -5,6 +5,7 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider as NavThemeProvider, DarkTheme, DefaultTheme } from "@react-navigation/native";
 import { ThemeProvider, useTheme, COLOR_SCHEMES } from "~/lib/theme";
 import { useAuthStore } from "../stores/auth";
@@ -13,7 +14,7 @@ import { useNotificationStore } from "~/stores/notification";
 import { usePendingSettlementsStore } from "~/stores/pending-settlements";
 
 const SCHEME_CLASS: Record<string, string> = {
-  byosp: "",
+  byosw: "",
   blue: "scheme-blue",
   green: "scheme-green",
   purple: "scheme-purple",
@@ -108,10 +109,12 @@ function InnerLayout() {
 
 export default function RootLayout() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider>
-        <InnerLayout />
-      </ThemeProvider>
-    </GestureHandlerRootView>
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <ThemeProvider>
+          <InnerLayout />
+        </ThemeProvider>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }

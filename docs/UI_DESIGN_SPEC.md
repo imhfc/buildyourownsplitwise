@@ -1,6 +1,6 @@
-# byosp UI Design Specification
+# byosw UI Design Specification
 
-> 此文件為 byosp 應用程式的 UI 設計唯一真相來源。所有視覺設計決策必須遵循此規範。
+> 此文件為 byosw 應用程式的 UI 設計唯一真相來源。所有視覺設計決策必須遵循此規範。
 
 ---
 
@@ -23,7 +23,7 @@
 
 ## 2. 色彩系統
 
-### 2.1 品牌色板（byosp 預設主題）
+### 2.1 品牌色板（byosw 預設主題）
 
 **Light Mode**:
 
@@ -74,7 +74,7 @@
 ### 3.1 字體
 
 - 使用系統預設 geometric sans-serif（San Francisco / Roboto / Inter）
-- 品牌元素（app name、tab label）使用 **小寫格式**，呼應 logo "byosp" 的小寫風格
+- 品牌元素（app name、tab label）使用 **小寫格式**，呼應 logo "byosw" 的小寫風格
 
 ### 3.2 字級
 
@@ -242,7 +242,7 @@ Card = rounded-xl + border border-border + bg-card
 
 ## 13. Dark Mode 規則
 
-延續 CLAUDE.md 既有規範，加上 byosp 品牌特化：
+延續 CLAUDE.md 既有規範，加上 byosw 品牌特化：
 
 - Background 帶 `hue 210`（blue-gray），saturation `8-10%`
 - Lightness 階梯：bg `4%` > card `9%` > secondary `13%` > accent `14%` > border `15%`
@@ -253,11 +253,11 @@ Card = rounded-xl + border border-border + bg-card
 
 ## 14. 多色系支援
 
-byosp 品牌色為預設主題。使用者可在帳號設定切換至其他色系：
+byosw 品牌色為預設主題。使用者可在帳號設定切換至其他色系：
 
 | ID | 名稱 | 主色 Hue |
 |----|------|---------|
-| `byosp` | 經典品牌 | 210（炭灰） |
+| `byosw` | 經典品牌 | 210（炭灰） |
 | `blue` | 信任藍 | 217 |
 | `green` | 活力綠 | 160 |
 | `purple` | 科技紫 | 258 |

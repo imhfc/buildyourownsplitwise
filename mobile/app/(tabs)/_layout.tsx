@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from "react";
-import { Platform, View, Text } from "react-native";
+import { Platform, View } from "react-native";
 import { Tabs, useFocusEffect, usePathname } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -12,7 +12,10 @@ import { useAuthStore } from "~/stores/auth";
 export default function TabsLayout() {
   const { t } = useTranslation();
   const { isDark, colorScheme } = useTheme();
-  const insets = useSafeAreaInsets();
+  const rawInsets = useSafeAreaInsets();
+  // Web 上 useSafeAreaInsets 可能回傳 0（viewport 未設 viewport-fit=cover），
+  // 給予最低 8px 底部間距，避免 tab bar 被瀏覽器工具列遮擋
+  const bottomInset = Platform.OS === "web" ? Math.max(rawInsets.bottom, 8) : rawInsets.bottom;
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const fetchUnreadCount = useNotificationStore((s) => s.fetchUnreadCount);
@@ -50,8 +53,8 @@ export default function TabsLayout() {
           backgroundColor: isDark ? "#0A0C0F" : "#FFFFFF",
           borderTopWidth: 1,
           borderTopColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
-          height: 50 + insets.bottom,
-          paddingBottom: 4 + insets.bottom,
+          height: 50 + bottomInset,
+          paddingBottom: 4 + bottomInset,
           paddingTop: 4,
         },
         tabBarIconStyle: {
@@ -83,18 +86,6 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: t("groups"),
-          headerTitle: () => (
-            <Text
-              style={{
-                fontSize: 18,
-                fontWeight: "700",
-                color: isDark ? "#FAFAFA" : "#18181B",
-                letterSpacing: 0.5,
-              }}
-            >
-              byosp
-            </Text>
-          ),
           tabBarIcon: ({ color, focused }) => (
             <SquaresFour size={20} color={color} weight={focused ? "fill" : "regular"} />
           ),

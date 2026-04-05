@@ -75,7 +75,13 @@ export function Button({
       {loading ? (
         <ActivityIndicator
           size="small"
-          color={variant === "default" || variant === "destructive" ? "#fff" : undefined}
+          color={
+            variant === "destructive"
+              ? "hsl(var(--destructive-foreground))"
+              : variant === "default"
+                ? "hsl(var(--primary-foreground))"
+                : undefined
+          }
           className="mr-2"
         />
       ) : null}

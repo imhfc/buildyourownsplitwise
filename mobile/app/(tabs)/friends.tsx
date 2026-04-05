@@ -399,7 +399,7 @@ export default function FriendsScreen() {
                   disabled={searching || !searchEmail.trim()}
                   className="self-start"
                 >
-                  <MagnifyingGlass size={18} color="white" weight="regular" />
+                  <MagnifyingGlass size={18} color="hsl(var(--primary-foreground))" weight="regular" />
                 </Button>
               </View>
 

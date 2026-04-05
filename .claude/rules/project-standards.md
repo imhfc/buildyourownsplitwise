@@ -78,4 +78,4 @@ backend/app/
 - Preview hex 必須與實際 primary 一致
 - 任意兩個 scheme 色相差距 >= 30 度
 - 設計配色前先搜尋業界 best practice，禁止憑直覺
-- byosp 品牌色為預設主題（shadcn zinc 風格，primary HSL 222 47% 11%），變更預設 scheme 需同步 5 處：global.css :root/.dark、theme.tsx（ColorScheme 型別 + COLOR_SCHEMES + useState 預設值）、_layout.tsx SCHEME_CLASS、useThemeClassName、三語 i18n（2026-04-05 回顧）
+- byosw 品牌色為預設主題（shadcn zinc 風格，primary HSL 222 47% 11%），變更預設 scheme 需同步 5 處：global.css :root/.dark、theme.tsx（ColorScheme 型別 + COLOR_SCHEMES + useState 預設值）、_layout.tsx SCHEME_CLASS、useThemeClassName、三語 i18n（2026-04-05 回顧）
