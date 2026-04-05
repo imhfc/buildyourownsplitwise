@@ -175,11 +175,16 @@ async def _get_last_confirmed_settlement(
 async def check_expense_settled(
     db: AsyncSession, group_id: uuid.UUID, expense_created_at: datetime
 ) -> bool:
-    """檢查某筆消費是否已被結清覆蓋（建立時間早於最後一次 confirmed settlement）。"""
+    """檢查某筆消費是否已被結清覆蓋。
+    只有群組所有餘額歸零時，cutoff 之前的消費才算已結清。"""
     last = await _get_last_confirmed_settlement(db, group_id)
     if not last or not last.confirmed_at:
         return False
-    return expense_created_at <= last.confirmed_at
+    if expense_created_at > last.confirmed_at:
+        return False
+    from app.services.settlement_service import calculate_balances
+    current_balances = await calculate_balances(db, group_id)
+    return len(current_balances) == 0
 
 
 async def list_expenses(
@@ -203,11 +208,16 @@ async def list_expenses(
     settled_info = None
     cutoff: datetime | None = None
     if last_settlement and last_settlement.confirmed_at:
-        cutoff = last_settlement.confirmed_at
-        settled_info = SettledInfo(
-            settled_by=last_settlement.payer.display_name,
-            settled_at=last_settlement.confirmed_at,
-        )
+        # 只有群組所有餘額歸零時，才標記 cutoff 之前的消費為已結清
+        # 避免部分結清（如免除 A→B 債務）把不相關的消費也標為已結清
+        from app.services.settlement_service import calculate_balances
+        current_balances = await calculate_balances(db, group_id)
+        if len(current_balances) == 0:
+            cutoff = last_settlement.confirmed_at
+            settled_info = SettledInfo(
+                settled_by=last_settlement.payer.display_name,
+                settled_at=last_settlement.confirmed_at,
+            )
 
     return [
         format_expense(e, is_settled=(cutoff is not None and e.created_at <= cutoff), settled_info=settled_info)

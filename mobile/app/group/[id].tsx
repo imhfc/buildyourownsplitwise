@@ -184,6 +184,7 @@ export default function GroupDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [sugLoading, setSugLoading] = useState(false);
   const [showNotInvolved, setShowNotInvolved] = useState(false);
+  const [showSettled, setShowSettled] = useState(false);
   const hasFetched = useRef(false);
 
   const isAdmin = members.find((m) => m.user.id === user?.id)?.role === "admin";
@@ -911,6 +912,7 @@ export default function GroupDetailScreen() {
       ) : tab === "expenses" ? (
         (() => {
           const unsettled = expenses.filter((e) => !e.is_settled);
+          const settled = expenses.filter((e) => e.is_settled);
           const myUnsettled = unsettled.filter((e) => isUserInvolved(e));
           const otherUnsettled = unsettled.filter((e) => !isUserInvolved(e));
           return (
@@ -923,7 +925,7 @@ export default function GroupDetailScreen() {
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
               }
               ListEmptyComponent={
-                otherUnsettled.length === 0 ? (
+                otherUnsettled.length === 0 && settled.length === 0 ? (
                   <EmptyState
                     icon={Receipt}
                     title={t("add_expense")}
@@ -953,6 +955,30 @@ export default function GroupDetailScreen() {
                       {showNotInvolved && (
                         <View>
                           {otherUnsettled.map((item) => (
+                            <View key={item.id}>{renderExpense({ item })}</View>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  )}
+                  {settled.length > 0 && (
+                    <View className="mt-4">
+                      <Pressable
+                        onPress={() => setShowSettled(!showSettled)}
+                        className="flex-row items-center justify-between py-3 px-1"
+                      >
+                        <Text className="text-sm font-medium text-muted-foreground">
+                          {t("settled_expenses")} ({settled.length})
+                        </Text>
+                        {showSettled ? (
+                          <CaretDown size={16} color="hsl(240 3.8% 46.1%)" />
+                        ) : (
+                          <CaretRight size={16} color="hsl(240 3.8% 46.1%)" />
+                        )}
+                      </Pressable>
+                      {showSettled && (
+                        <View>
+                          {settled.map((item) => (
                             <View key={item.id}>{renderExpense({ item })}</View>
                           ))}
                         </View>
