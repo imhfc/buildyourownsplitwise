@@ -106,10 +106,23 @@ fi
 # ── C-14：group/[id].tsx 結清按鈕只能顯示給付款方 ──────────────────────────
 GROUP_FILE="$MOBILE_DIR/app/group/[id].tsx"
 if [ -f "$GROUP_FILE" ]; then
-  # 檢查策略：結清按鈕（含 settle_up 文字）前必須有 from_user_id 單獨守衛
+  # 檢查策略：結清按鈕前必須有 from_user_id 守衛（inline 或透過中間變數如 canSettle）
   # 且該守衛不能是 from_user_id || to_user_id 的 OR 條件
-  if grep -q 'from_user_id === user.*&&' "$GROUP_FILE" 2>/dev/null && \
-     ! grep -B2 't("settle_up")' "$GROUP_FILE" 2>/dev/null | grep -q 'to_user_id === user.*&&'; then
+  # 支援兩種寫法：
+  #   1. inline: from_user_id === user?.id && <Button>
+  #   2. 變數: const canSettle = ...from_user_id === user?.id; → {canSettle && (...)}
+  HAS_GUARD=false
+  if grep -q 'from_user_id === user.*&&' "$GROUP_FILE" 2>/dev/null; then
+    HAS_GUARD=true
+  elif grep -q 'canSettle.*from_user_id === user' "$GROUP_FILE" 2>/dev/null && \
+       grep -q '{canSettle &&' "$GROUP_FILE" 2>/dev/null; then
+    HAS_GUARD=true
+  fi
+  NO_OR_LEAK=true
+  if grep -B2 't("settle_up")' "$GROUP_FILE" 2>/dev/null | grep -q 'to_user_id === user.*&&'; then
+    NO_OR_LEAK=false
+  fi
+  if $HAS_GUARD && $NO_OR_LEAK; then
     green "C-14 group/[id].tsx 結清按鈕限定付款方（from_user_id === user）"
   else
     red   "C-14 group/[id].tsx 結清按鈕未限定付款方（必須用 from_user_id === user?.id 守衛，禁止讓收款方也能發起結清）"
