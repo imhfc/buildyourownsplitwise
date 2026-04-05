@@ -8,7 +8,7 @@ from app.core.deps import get_current_user
 from app.core.exceptions import ForbiddenError, NotFoundError, ValidationError
 from app.models.user import User
 from app.schemas.reminder import BatchReminderCreate, BatchReminderResponse, ReminderCreate
-from app.schemas.settlement import SettlementCreate, SettlementResponse, SettlementSuggestionsResponse
+from app.schemas.settlement import SettlementCreate, SettlementForgive, SettlementResponse, SettlementSuggestionsResponse
 from app.services import settlement_service
 
 # 群組內結算路由
@@ -93,6 +93,24 @@ async def reject_settlement(
         )
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=e.message)
+    except ForbiddenError as e:
+        raise HTTPException(status_code=403, detail=e.message)
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=e.message)
+
+
+@router.post("/forgive", response_model=SettlementResponse, status_code=status.HTTP_201_CREATED)
+async def forgive_settlement(
+    group_id: uuid.UUID,
+    data: SettlementForgive,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """被欠款人（債權人）主動結清債務"""
+    try:
+        return await settlement_service.forgive_settlement(
+            db, group_id, current_user.id, data.from_user, data.amount, data.currency,
+        )
     except ForbiddenError as e:
         raise HTTPException(status_code=403, detail=e.message)
     except ValidationError as e:

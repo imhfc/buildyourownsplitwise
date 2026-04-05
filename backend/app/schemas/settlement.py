@@ -57,6 +57,12 @@ class SettlementCreate(BaseModel):
     locked_rate: Decimal | None = None
 
 
+class SettlementForgive(BaseModel):
+    from_user: uuid.UUID
+    amount: Decimal
+    currency: str
+
+
 class SettlementResponse(BaseModel):
     id: uuid.UUID
     group_id: uuid.UUID

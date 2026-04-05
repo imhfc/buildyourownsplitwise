@@ -141,6 +141,9 @@ export default function GroupDetailScreen() {
   const [converting, setConverting] = useState(false);
   const [pendingSettlements, setPendingSettlements] = useState<PendingSettlement[]>([]);
   const [settleSuccessMsg, setSettleSuccessMsg] = useState("");
+  const [forgiveTarget, setForgiveTarget] = useState<Suggestion | null>(null);
+  const [forgiving, setForgiving] = useState(false);
+  const [forgiveError, setForgiveError] = useState("");
 
   // Add member modal
   const [showAddMember, setShowAddMember] = useState(false);
@@ -460,6 +463,27 @@ export default function GroupDetailScreen() {
       setSettleError(msg);
     } finally {
       setSettling(false);
+    }
+  };
+
+  const handleForgive = async (suggestion: Suggestion) => {
+    if (!id || !user) return;
+    setForgiving(true);
+    setForgiveError("");
+    try {
+      await settlementsAPI.forgive(id, {
+        from_user: suggestion.from_user_id,
+        amount: parseFloat(suggestion.amount),
+        currency: suggestion.currency,
+      });
+      setForgiveTarget(null);
+      setSettleSuccessMsg(t("settlement_forgiven_success"));
+      await fetchData();
+    } catch (e: any) {
+      const msg = e.response?.data?.detail || e.message || t("unknown_error");
+      setForgiveError(msg);
+    } finally {
+      setForgiving(false);
     }
   };
 
@@ -1071,6 +1095,17 @@ export default function GroupDetailScreen() {
                                 >
                                   {t("remind")}
                                 </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onPress={() => {
+                                    setForgiveTarget(item);
+                                    setForgiveError("");
+                                  }}
+                                  className="flex-1"
+                                >
+                                  {t("forgive_debt")}
+                                </Button>
                               </View>
                             </View>
                           );
@@ -1141,7 +1176,7 @@ export default function GroupDetailScreen() {
                           <View key={m.user.id} className="flex-row items-center justify-between py-1.5">
                             <Text className={`text-sm ${isSettled ? "text-muted-foreground" : ""}`}>
                               {m.user.display_name}
-                              {m.user.id === user?.id ? "  " + "(" + t("role_member").charAt(0) + ")" : ""}
+                              {m.user.id === user?.id ? ` (${t("me")})` : ""}
                             </Text>
                             {isSettled ? (
                               <Text className="text-sm text-muted-foreground">{t("is_settled_up")}</Text>
@@ -1913,6 +1948,50 @@ export default function GroupDetailScreen() {
                   onPress={() => settleTarget && handleSettleUp(settleTarget)}
                   loading={settling}
                   disabled={settling || converting}
+                  className="flex-1"
+                >
+                  {t("confirm")}
+                </Button>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      {/* Forgive debt confirmation Modal */}
+      <Modal
+        visible={!!forgiveTarget}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setForgiveTarget(null)}
+      >
+        <View className={`flex-1 ${themeClass}`}>
+          <View className="flex-1 justify-center items-center bg-black/50 px-6">
+            <View className="bg-background rounded-xl px-5 py-6 w-full max-w-sm">
+              <H3 className="mb-4">{t("forgive_debt_confirm")}</H3>
+              {forgiveTarget && (
+                <Text className="text-base mb-3">
+                  {t("forgive_debt_confirm_msg", {
+                    name: forgiveTarget.from_user_name,
+                    amount: `${forgiveTarget.currency} ${parseFloat(forgiveTarget.amount).toLocaleString()}`,
+                  })}
+                </Text>
+              )}
+              {forgiveError ? (
+                <Text className="text-sm text-destructive mb-3">{forgiveError}</Text>
+              ) : null}
+              <View className="flex-row gap-3">
+                <Button
+                  variant="outline"
+                  onPress={() => setForgiveTarget(null)}
+                  className="flex-1"
+                  disabled={forgiving}
+                >
+                  {t("cancel")}
+                </Button>
+                <Button
+                  onPress={() => forgiveTarget && handleForgive(forgiveTarget)}
+                  loading={forgiving}
+                  disabled={forgiving}
                   className="flex-1"
                 >
                   {t("confirm")}

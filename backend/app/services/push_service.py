@@ -178,6 +178,20 @@ async def notify_settlement_rejected(
                     data={"type": "settlement_rejected", "group_id": str(group_id)})
 
 
+async def notify_settlement_forgiven(
+    db: AsyncSession,
+    to_user_id: uuid.UUID,
+    creditor_name: str,
+    amount: Decimal,
+    currency: str,
+    group_id: uuid.UUID,
+) -> None:
+    """債務免除 push notification — 通知欠款方"""
+    await send_push(db, to_user_id, "Debt Forgiven",
+                    f"{creditor_name} forgave your {currency} {amount} debt",
+                    data={"type": "settlement_forgiven", "group_id": str(group_id)})
+
+
 async def notify_member_joined(
     db: AsyncSession,
     group_id: uuid.UUID,

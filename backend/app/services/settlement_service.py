@@ -657,6 +657,75 @@ async def reject_settlement(
 
 
 # ---------------------------------------------------------------------------
+# 免除結算（被欠款人主動結清）
+# ---------------------------------------------------------------------------
+
+async def forgive_settlement(
+    db: AsyncSession,
+    group_id: uuid.UUID,
+    to_user_id: uuid.UUID,
+    from_user_id: uuid.UUID,
+    amount: Decimal,
+    currency: str,
+) -> SettlementResponse:
+    """被欠款人（債權人）主動結清債務，直接建立 confirmed settlement，
+    並自動取消同一對同幣別的 pending settlement。"""
+    if to_user_id == from_user_id:
+        raise ValidationError("Cannot settle with yourself")
+
+    await check_membership(db, group_id, to_user_id)
+    await check_membership(db, group_id, from_user_id)
+
+    # 建立直接確認的 settlement
+    settlement = Settlement(
+        group_id=group_id,
+        from_user=from_user_id,
+        to_user=to_user_id,
+        amount=amount,
+        currency=currency,
+        status="confirmed",
+        confirmed_at=datetime.now(timezone.utc),
+    )
+    db.add(settlement)
+    await db.flush()
+
+    # 自動取消同一對 (from→to) 同幣別的 pending settlements
+    pending_result = await db.execute(
+        select(Settlement).where(
+            Settlement.group_id == group_id,
+            Settlement.from_user == from_user_id,
+            Settlement.to_user == to_user_id,
+            Settlement.currency == currency,
+            Settlement.status == "pending",
+            Settlement.id != settlement.id,
+        )
+    )
+    cancelled_ids = []
+    for pending in pending_result.scalars().all():
+        pending.status = "cancelled"
+        cancelled_ids.append(pending.id)
+    await db.flush()
+
+    user_map = await _load_user_names(db, [from_user_id, to_user_id])
+    creditor_name = user_map.get(to_user_id, "Unknown")
+
+    await log_activity(
+        db, group_id=group_id, actor_id=to_user_id, action="settlement_forgiven",
+        target_type="settlement", target_id=settlement.id,
+        amount=amount, currency=currency,
+        extra_name=user_map.get(from_user_id, "Unknown"),
+    )
+
+    # Push 通知欠款方：債務已被免除
+    from app.services.push_service import notify_settlement_forgiven
+    await notify_settlement_forgiven(
+        db, from_user_id, creditor_name, amount, currency, group_id,
+    )
+
+    return _build_response(settlement, user_map)
+
+
+# ---------------------------------------------------------------------------
 # 列出結算（群組內，支援 status filter）
 # ---------------------------------------------------------------------------
 

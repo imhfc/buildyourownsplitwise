@@ -1,6 +1,7 @@
 {
   "app_name": "BYOSW",
   "app_subtitle": "絕對免費，全部AI開發的分帳系統",
+  "me": "我",
   "email": "電子郵件",
   "display_name": "顯示名稱",
   "logout": "登出",
@@ -243,5 +244,10 @@
   "batch_remind_sent": "已發送 {{count}} 筆提醒",
   "batch_remind_skipped": "{{count}} 筆因 24 小時內已提醒而跳過",
   "owes_to": "欠 {{name}}",
-  "remind": "提醒"
+  "remind": "提醒",
+  "forgive_debt": "免除",
+  "forgive_debt_confirm": "確認免除債務",
+  "forgive_debt_confirm_msg": "確定要免除 {{name}} 的 {{amount}} 債務嗎？此操作將直接結清這筆欠款。",
+  "settlement_forgiven_success": "債務已免除",
+  "settlement_forgiven": "免除了一筆債務"
 }

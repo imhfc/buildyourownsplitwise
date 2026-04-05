@@ -1,6 +1,7 @@
 {
   "app_name": "BYOSW",
   "app_subtitle": "100% Free, 100% AI-Built Expense Splitter",
+  "me": "Me",
   "email": "Email",
   "display_name": "Display Name",
   "logout": "Logout",
@@ -243,5 +244,10 @@
   "batch_remind_sent": "{{count}} reminders sent",
   "batch_remind_skipped": "{{count}} skipped (already reminded within 24h)",
   "owes_to": "owes {{name}}",
-  "remind": "Remind"
+  "remind": "Remind",
+  "forgive_debt": "Forgive",
+  "forgive_debt_confirm": "Forgive Debt",
+  "forgive_debt_confirm_msg": "Are you sure you want to forgive {{name}}'s {{amount}} debt? This will settle the balance immediately.",
+  "settlement_forgiven_success": "Debt forgiven",
+  "settlement_forgiven": "forgave a debt"
 }

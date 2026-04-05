@@ -17,6 +17,7 @@ type ActivityType =
   | "settlement_created"
   | "settlement_confirmed"
   | "settlement_rejected"
+  | "settlement_forgiven"
   | "member_added"
   | "member_removed"
   | "reminder_sent"
@@ -58,6 +59,7 @@ function getActivityStyle(type: ActivityType, isDark: boolean) {
     case "settlement_created":
     case "settlement_confirmed":
     case "settlement_rejected":
+    case "settlement_forgiven":
       return { color: "#3b82f6", bg: isDark ? "rgba(59,130,246,0.15)" : "#dbeafe" };
     case "member_added":
     case "member_removed":
@@ -79,6 +81,7 @@ function ActivityIcon({ type, color }: { type: ActivityType; color: string }) {
     case "settlement_created":
     case "settlement_confirmed":
     case "settlement_rejected":
+    case "settlement_forgiven":
       return <ArrowsLeftRight {...props} />;
     case "member_added": return <UserPlus {...props} />;
     case "member_removed": return <UserMinus {...props} />;
@@ -101,6 +104,8 @@ function buildDescription(item: ActivityItem, t: (key: string) => string): strin
     case "settlement_confirmed":
     case "settlement_rejected":
       return `${item.actor_name} ${action}，${t("in_group")} ${item.group_name}`;
+    case "settlement_forgiven":
+      return `${item.actor_name} ${action}，${t("in_group")} ${item.group_name} ${t("to")} ${item.to_name}`;
     case "member_added":
     case "member_removed":
       return `${item.to_name ?? item.actor_name} ${action} ${item.group_name}`;
@@ -117,6 +122,7 @@ const NAVIGABLE_TYPES: Set<ActivityType> = new Set([
   "settlement_created",
   "settlement_confirmed",
   "settlement_rejected",
+  "settlement_forgiven",
   "expense_added",
   "expense_updated",
   "expense_deleted",
