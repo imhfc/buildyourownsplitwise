@@ -14,9 +14,11 @@ import { registerForPushNotifications, setupNotificationHandlers, addNotificatio
 import { useNotificationStore } from "~/stores/notification";
 import { usePendingSettlementsStore } from "~/stores/pending-settlements";
 
-// Web: 動態注入 viewport-fit=cover + dvh，讓瀏覽器自動回報 safe-area-inset
+// Web: 注入 PWA meta tags + viewport-fit + 100dvh + service worker
 if (Platform.OS === "web" && typeof document !== "undefined") {
-  // 1. viewport-fit=cover 讓 env(safe-area-inset-*) 生效
+  const head = document.head;
+
+  // viewport-fit=cover 讓 env(safe-area-inset-*) 生效
   const meta = document.querySelector('meta[name="viewport"]');
   if (meta) {
     const content = meta.getAttribute("content") || "";
@@ -24,10 +26,51 @@ if (Platform.OS === "web" && typeof document !== "undefined") {
       meta.setAttribute("content", content + ", viewport-fit=cover");
     }
   }
-  // 2. 100dvh 排除手機瀏覽器工具列高度
-  const style = document.createElement("style");
-  style.textContent = "html,body,#root{height:100dvh!important}";
-  document.head.appendChild(style);
+
+  // 100dvh 排除手機瀏覽器工具列高度
+  const dvhStyle = document.createElement("style");
+  dvhStyle.textContent = "html,body,#root{height:100dvh!important}";
+  head.appendChild(dvhStyle);
+
+  // PWA manifest
+  const manifestLink = document.createElement("link");
+  manifestLink.rel = "manifest";
+  manifestLink.href = "/manifest.json";
+  head.appendChild(manifestLink);
+
+  // theme-color
+  const themeColor = document.createElement("meta");
+  themeColor.name = "theme-color";
+  themeColor.content = "#171717";
+  head.appendChild(themeColor);
+
+  // Apple PWA meta tags
+  const appleMeta = document.createElement("meta");
+  appleMeta.name = "apple-mobile-web-app-capable";
+  appleMeta.content = "yes";
+  head.appendChild(appleMeta);
+
+  const appleStatusBar = document.createElement("meta");
+  appleStatusBar.name = "apple-mobile-web-app-status-bar-style";
+  appleStatusBar.content = "black-translucent";
+  head.appendChild(appleStatusBar);
+
+  const appleTitle = document.createElement("meta");
+  appleTitle.name = "apple-mobile-web-app-title";
+  appleTitle.content = "byosw";
+  head.appendChild(appleTitle);
+
+  const appleIcon = document.createElement("link");
+  appleIcon.rel = "apple-touch-icon";
+  appleIcon.href = "/icon-192.png";
+  head.appendChild(appleIcon);
+
+  // Service Worker 註冊
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    });
+  }
 }
 
 const SCHEME_CLASS: Record<string, string> = {
