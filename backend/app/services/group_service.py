@@ -1,14 +1,16 @@
 import secrets
 import uuid
 from datetime import datetime, timezone
+from decimal import Decimal
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload
 
-from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
+from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError, ValidationError
 from app.models.expense import Expense
 from app.models.group import Group, GroupMember
+from app.models.settlement import Settlement
 from app.models.user import User
 from app.schemas.group import GroupCreate, GroupResponse, GroupUpdate, SimplifiedDebt
 from app.services.activity_log_service import log_activity
@@ -250,6 +252,41 @@ async def remove_member(
     target = result.scalar_one_or_none()
     if not target:
         raise NotFoundError("Member not found")
+
+    # --- 退出前置檢查 ---
+
+    # 檢查 1: 該成員在群組中是否有未結清餘額（欠人或被欠）
+    from app.services.settlement_service import calculate_balances_by_currency
+    by_currency = await calculate_balances_by_currency(db, group_id)
+    for balances in by_currency.values():
+        if balances.get(target_user_id, Decimal("0")) != Decimal("0"):
+            raise ValidationError("Cannot leave group with unsettled balance")
+
+    # 檢查 2: 該成員是否有待確認的結算（pending settlement）
+    pending_result = await db.execute(
+        select(func.count()).select_from(Settlement).where(
+            Settlement.group_id == group_id,
+            Settlement.status == "pending",
+            (Settlement.from_user == target_user_id) | (Settlement.to_user == target_user_id),
+        )
+    )
+    if pending_result.scalar() > 0:
+        raise ValidationError("Cannot leave group with pending settlements")
+
+    # 檢查 3: 唯一 admin 不能退出（群組還有其他成員時）
+    if target.role == "admin":
+        member_count_result = await db.execute(
+            select(func.count()).select_from(GroupMember).where(GroupMember.group_id == group_id)
+        )
+        total_members = member_count_result.scalar()
+        if total_members > 1:
+            admin_count_result = await db.execute(
+                select(func.count()).select_from(GroupMember).where(
+                    GroupMember.group_id == group_id, GroupMember.role == "admin"
+                )
+            )
+            if admin_count_result.scalar() <= 1:
+                raise ValidationError("Cannot leave group as the only admin. Transfer admin role first.")
 
     # 查目標使用者名稱與群組名稱
     target_name_result = await db.execute(select(User.display_name).where(User.id == target_user_id))

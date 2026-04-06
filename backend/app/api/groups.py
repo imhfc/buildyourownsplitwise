@@ -136,7 +136,7 @@ async def remove_member(
 ):
     try:
         await group_service.remove_member(db, group_id, current_user.id, user_id)
-    except (ForbiddenError, NotFoundError) as e:
+    except (ForbiddenError, NotFoundError, ValidationError) as e:
         _handle(e)
 
 
