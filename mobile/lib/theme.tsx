@@ -15,11 +15,11 @@ export const COLOR_SCHEMES: {
   background: { light: string; dark: string };
 }[] = [
   { id: "byosw",  labelKey: "scheme_byosw",  preview: { light: "#171717", dark: "#FAFAFA" }, background: { light: "#FAFAFA", dark: "#0A0A0A" } },
-  { id: "blue",   labelKey: "scheme_blue",   preview: { light: "#3B82F6", dark: "#3B82F6" }, background: { light: "#F4F7FA", dark: "#131720" } },
+  { id: "blue",   labelKey: "scheme_blue",   preview: { light: "#3B82F6", dark: "#4F8FF6" }, background: { light: "#F4F7FA", dark: "#131720" } },
   { id: "green",  labelKey: "scheme_green",  preview: { light: "#16A34A", dark: "#22C55E" }, background: { light: "#F5FAF6", dark: "#132016" } },
-  { id: "purple", labelKey: "scheme_purple", preview: { light: "#7C3AED", dark: "#7C3AED" }, background: { light: "#F7F5FA", dark: "#171320" } },
-  { id: "warm",   labelKey: "scheme_warm",   preview: { light: "#F97316", dark: "#EA580C" }, background: { light: "#FAF8F4", dark: "#201713" } },
-  { id: "coral",  labelKey: "scheme_coral",  preview: { light: "#E11D48", dark: "#E11D48" }, background: { light: "#FAF4F5", dark: "#201316" } },
+  { id: "purple", labelKey: "scheme_purple", preview: { light: "#7C3AED", dark: "#A67CE8" }, background: { light: "#F7F5FA", dark: "#171320" } },
+  { id: "warm",   labelKey: "scheme_warm",   preview: { light: "#F97316", dark: "#F3641B" }, background: { light: "#FAF8F4", dark: "#201713" } },
+  { id: "coral",  labelKey: "scheme_coral",  preview: { light: "#E11D48", dark: "#EA607F" }, background: { light: "#FAF4F5", dark: "#201316" } },
 ];
 
 interface ThemeContext {

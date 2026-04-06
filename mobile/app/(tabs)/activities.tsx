@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { View, FlatList, RefreshControl, ActivityIndicator, Pressable } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Receipt, ArrowsLeftRight, ClockCounterClockwise, UserPlus, UserMinus, BellRinging, EnvelopeSimple, PencilSimple, Trash, CaretRight } from "phosphor-react-native";
+import { Receipt, ArrowsLeftRight, ClockCounterClockwise, UserPlus, UserMinus, BellRinging, EnvelopeSimple, PencilSimple, Trash, CaretRight, ShieldCheck } from "phosphor-react-native";
 import { Text, Muted } from "~/components/ui/text";
 import { EmptyState } from "~/components/ui/empty-state";
 import { activitiesAPI } from "../../services/api";
@@ -22,6 +22,7 @@ type ActivityType =
   | "settlement_forgiven"
   | "member_added"
   | "member_removed"
+  | "admin_transferred"
   | "reminder_sent"
   | "email_invitation_sent"
   | "email_invitation_cancelled";
@@ -66,6 +67,7 @@ function getActivityStyle(type: ActivityType, isDark: boolean) {
       return { color: "#3b82f6", bg: isDark ? "rgba(59,130,246,0.15)" : "#dbeafe" };
     case "member_added":
     case "member_removed":
+    case "admin_transferred":
       return { color: "#a855f7", bg: isDark ? "rgba(168,85,247,0.15)" : "#f3e8ff" };
     case "reminder_sent":
       return { color: "#f59e0b", bg: isDark ? "rgba(245,158,11,0.15)" : "#fef3c7" };
@@ -89,6 +91,7 @@ function ActivityIcon({ type, color }: { type: ActivityType; color: string }) {
       return <ArrowsLeftRight {...props} />;
     case "member_added": return <UserPlus {...props} />;
     case "member_removed": return <UserMinus {...props} />;
+    case "admin_transferred": return <ShieldCheck {...props} />;
     case "reminder_sent": return <BellRinging {...props} />;
     case "email_invitation_sent":
     case "email_invitation_cancelled":
@@ -113,6 +116,7 @@ function buildDescription(item: ActivityItem, t: (key: string) => string): strin
       return `${item.actor_name} ${action}，${t("in_group")} ${item.group_name} ${t("to")} ${item.to_name}`;
     case "member_added":
     case "member_removed":
+    case "admin_transferred":
       return `${item.to_name ?? item.actor_name} ${action} ${item.group_name}`;
     case "reminder_sent":
       return `${item.actor_name} ${action}，${t("in_group")} ${item.group_name}`;

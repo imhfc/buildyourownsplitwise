@@ -56,6 +56,7 @@ class GroupListResponse(BaseModel):
     description: str | None
     default_currency: str
     member_count: int
+    admin_count: int = 1
     created_at: datetime
     created_by: uuid.UUID
     my_role: str

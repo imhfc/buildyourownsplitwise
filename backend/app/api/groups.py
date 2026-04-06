@@ -55,6 +55,7 @@ async def list_my_groups(
             description=r.description,
             default_currency=r.default_currency,
             member_count=r.member_count,
+            admin_count=r.admin_count,
             created_at=r.created_at,
             created_by=r.created_by,
             my_role=r.my_role,
@@ -131,11 +132,12 @@ async def add_member(
 async def remove_member(
     group_id: uuid.UUID,
     user_id: uuid.UUID,
+    new_admin_id: uuid.UUID | None = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        await group_service.remove_member(db, group_id, current_user.id, user_id)
+        await group_service.remove_member(db, group_id, current_user.id, user_id, new_admin_id)
     except (ForbiddenError, NotFoundError, ValidationError) as e:
         _handle(e)
 

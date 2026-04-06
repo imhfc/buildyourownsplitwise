@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, RefreshControl, Modal, Pressable, KeyboardAvoidingView, Platform, Animated, ActivityIndicator } from "react-native";
+import { View, FlatList, RefreshControl, Modal, Pressable, KeyboardAvoidingView, Platform, Animated, ActivityIndicator } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { SquaresFour, X, Trash, SignOut, DotsSixVertical, CaretDown, CaretRight, EnvelopeSimple, Check, CurrencyCircleDollar } from "phosphor-react-native";
@@ -32,12 +32,18 @@ interface SimplifiedDebt {
   currency: string;
 }
 
+interface GroupMember {
+  user: { id: string; display_name: string; email: string };
+  role: string;
+}
+
 interface GroupItem {
   id: string;
   name: string;
   description: string | null;
   default_currency: string;
   member_count: number;
+  admin_count: number;
   created_at: string;
   created_by: string;
   my_role: string;
@@ -71,6 +77,9 @@ export default function GroupsScreen() {
   const [creating, setCreating] = useState(false);
   const swipeableRefs = useRef<Map<string, Swipeable>>(new Map());
   const [confirmTarget, setConfirmTarget] = useState<{ item: GroupItem; action: "delete" | "leave" } | null>(null);
+  const [adminTransferTarget, setAdminTransferTarget] = useState<GroupItem | null>(null);
+  const [adminTransferMembers, setAdminTransferMembers] = useState<GroupMember[]>([]);
+  const [adminTransferLoading, setAdminTransferLoading] = useState(false);
   const [settledExpanded, setSettledExpanded] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [overallTotals, setOverallTotals] = useState<CurrencyTotal[]>([]);
@@ -287,9 +296,45 @@ export default function GroupsScreen() {
     setConfirmTarget({ item, action: "delete" });
   };
 
-  const handleLeaveGroup = (item: GroupItem) => {
+  const handleLeaveGroup = async (item: GroupItem) => {
     closeSwipeable(item.id);
-    setConfirmTarget({ item, action: "leave" });
+    const isOnlyAdmin = item.my_role === "admin" && item.admin_count <= 1 && item.member_count > 1;
+    if (isOnlyAdmin) {
+      // 唯一 admin 且有其他成員：拉取成員列表讓使用者選擇新群主
+      setAdminTransferLoading(true);
+      setAdminTransferTarget(item);
+      try {
+        const res = await groupsAPI.get(item.id);
+        const members: GroupMember[] = res.data.members.filter(
+          (m: GroupMember) => m.user.id !== user!.id
+        );
+        setAdminTransferMembers(members);
+      } catch (e: any) {
+        const msg = e.response?.data?.detail || e.message || t("unknown_error");
+        setFormError(msg);
+        setAdminTransferTarget(null);
+      } finally {
+        setAdminTransferLoading(false);
+      }
+    } else {
+      setConfirmTarget({ item, action: "leave" });
+    }
+  };
+
+  const handleSelectNewAdmin = async (newAdminId: string) => {
+    if (!adminTransferTarget || !user) return;
+    setAdminTransferLoading(true);
+    try {
+      await groupsAPI.removeMember(adminTransferTarget.id, user.id, newAdminId);
+      setAdminTransferTarget(null);
+      setAdminTransferMembers([]);
+      await Promise.all([fetchGroups(), fetchOverallBalance()]);
+    } catch (e: any) {
+      const msg = e.response?.data?.detail || e.message || t("unknown_error");
+      setFormError(msg);
+    } finally {
+      setAdminTransferLoading(false);
+    }
   };
 
   const handleConfirmAction = async () => {
@@ -312,20 +357,36 @@ export default function GroupsScreen() {
   const renderRightActions = (item: GroupItem, dragX: Animated.AnimatedInterpolation<number>) => {
     const isAdmin = item.my_role === "admin";
     const scale = dragX.interpolate({
-      inputRange: [-100, 0],
+      inputRange: [isAdmin ? -160 : -100, 0],
       outputRange: [1, 0.8],
       extrapolate: "clamp",
     });
     return (
-      <Animated.View style={{ transform: [{ scale }] }} className="justify-center">
+      <Animated.View style={{ transform: [{ scale }], flexDirection: "row", marginLeft: 8, marginBottom: 8 }}>
+        {isAdmin && (
+          <Pressable
+            style={{ justifyContent: "center", alignItems: "center", paddingHorizontal: 20, backgroundColor: "#f59e0b", borderTopLeftRadius: 12, borderBottomLeftRadius: 12 }}
+            onPress={() => handleLeaveGroup(item)}
+          >
+            <SignOut size={18} color="white" weight="regular" />
+            <Text className="text-white text-xs mt-0.5 font-medium">
+              {t("leave_group")}
+            </Text>
+          </Pressable>
+        )}
         <Pressable
-          className={`h-full justify-center items-center px-6 ${isAdmin ? "bg-destructive" : "bg-warning"}`}
+          style={{
+            justifyContent: "center", alignItems: "center", paddingHorizontal: 20,
+            backgroundColor: isAdmin ? "#ef4444" : "#f59e0b",
+            borderTopLeftRadius: isAdmin ? 0 : 12, borderBottomLeftRadius: isAdmin ? 0 : 12,
+            borderTopRightRadius: 12, borderBottomRightRadius: 12,
+          }}
           onPress={() => isAdmin ? handleDeleteGroup(item) : handleLeaveGroup(item)}
         >
           {isAdmin
-            ? <Trash size={20} color="white" weight="regular" />
-            : <SignOut size={20} color="white" weight="regular" />}
-          <Text className="text-white text-xs mt-1 font-medium">
+            ? <Trash size={18} color="white" weight="regular" />
+            : <SignOut size={18} color="white" weight="regular" />}
+          <Text className="text-white text-xs mt-0.5 font-medium">
             {isAdmin ? t("delete") : t("leave_group")}
           </Text>
         </Pressable>
@@ -409,9 +470,9 @@ export default function GroupsScreen() {
         rightThreshold={40}
         overshootRight={false}
         enabled={!isActive}
-        containerStyle={{ borderRadius: 12, overflow: "hidden", marginBottom: 8 }}
       >
         <Card
+          className="mb-2"
           onPress={() => router.push(`/group/${item.id}`)}
         >
           <CardContent className="flex-row items-center justify-between p-3.5">
@@ -448,10 +509,9 @@ export default function GroupsScreen() {
       renderRightActions={(_, dragX) => renderRightActions(item, dragX)}
       rightThreshold={40}
       overshootRight={false}
-      containerStyle={{ borderRadius: 12, overflow: "hidden", marginBottom: 8 }}
     >
       <Card
-        className="opacity-60"
+        className="mb-2 opacity-60"
         onPress={() => router.push(`/group/${item.id}`)}
       >
         <CardContent className="flex-row items-center justify-between p-3.5">
@@ -692,6 +752,61 @@ export default function GroupsScreen() {
             </View>
           </Pressable>
         </Pressable>
+        </View>
+      </Modal>
+
+      {/* ── Select New Admin Modal ── */}
+      <Modal
+        visible={!!adminTransferTarget}
+        transparent
+        animationType="slide"
+        onRequestClose={() => { setAdminTransferTarget(null); setAdminTransferMembers([]); }}
+      >
+        <View className={`flex-1 ${themeClass}`}>
+        <KeyboardAvoidingView
+          className="flex-1 justify-end"
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <Pressable className="flex-1" onPress={() => { setAdminTransferTarget(null); setAdminTransferMembers([]); }} />
+          <View className="bg-background border-t border-border rounded-t-xl px-5 pb-10 pt-4 max-h-[70%]">
+            <View className="items-center mb-4">
+              <View className="h-1 w-8 rounded-full bg-muted-foreground/20" />
+            </View>
+            <View className="flex-row items-center justify-between mb-5">
+              <Text className="text-base font-semibold">{t("select_new_admin")}</Text>
+              <Pressable onPress={() => { setAdminTransferTarget(null); setAdminTransferMembers([]); }} hitSlop={8}>
+                <X size={20} color={isDark ? "#737373" : "#A3A3A3"} />
+              </Pressable>
+            </View>
+            <Text className="text-sm text-muted-foreground mb-4">{t("select_new_admin_desc")}</Text>
+            {adminTransferLoading && adminTransferMembers.length === 0 ? (
+              <ActivityIndicator className="my-4" />
+            ) : (
+              <FlatList
+                data={adminTransferMembers}
+                keyExtractor={(m) => m.user.id}
+                renderItem={({ item: m }) => (
+                  <Card className="mb-2">
+                    <CardContent className="flex-row items-center p-3.5 gap-3">
+                      <View className="flex-1 gap-0.5">
+                        <Text className="text-sm font-medium text-foreground">{m.user.display_name}</Text>
+                        <Text className="text-xs text-muted-foreground">{m.user.email}</Text>
+                      </View>
+                      <Button
+                        size="sm"
+                        onPress={() => handleSelectNewAdmin(m.user.id)}
+                        disabled={adminTransferLoading}
+                        loading={adminTransferLoading}
+                      >
+                        {t("confirm")}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+              />
+            )}
+          </View>
+        </KeyboardAvoidingView>
         </View>
       </Modal>
 

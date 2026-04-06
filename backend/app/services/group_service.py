@@ -73,6 +73,13 @@ async def list_user_groups(db: AsyncSession, user_id: uuid.UUID) -> list[dict]:
         .scalar_subquery()
         .label("expense_count")
     )
+    admin_count_subq = (
+        select(func.count(GroupMember.id))
+        .where(GroupMember.group_id == Group.id, GroupMember.role == "admin")
+        .correlate(Group)
+        .scalar_subquery()
+        .label("admin_count")
+    )
     result = await db.execute(
         select(
             Group.id,
@@ -85,6 +92,7 @@ async def list_user_groups(db: AsyncSession, user_id: uuid.UUID) -> list[dict]:
             my_membership.role.label("my_role"),
             my_membership.sort_order,
             expense_count_subq,
+            admin_count_subq,
         )
         .where(Group.deleted_at.is_(None))
         .join(GroupMember, Group.id == GroupMember.group_id)
@@ -237,8 +245,38 @@ async def add_member(
     await notify_member_joined(db, group_id, target_user_id, target_name, group_name)
 
 
+async def transfer_admin(
+    db: AsyncSession, group_id: uuid.UUID, current_admin_id: uuid.UUID, new_admin_id: uuid.UUID
+) -> None:
+    """Transfer admin role to another member."""
+    if current_admin_id == new_admin_id:
+        raise ValidationError("Cannot transfer admin role to yourself")
+
+    await check_admin(db, group_id, current_admin_id)
+
+    result = await db.execute(
+        select(GroupMember).where(
+            GroupMember.group_id == group_id, GroupMember.user_id == new_admin_id
+        )
+    )
+    new_admin = result.scalar_one_or_none()
+    if not new_admin:
+        raise NotFoundError("Target user is not a member of this group")
+
+    new_admin.role = "admin"
+
+    # 記錄活動日誌
+    new_admin_name_result = await db.execute(select(User.display_name).where(User.id == new_admin_id))
+    new_admin_name = new_admin_name_result.scalar_one_or_none() or "Unknown"
+    await log_activity(
+        db, group_id=group_id, actor_id=current_admin_id, action="admin_transferred",
+        target_type="member", target_id=new_admin_id, extra_name=new_admin_name,
+    )
+
+
 async def remove_member(
-    db: AsyncSession, group_id: uuid.UUID, requester_id: uuid.UUID, target_user_id: uuid.UUID
+    db: AsyncSession, group_id: uuid.UUID, requester_id: uuid.UUID,
+    target_user_id: uuid.UUID, new_admin_id: uuid.UUID | None = None,
 ) -> None:
     membership = await check_membership(db, group_id, requester_id)
     if membership.role != "admin" and requester_id != target_user_id:
@@ -273,7 +311,7 @@ async def remove_member(
     if pending_result.scalar() > 0:
         raise ValidationError("Cannot leave group with pending settlements")
 
-    # 檢查 3: 唯一 admin 不能退出（群組還有其他成員時）
+    # 檢查 3: 唯一 admin 不能退出（群組還有其他成員時），除非指定了新 admin
     if target.role == "admin":
         member_count_result = await db.execute(
             select(func.count()).select_from(GroupMember).where(GroupMember.group_id == group_id)
@@ -286,7 +324,10 @@ async def remove_member(
                 )
             )
             if admin_count_result.scalar() <= 1:
-                raise ValidationError("Cannot leave group as the only admin. Transfer admin role first.")
+                if not new_admin_id:
+                    raise ValidationError("Cannot leave group as the only admin. Transfer admin role first.")
+                # 轉移管理員角色給指定成員
+                await transfer_admin(db, group_id, requester_id, new_admin_id)
 
     # 查目標使用者名稱與群組名稱
     target_name_result = await db.execute(select(User.display_name).where(User.id == target_user_id))

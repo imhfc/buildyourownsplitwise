@@ -91,8 +91,8 @@ export const groupsAPI = {
   delete: (id: string) => api.delete(`/groups/${id}`),
   addMember: (groupId: string, userId: string) =>
     api.post(`/groups/${groupId}/members`, { user_id: userId }),
-  removeMember: (groupId: string, userId: string) =>
-    api.delete(`/groups/${groupId}/members/${userId}`),
+  removeMember: (groupId: string, userId: string, newAdminId?: string) =>
+    api.delete(`/groups/${groupId}/members/${userId}`, newAdminId ? { params: { new_admin_id: newAdminId } } : undefined),
   reorder: (groupIds: string[]) =>
     api.put("/groups/reorder", { group_ids: groupIds }),
   createInvite: (groupId: string) =>
