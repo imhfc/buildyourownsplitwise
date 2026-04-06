@@ -134,6 +134,8 @@ export default function GroupDetailScreen() {
   const [convertedHint, setConvertedHint] = useState("");
   const [multiPayer, setMultiPayer] = useState(false);
   const [payerInputs, setPayerInputs] = useState<Record<string, string>>({});
+  const [selectedPayerId, setSelectedPayerId] = useState<string>(user?.id ?? "");
+  const [showPayerPicker, setShowPayerPicker] = useState(false);
   // Balance & settlement
   const [settleTarget, setSettleTarget] = useState<Suggestion | null>(null);
   const [settling, setSettling] = useState(false);
@@ -223,6 +225,8 @@ export default function GroupDetailScreen() {
     setSplitInputs({});
     setMultiPayer(false);
     setPayerInputs({});
+    setSelectedPayerId(user?.id ?? "");
+    setShowPayerPicker(false);
     setAddError("");
     setEditingExpenseId(null);
     setEditingSettled(false);
@@ -475,7 +479,7 @@ export default function GroupDetailScreen() {
       setSplitInputs({});
     }
 
-    // 載入多人付款資料
+    // 載入付款人資料
     if (expense.payers && expense.payers.length > 0) {
       setMultiPayer(true);
       const pInputs: Record<string, string> = {};
@@ -486,7 +490,9 @@ export default function GroupDetailScreen() {
     } else {
       setMultiPayer(false);
       setPayerInputs({});
+      setSelectedPayerId(expense.paid_by);
     }
+    setShowPayerPicker(false);
 
     setAddError("");
     setShowAdd(true);
@@ -737,7 +743,7 @@ export default function GroupDetailScreen() {
           description: desc,
           total_amount: parseFloat(amount),
           currency: expenseCurrency,
-          paid_by: user.id,
+          paid_by: multiPayer ? user.id : selectedPayerId,
           split_method: splitMethod,
           splits,
           ...(multiPayer && payersData ? { payers: payersData } : {}),
@@ -1683,11 +1689,46 @@ export default function GroupDetailScreen() {
                         const isMulti = v === "multi";
                         setMultiPayer(isMulti);
                         if (isMulti && Object.keys(payerInputs).length === 0) {
-                          // 預設當前使用者為付款人
-                          setPayerInputs({ [user!.id]: amount || "" });
+                          setPayerInputs({ [selectedPayerId || user!.id]: amount || "" });
                         }
                       }}
                     />
+                    {/* Single payer picker */}
+                    {!multiPayer && (
+                      <View className="gap-1">
+                        <Pressable
+                          onPress={() => setShowPayerPicker(!showPayerPicker)}
+                          className="flex-row items-center justify-between border border-border rounded-lg h-10 px-3"
+                        >
+                          <Text className="text-sm text-foreground">
+                            {members.find((m) => m.user.id === selectedPayerId)?.user.display_name ?? t("select_payer")}
+                            {selectedPayerId === user?.id ? ` (${t("you")})` : ""}
+                          </Text>
+                          <CaretDown size={16} color="hsl(240 3.8% 46.1%)" weight="regular" />
+                        </Pressable>
+                        {showPayerPicker && (
+                          <View className="border border-border rounded-lg overflow-hidden">
+                            {members.map((m) => (
+                              <Pressable
+                                key={m.user.id}
+                                onPress={() => {
+                                  setSelectedPayerId(m.user.id);
+                                  setShowPayerPicker(false);
+                                }}
+                                className={`flex-row items-center justify-between px-3 py-2.5 ${m.user.id === selectedPayerId ? "bg-primary/10" : ""}`}
+                              >
+                                <Text className={`text-sm ${m.user.id === selectedPayerId ? "font-medium text-primary" : "text-foreground"}`}>
+                                  {m.user.display_name}{m.user.id === user?.id ? ` (${t("you")})` : ""}
+                                </Text>
+                                {m.user.id === selectedPayerId && (
+                                  <Check size={16} color="hsl(var(--primary))" weight="bold" />
+                                )}
+                              </Pressable>
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                    )}
                     {multiPayer && (
                       <View className="gap-2 mt-1">
                         {members.map((m) => {

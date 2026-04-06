@@ -200,6 +200,8 @@
   "payers_must_equal_total": "支払い金額の合計は消費金額と一致する必要があります",
   "add_payer": "支払い者を追加",
   "payers": "支払い者",
+  "select_payer": "支払い者を選択",
+  "you": "自分",
   "send_reminder": "リマインダーを送信",
   "reminder_sent": "支払いリマインダーを送信しました",
   "reminder_cooldown": "24時間以内にリマインダーを送信済み",
