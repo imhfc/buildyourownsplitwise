@@ -99,12 +99,13 @@ backend/app/
 - Light: background `0 0% 98%`（淡灰）、card `0 0% 100%`（純白）
 - Dark: background `0 0% 3.9%`（近黑）、card `0 0% 7%`（微亮）
 
-### Color 層（各 scheme 只覆蓋 4 個變數）
+### Color 層（反轉設計：底色染色、卡片留白）
 - `--primary`、`--primary-foreground`、`--ring`：取自 shadcn 官方色票（Blue/Green/Violet/Orange/Rose）
-- `--card`（+ `--popover`）：極淡主題色染色，讓卡片帶一層色調
-  - Light: 取主題 hue，saturation 35-40%，lightness 97%（可見閾值，99% 肉眼不可見）
+- `--background`：底色染色，讓整體畫面帶主題色調
+  - Light: 取主題 hue，saturation 35-40%，lightness 97%
   - Dark: 取主題 hue，saturation 12%，lightness 8%
-- 禁止在 scheme 中重新定義 background/foreground/border/secondary/muted 等結構色
+- `--card`（+ `--popover`）：回歸 base 中性色（light 純白 `0 0% 100%`，dark `0 0% 7%`）
+- 禁止在 scheme 中重新定義 foreground/border/secondary/muted 等其他結構色
 
 ### 硬寫 hex 色碼規則
 - 品牌預設黑白灰，硬寫 hex 必須用 Tailwind **neutral** 色階（hue 0 純灰）

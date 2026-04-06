@@ -350,8 +350,9 @@ cd backend && pytest tests/
 - **危險操作使用 `variant="destructive"`**：刪除、退出等操作使用 destructive variant，此 variant 固定為紅色（語義色），不隨色系改變。
 - **shadcn 兩層主題系統**（2026-04-06 回顧）：
   - **Base 層**（`:root` / `.dark`）：所有主題共用的結構色（background/card/foreground/border/secondary/muted），基底為 shadcn Neutral（純黑白灰）
-  - **Color 層**（`.scheme-xxx`）：只覆蓋 `--primary`、`--primary-foreground`、`--ring`、`--card`（淡色染色），禁止重新定義結構色
-  - 卡片染色：light `hue + saturation 35-40% + lightness 97%`，dark `hue + saturation 12% + lightness 8%`（99%/25% 肉眼不可見）
+  - **Color 層**（`.scheme-xxx`）：覆蓋 `--primary`、`--primary-foreground`、`--ring`、`--background`（底色染色）、`--card`/`--popover`（回歸中性留白），禁止重新定義其他結構色
+  - 底色染色：light `hue + saturation 35-40% + lightness 97%`，dark `hue + saturation 12% + lightness 8%`
+  - 卡片留白：light `0 0% 100%`（純白），dark `0 0% 7%`（base 中性深灰）
 - **新色系同步清單**：`global.css`（~6 行）+ `theme.tsx`（型別 + 陣列）+ `_layout.tsx`（SCHEME_CLASS）+ 三語 i18n
 - **硬寫 hex 必須用 Tailwind neutral 色階**（hue 0 純灰），禁止 zinc（hue 240 帶藍調）（2026-04-06 回顧）
 - **Preview 色必須與實際 primary 一致** — `COLOR_SCHEMES` 的 `preview.light` / `preview.dark` 必須是該 scheme light/dark mode `--primary` 的近似 hex 值

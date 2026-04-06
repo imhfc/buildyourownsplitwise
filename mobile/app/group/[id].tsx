@@ -2215,18 +2215,16 @@ export default function GroupDetailScreen() {
                     className="mb-3"
                   />
                   {settleCurrency !== settleTarget.currency && settleRate != null && (
-                    <View className="mb-3">
+                    <View className="mb-3 gap-0.5">
                       <Text className="text-sm text-muted-foreground">
                         {settleTarget.currency} {parseFloat(settleTarget.amount).toLocaleString()}
                         {" → "}
                         {settleCurrency} {parseFloat(settleAmount).toLocaleString()}
-                        {`  (1 ${settleTarget.currency} = ${settleRate} ${settleCurrency})`}
                       </Text>
-                      {settleRateFetchedAt && (
-                        <Text className="text-xs text-muted-foreground mt-0.5">
-                          {t("rate_fetched_at", { time: new Date(settleRateFetchedAt).toLocaleString() })}
-                        </Text>
-                      )}
+                      <Text className="text-xs text-muted-foreground">
+                        {`1 ${settleTarget.currency} = ${settleRate} ${settleCurrency}`}
+                        {settleRateFetchedAt ? ` · ${new Date(settleRateFetchedAt).toLocaleString()}` : ""}
+                      </Text>
                     </View>
                   )}
                 </>
@@ -2354,19 +2352,12 @@ export default function GroupDetailScreen() {
                           </Text>
                         </View>
                       )}
-                      <Text className="text-xs text-muted-foreground mt-2">
+                      <Text className="text-xs text-muted-foreground mt-2 mb-3">
                         {t("unified_settle_round_hint")}
+                        {unifiedSettleItems.some((i) => i.fetchedAt)
+                          ? ` · ${new Date(unifiedSettleItems.find((i) => i.fetchedAt)!.fetchedAt!).toLocaleString()}`
+                          : ""}
                       </Text>
-                      {unifiedSettleItems.some((i) => i.fetchedAt) && (
-                        <Text className="text-xs text-muted-foreground mt-0.5 mb-3">
-                          {t("rate_fetched_at", {
-                            time: new Date(
-                              unifiedSettleItems.find((i) => i.fetchedAt)!.fetchedAt!
-                            ).toLocaleString(),
-                          })}
-                        </Text>
-                      )}
-                      {!unifiedSettleItems.some((i) => i.fetchedAt) && <View className="mb-3" />}
                     </>
                   )}
                 </>

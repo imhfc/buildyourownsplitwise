@@ -241,10 +241,9 @@ export default function AccountScreen() {
         </Card>
 
         <Button
-          variant="ghost"
+          variant="outline"
           onPress={handleLogout}
-          className="mt-6 mb-4 bg-muted"
-          textClassName="text-destructive"
+          className="mt-6 mb-4"
         >
           {t("logout")}
         </Button>

@@ -25,6 +25,7 @@ export default function TabsLayout() {
   const scheme = COLOR_SCHEMES.find((s) => s.id === colorScheme) ?? COLOR_SCHEMES[0];
   const activeTint = isDark ? scheme.preview.dark : scheme.preview.light;
   const inactiveTint = isDark ? "#525252" : "#A3A3A3";
+  const bgColor = isDark ? scheme.background.dark : scheme.background.light;
 
   useFocusEffect(
     useCallback(() => {
@@ -50,7 +51,7 @@ export default function TabsLayout() {
         tabBarActiveTintColor: activeTint,
         tabBarInactiveTintColor: inactiveTint,
         tabBarStyle: {
-          backgroundColor: isDark ? "#0A0A0A" : "#FAFAFA",
+          backgroundColor: bgColor,
           borderTopWidth: 1,
           borderTopColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
           height: 52 + bottomInset,
@@ -62,7 +63,7 @@ export default function TabsLayout() {
           letterSpacing: 0.2,
         },
         headerStyle: {
-          backgroundColor: isDark ? "#0A0A0A" : "#FAFAFA",
+          backgroundColor: bgColor,
         },
         headerTintColor: isDark ? "#FAFAFA" : "#171717",
         headerShadowVisible: false,
