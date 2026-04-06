@@ -317,9 +317,9 @@ export default function GroupsScreen() {
       extrapolate: "clamp",
     });
     return (
-      <Animated.View style={{ transform: [{ scale }] }} className="justify-center mb-3">
+      <Animated.View style={{ transform: [{ scale }] }} className="justify-center">
         <Pressable
-          className={`h-full justify-center items-center px-6 rounded-r-xl ${isAdmin ? "bg-destructive" : "bg-warning"}`}
+          className={`h-full justify-center items-center px-6 ${isAdmin ? "bg-destructive" : "bg-warning"}`}
           onPress={() => isAdmin ? handleDeleteGroup(item) : handleLeaveGroup(item)}
         >
           {isAdmin
@@ -409,9 +409,9 @@ export default function GroupsScreen() {
         rightThreshold={40}
         overshootRight={false}
         enabled={!isActive}
+        containerStyle={{ borderRadius: 12, overflow: "hidden", marginBottom: 8 }}
       >
         <Card
-          className="mb-2"
           onPress={() => router.push(`/group/${item.id}`)}
         >
           <CardContent className="flex-row items-center justify-between p-3.5">
@@ -448,9 +448,10 @@ export default function GroupsScreen() {
       renderRightActions={(_, dragX) => renderRightActions(item, dragX)}
       rightThreshold={40}
       overshootRight={false}
+      containerStyle={{ borderRadius: 12, overflow: "hidden", marginBottom: 8 }}
     >
       <Card
-        className="mb-2 opacity-60"
+        className="opacity-60"
         onPress={() => router.push(`/group/${item.id}`)}
       >
         <CardContent className="flex-row items-center justify-between p-3.5">
