@@ -228,6 +228,7 @@
   "unified_settle_msg": "將以下欠款統一以 {{currency}} 結清給 {{name}}：",
   "unified_settle_total": "合計",
   "unified_settle_round_hint": "金額已四捨五入至整數",
+  "rate_fetched_at": "匯率取自 {{time}}",
   "unified_settle_converting": "換算中...",
   "settlement_confirmed": "已確認結算",
   "settlement_rejected": "已拒絕結算",

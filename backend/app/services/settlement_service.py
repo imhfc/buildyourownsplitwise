@@ -96,15 +96,32 @@ async def calculate_balances(
     for expense in expenses:
         # 多人付款：用 payers 分配付款金額；單人付款：全額歸 paid_by
         if expense.payers:
+            converted_payer_amounts: list[tuple[uuid.UUID, Decimal]] = []
             for payer in expense.payers:
-                converted_payer_amount = await to_base(payer.amount, expense.currency)
-                balances[payer.user_id] += converted_payer_amount
+                converted_payer_amounts.append(
+                    (payer.user_id, await to_base(payer.amount, expense.currency))
+                )
+            total_payer_converted = sum(amt for _, amt in converted_payer_amounts)
+            for uid, amt in converted_payer_amounts:
+                balances[uid] += amt
         else:
-            converted_total = await to_base(expense.total_amount, expense.currency)
-            balances[expense.paid_by] += converted_total
+            total_payer_converted = await to_base(expense.total_amount, expense.currency)
+            balances[expense.paid_by] += total_payer_converted
+
+        # 轉換各 split，並強制合計 = 付款總額（尾差歸第一人）
+        converted_splits: list[tuple[uuid.UUID, Decimal]] = []
         for split in expense.splits:
-            converted_split = await to_base(split.amount, expense.currency)
-            balances[split.user_id] -= converted_split
+            converted_splits.append(
+                (split.user_id, await to_base(split.amount, expense.currency))
+            )
+        total_splits_converted = sum(amt for _, amt in converted_splits)
+        rounding_diff = total_payer_converted - total_splits_converted
+        if rounding_diff != Decimal("0") and converted_splits:
+            uid_0, amt_0 = converted_splits[0]
+            converted_splits[0] = (uid_0, amt_0 + rounding_diff)
+
+        for uid, amt in converted_splits:
+            balances[uid] -= amt
 
     settlement_result = await db.execute(
         select(Settlement).where(
@@ -227,16 +244,34 @@ async def calculate_balances_unified(
     expenses = result.scalars().all()
 
     for expense in expenses:
+        # 計算付款方轉換後總額
         if expense.payers:
+            converted_payer_amounts: list[tuple[uuid.UUID, Decimal]] = []
             for payer in expense.payers:
-                converted_payer_amount = await to_target(payer.amount, expense.currency)
-                balances[payer.user_id] += converted_payer_amount
+                converted_payer_amounts.append(
+                    (payer.user_id, await to_target(payer.amount, expense.currency))
+                )
+            total_payer_converted = sum(amt for _, amt in converted_payer_amounts)
+            for uid, amt in converted_payer_amounts:
+                balances[uid] += amt
         else:
-            converted_total = await to_target(expense.total_amount, expense.currency)
-            balances[expense.paid_by] += converted_total
+            total_payer_converted = await to_target(expense.total_amount, expense.currency)
+            balances[expense.paid_by] += total_payer_converted
+
+        # 轉換各 split，並強制合計 = 付款總額（尾差歸第一人）
+        converted_splits: list[tuple[uuid.UUID, Decimal]] = []
         for split in expense.splits:
-            converted_split = await to_target(split.amount, expense.currency)
-            balances[split.user_id] -= converted_split
+            converted_splits.append(
+                (split.user_id, await to_target(split.amount, expense.currency))
+            )
+        total_splits_converted = sum(amt for _, amt in converted_splits)
+        rounding_diff = total_payer_converted - total_splits_converted
+        if rounding_diff != Decimal("0") and converted_splits:
+            uid_0, amt_0 = converted_splits[0]
+            converted_splits[0] = (uid_0, amt_0 + rounding_diff)
+
+        for uid, amt in converted_splits:
+            balances[uid] -= amt
 
     settlement_result = await db.execute(
         select(Settlement).where(

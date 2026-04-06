@@ -228,6 +228,7 @@
   "unified_settle_msg": "Settle all debts to {{name}} in {{currency}}:",
   "unified_settle_total": "Total",
   "unified_settle_round_hint": "Amounts rounded to nearest integer",
+  "rate_fetched_at": "Rate as of {{time}}",
   "unified_settle_converting": "Converting...",
   "settlement_confirmed": "confirmed a settlement",
   "settlement_rejected": "rejected a settlement",

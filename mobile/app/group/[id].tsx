@@ -141,6 +141,7 @@ export default function GroupDetailScreen() {
   const [settleCurrency, setSettleCurrency] = useState("");
   const [settleAmount, setSettleAmount] = useState("");
   const [settleRate, setSettleRate] = useState<number | null>(null);
+  const [settleRateFetchedAt, setSettleRateFetchedAt] = useState<string | null>(null);
   const [converting, setConverting] = useState(false);
   const [pendingSettlements, setPendingSettlements] = useState<PendingSettlement[]>([]);
   const [settleSuccessMsg, setSettleSuccessMsg] = useState("");
@@ -151,7 +152,7 @@ export default function GroupDetailScreen() {
   // Unified currency settlement
   const [unifiedSettleTarget, setUnifiedSettleTarget] = useState<{ personId: string; personName: string; items: Suggestion[] } | null>(null);
   const [unifiedSettleCurrency, setUnifiedSettleCurrency] = useState("");
-  const [unifiedSettleItems, setUnifiedSettleItems] = useState<{ currency: string; originalAmount: string; convertedAmount: number; rate: number | null }[]>([]);
+  const [unifiedSettleItems, setUnifiedSettleItems] = useState<{ currency: string; originalAmount: string; convertedAmount: number; rate: number | null; fetchedAt: string | null }[]>([]);
   const [unifiedSettling, setUnifiedSettling] = useState(false);
   const [unifiedSettleError, setUnifiedSettleError] = useState("");
   const [unifiedConverting, setUnifiedConverting] = useState(false);
@@ -498,6 +499,7 @@ export default function GroupDetailScreen() {
     if (newCurrency === settleTarget.currency) {
       setSettleAmount(settleTarget.amount);
       setSettleRate(null);
+      setSettleRateFetchedAt(null);
       return;
     }
 
@@ -511,6 +513,7 @@ export default function GroupDetailScreen() {
       });
       setSettleAmount(String(res.data.converted_amount));
       setSettleRate(res.data.rate);
+      setSettleRateFetchedAt(res.data.fetched_at);
     } catch (e: any) {
       const msg = e.response?.data?.detail || e.message || t("unknown_error");
       setSettleError(msg);
@@ -518,6 +521,7 @@ export default function GroupDetailScreen() {
       setSettleCurrency(settleTarget.currency);
       setSettleAmount(settleTarget.amount);
       setSettleRate(null);
+      setSettleRateFetchedAt(null);
     } finally {
       setConverting(false);
     }
@@ -588,6 +592,7 @@ export default function GroupDetailScreen() {
               originalAmount: item.amount,
               convertedAmount: Math.round(parseFloat(item.amount)),
               rate: null,
+              fetchedAt: null,
             };
           }
           const res = await exchangeRatesAPI.convert({
@@ -600,6 +605,7 @@ export default function GroupDetailScreen() {
             originalAmount: item.amount,
             convertedAmount: Math.round(res.data.converted_amount),
             rate: res.data.rate,
+            fetchedAt: res.data.fetched_at,
           };
         })
       );
@@ -2209,12 +2215,19 @@ export default function GroupDetailScreen() {
                     className="mb-3"
                   />
                   {settleCurrency !== settleTarget.currency && settleRate != null && (
-                    <Text className="text-sm text-muted-foreground mb-3">
-                      {settleTarget.currency} {parseFloat(settleTarget.amount).toLocaleString()}
-                      {" → "}
-                      {settleCurrency} {parseFloat(settleAmount).toLocaleString()}
-                      {`  (1 ${settleTarget.currency} = ${settleRate} ${settleCurrency})`}
-                    </Text>
+                    <View className="mb-3">
+                      <Text className="text-sm text-muted-foreground">
+                        {settleTarget.currency} {parseFloat(settleTarget.amount).toLocaleString()}
+                        {" → "}
+                        {settleCurrency} {parseFloat(settleAmount).toLocaleString()}
+                        {`  (1 ${settleTarget.currency} = ${settleRate} ${settleCurrency})`}
+                      </Text>
+                      {settleRateFetchedAt && (
+                        <Text className="text-xs text-muted-foreground mt-0.5">
+                          {t("rate_fetched_at", { time: new Date(settleRateFetchedAt).toLocaleString() })}
+                        </Text>
+                      )}
+                    </View>
                   )}
                 </>
               )}
@@ -2317,13 +2330,20 @@ export default function GroupDetailScreen() {
                         {t("unified_settle_msg", { currency: unifiedSettleCurrency, name: unifiedSettleTarget.personName })}
                       </Text>
                       {unifiedSettleItems.map((item) => (
-                        <View key={item.currency} className="flex-row items-center justify-between py-1.5 pl-2">
-                          <Text className="text-sm text-muted-foreground flex-1">
-                            {item.currency} {parseFloat(item.originalAmount).toLocaleString()}
-                          </Text>
-                          <Text className="text-sm font-medium">
-                            {unifiedSettleCurrency} {item.convertedAmount.toLocaleString()}
-                          </Text>
+                        <View key={item.currency} className="py-1.5 pl-2">
+                          <View className="flex-row items-center justify-between">
+                            <Text className="text-sm text-muted-foreground flex-1">
+                              {item.currency} {parseFloat(item.originalAmount).toLocaleString()}
+                            </Text>
+                            <Text className="text-sm font-medium">
+                              {unifiedSettleCurrency} {item.convertedAmount.toLocaleString()}
+                            </Text>
+                          </View>
+                          {item.rate != null && (
+                            <Text className="text-xs text-muted-foreground mt-0.5">
+                              1 {item.currency} = {item.rate} {unifiedSettleCurrency}
+                            </Text>
+                          )}
                         </View>
                       ))}
                       {unifiedSettleItems.length > 1 && (
@@ -2334,7 +2354,19 @@ export default function GroupDetailScreen() {
                           </Text>
                         </View>
                       )}
-                      <Text className="text-xs text-muted-foreground mt-2 mb-3">{t("unified_settle_round_hint")}</Text>
+                      <Text className="text-xs text-muted-foreground mt-2">
+                        {t("unified_settle_round_hint")}
+                      </Text>
+                      {unifiedSettleItems.some((i) => i.fetchedAt) && (
+                        <Text className="text-xs text-muted-foreground mt-0.5 mb-3">
+                          {t("rate_fetched_at", {
+                            time: new Date(
+                              unifiedSettleItems.find((i) => i.fetchedAt)!.fetchedAt!
+                            ).toLocaleString(),
+                          })}
+                        </Text>
+                      )}
+                      {!unifiedSettleItems.some((i) => i.fetchedAt) && <View className="mb-3" />}
                     </>
                   )}
                 </>
