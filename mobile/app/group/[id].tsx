@@ -1640,7 +1640,7 @@ export default function GroupDetailScreen() {
                 </View>
               )}
 
-              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 500 }}>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                 <View className="gap-4">
                   <Input
                     label={t("description")}
@@ -2001,7 +2001,7 @@ export default function GroupDetailScreen() {
               </Pressable>
             </View>
 
-              <ScrollView className="flex-shrink" showsVerticalScrollIndicator={false}>
+              <ScrollView className="flex-shrink" showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                 <View className="gap-4">
                   {/* Friend selection section */}
                   <View>
@@ -2173,57 +2173,59 @@ export default function GroupDetailScreen() {
                 <X size={20} color="hsl(240 3.8% 46.1%)" />
               </Pressable>
             </View>
-              <View className="gap-4">
-                <Input
-                  label={t("group_name")}
-                  value={editGroupName}
-                  onChangeText={(v) => { setEditGroupName(v); setSettingsError(null); }}
-                  placeholder={t("group_name")}
-                />
-                <CurrencyPicker
-                  label={t("default_currency")}
-                  value={editGroupCurrency}
-                  onSelect={setEditGroupCurrency}
-                />
-                <CoverImagePicker
-                  label={t("cover_image_url")}
-                  value={editCoverUrl}
-                  onSelect={(url) => { setEditCoverUrl(url || ""); setSettingsError(null); }}
-                />
-                {settingsError ? (
-                  <Text className="text-sm text-destructive">{settingsError}</Text>
-                ) : null}
-                <Button
-                  onPress={async () => {
-                    if (!id || !editGroupName.trim()) return;
-                    setSettingsLoading(true);
-                    setSettingsError(null);
-                    try {
-                      await groupsAPI.update(id, {
-                        name: editGroupName.trim(),
-                        default_currency: editGroupCurrency,
-                        cover_image_url: editCoverUrl.trim() || null,
-                      });
-                      setGroupName(editGroupName.trim());
-                      setGroupCurrency(editGroupCurrency);
-                      setCoverImageUrl(editCoverUrl.trim() || null);
-                      setShowSettings(false);
-                      await fetchData();
-                    } catch (e: any) {
-                      const msg = e.response?.data?.detail || e.message || t("group_update_failed");
-                      setSettingsError(msg);
-                    } finally {
-                      setSettingsLoading(false);
-                    }
-                  }}
-                  loading={settingsLoading}
-                  disabled={settingsLoading || !editGroupName.trim()}
-                  size="lg"
-                  className="mt-2"
-                >
-                  {t("save")}
-                </Button>
-              </View>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <View className="gap-4">
+                  <Input
+                    label={t("group_name")}
+                    value={editGroupName}
+                    onChangeText={(v) => { setEditGroupName(v); setSettingsError(null); }}
+                    placeholder={t("group_name")}
+                  />
+                  <CurrencyPicker
+                    label={t("default_currency")}
+                    value={editGroupCurrency}
+                    onSelect={setEditGroupCurrency}
+                  />
+                  <CoverImagePicker
+                    label={t("cover_image_url")}
+                    value={editCoverUrl}
+                    onSelect={(url) => { setEditCoverUrl(url || ""); setSettingsError(null); }}
+                  />
+                  {settingsError ? (
+                    <Text className="text-sm text-destructive">{settingsError}</Text>
+                  ) : null}
+                  <Button
+                    onPress={async () => {
+                      if (!id || !editGroupName.trim()) return;
+                      setSettingsLoading(true);
+                      setSettingsError(null);
+                      try {
+                        await groupsAPI.update(id, {
+                          name: editGroupName.trim(),
+                          default_currency: editGroupCurrency,
+                          cover_image_url: editCoverUrl.trim() || null,
+                        });
+                        setGroupName(editGroupName.trim());
+                        setGroupCurrency(editGroupCurrency);
+                        setCoverImageUrl(editCoverUrl.trim() || null);
+                        setShowSettings(false);
+                        await fetchData();
+                      } catch (e: any) {
+                        const msg = e.response?.data?.detail || e.message || t("group_update_failed");
+                        setSettingsError(msg);
+                      } finally {
+                        setSettingsLoading(false);
+                      }
+                    }}
+                    loading={settingsLoading}
+                    disabled={settingsLoading || !editGroupName.trim()}
+                    size="lg"
+                    className="mt-2"
+                  >
+                    {t("save")}
+                  </Button>
+                </View>
+              </ScrollView>
             </View>
         </KeyboardAvoidingView>
         </View>

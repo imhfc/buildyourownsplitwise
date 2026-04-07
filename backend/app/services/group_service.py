@@ -227,6 +227,10 @@ async def add_member(
     if existing.scalar_one_or_none():
         raise ConflictError("User is already a member")
 
+    # 取得加入前的成員數（用於判斷全員均分消費）
+    old_member_ids = await get_group_member_ids(db, group_id)
+    old_member_count = len(old_member_ids)
+
     member = GroupMember(group_id=group_id, user_id=target_user_id)
     db.add(member)
 
@@ -243,6 +247,10 @@ async def add_member(
     # Push 通知群組所有成員（新成員加入）
     from app.services.push_service import notify_member_joined
     await notify_member_joined(db, group_id, target_user_id, target_name, group_name)
+
+    # 重新分配全員均分消費，加入新成員
+    from app.services.expense_service import redistribute_equal_splits_for_new_member
+    await redistribute_equal_splits_for_new_member(db, group_id, target_user_id, old_member_count)
 
 
 async def transfer_admin(
@@ -475,6 +483,11 @@ async def accept_invite(
     )
     if existing.scalar_one_or_none():
         raise ConflictError("Already a member of this group")
+
+    # 取得加入前的成員數（用於判斷全員均分消費）
+    old_member_ids = await get_group_member_ids(db, group.id)
+    old_member_count = len(old_member_ids)
+
     member = GroupMember(group_id=group.id, user_id=user_id, role="member")
     db.add(member)
     await db.flush()
@@ -484,5 +497,9 @@ async def accept_invite(
     user_result = await db.execute(select(User.display_name).where(User.id == user_id))
     member_name = user_result.scalar_one_or_none() or "Unknown"
     await notify_member_joined(db, group.id, user_id, member_name, group.name)
+
+    # 重新分配全員均分消費，加入新成員
+    from app.services.expense_service import redistribute_equal_splits_for_new_member
+    await redistribute_equal_splits_for_new_member(db, group.id, user_id, old_member_count)
 
     return group.id

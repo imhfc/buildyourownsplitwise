@@ -62,6 +62,84 @@ def calculate_splits(data: ExpenseCreate, member_ids: list[uuid.UUID]) -> list[d
     raise ValidationError(f"Unknown split method: {data.split_method}")
 
 
+async def redistribute_equal_splits_for_new_member(
+    db: AsyncSession, group_id: uuid.UUID, new_member_id: uuid.UUID, old_member_count: int
+) -> int:
+    """新成員加入群組時，重新計算所有「全員均分」消費的分帳，加入新成員。
+
+    只處理 split_method="equal" 且分帳人數等於舊成員數的消費（即全員均分），
+    不處理手動指定分帳對象的均分消費。已結清消費不處理。
+
+    Returns the number of expenses updated.
+    """
+    # 判斷結清分界線（與 list_expenses 同邏輯）
+    cutoff: datetime | None = None
+    last = await _get_last_confirmed_settlement(db, group_id)
+    if last and last.confirmed_at:
+        from app.services.settlement_service import calculate_balances
+        current_balances = await calculate_balances(db, group_id)
+        if len(current_balances) == 0:
+            cutoff = last.confirmed_at
+
+    # 查詢所有活躍的均分消費
+    result = await db.execute(
+        select(Expense)
+        .where(
+            Expense.group_id == group_id,
+            Expense.split_method == "equal",
+            Expense.deleted_at.is_(None),
+        )
+        .options(selectinload(Expense.splits))
+    )
+    expenses = result.scalars().all()
+
+    updated_count = 0
+    for expense in expenses:
+        # 跳過已結清的消費
+        if cutoff and expense.created_at <= cutoff:
+            continue
+
+        # 只處理「全員均分」：分帳人數 == 舊成員數
+        if len(expense.splits) != old_member_count:
+            continue
+
+        # 保存舊的 user_id 列表
+        old_user_ids = [s.user_id for s in expense.splits]
+
+        # 刪除舊 splits
+        old_splits_result = await db.execute(
+            select(ExpenseSplit).where(ExpenseSplit.expense_id == expense.id)
+        )
+        for split in old_splits_result.scalars().all():
+            await db.delete(split)
+        await db.flush()
+
+        # 重新計算均分（包含新成員）
+        all_user_ids = old_user_ids + [new_member_id]
+        new_count = len(all_user_ids)
+        per_person = expense.total_amount / new_count
+        rounded = Decimal(str(round(per_person, 2)))
+        total_rounded = rounded * new_count
+        remainder = expense.total_amount - total_rounded
+
+        for i, uid in enumerate(all_user_ids):
+            amt = rounded + remainder if i == 0 else rounded
+            db.add(ExpenseSplit(
+                expense_id=expense.id,
+                user_id=uid,
+                amount=amt,
+            ))
+
+        # Expire expense 讓後續查詢重載 splits 關聯
+        db.expire(expense)
+        updated_count += 1
+
+    if updated_count > 0:
+        await db.flush()
+
+    return updated_count
+
+
 async def create_expense(
     db: AsyncSession,
     group_id: uuid.UUID,

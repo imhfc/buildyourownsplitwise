@@ -28,8 +28,9 @@ if (Platform.OS === "web" && typeof document !== "undefined") {
   }
 
   // 100dvh 排除手機瀏覽器工具列高度
+  // input 16px 防止 iOS Safari 自動放大（< 16px 會觸發 zoom-in 且失焦不縮回）
   const dvhStyle = document.createElement("style");
-  dvhStyle.textContent = "html,body,#root{height:100dvh!important}";
+  dvhStyle.textContent = "html,body,#root{height:100dvh!important}input,textarea,select{font-size:16px!important}";
   head.appendChild(dvhStyle);
 
   // PWA manifest

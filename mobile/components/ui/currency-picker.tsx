@@ -12,7 +12,7 @@ import { Check, CaretDown, MagnifyingGlass, X } from "phosphor-react-native";
 import { useTranslation } from "react-i18next";
 import { exchangeRatesAPI } from "../../services/api";
 import { cn } from "~/lib/utils";
-import { Text, H3, Muted } from "./text";
+import { Text, Muted } from "./text";
 
 interface CurrencyInfo {
   code: string;
@@ -118,10 +118,10 @@ export function CurrencyPicker({
       ) : null}
 
       <Pressable
-        className="h-12 rounded-lg border border-input bg-background px-4 flex-row items-center justify-between"
+        className="h-10 rounded-lg border border-input bg-background px-3 flex-row items-center justify-between"
         onPress={() => setVisible(true)}
       >
-        <Text className="text-base text-foreground">{selectedLabel}</Text>
+        <Text className="text-sm text-foreground">{selectedLabel}</Text>
         <CaretDown size={18} color="hsl(240 3.8% 46.1%)" weight="regular" />
       </Pressable>
 
@@ -138,21 +138,22 @@ export function CurrencyPicker({
           className="flex-1 justify-end bg-black/50"
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <View className="bg-background rounded-t-2xl max-h-[75%]">
+          <View className="bg-background rounded-t-xl border-t border-border" style={{ maxHeight: '80%' }}>
             {/* Header */}
             <View className="px-5 pt-4 pb-2">
-              <View className="items-center mb-3">
-                <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+              <View className="items-center mb-4">
+                <View className="h-1 w-8 rounded-full bg-muted-foreground/20" />
               </View>
-              <View className="flex-row items-center justify-between mb-3">
-                <H3>{t("select_currency")}</H3>
+              <View className="flex-row items-center justify-between mb-5">
+                <Text className="text-base font-semibold">{t("select_currency")}</Text>
                 <Pressable
                   onPress={() => {
                     setVisible(false);
                     setSearch("");
                   }}
+                  hitSlop={8}
                 >
-                  <X size={24} color="hsl(240 3.8% 46.1%)" />
+                  <X size={20} color="hsl(240 3.8% 46.1%)" />
                 </Pressable>
               </View>
 

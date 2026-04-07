@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, FlatList, RefreshControl, Modal, Pressable, KeyboardAvoidingView, Platform, Animated, ActivityIndicator } from "react-native";
+import { View, FlatList, RefreshControl, Modal, Pressable, KeyboardAvoidingView, Platform, Animated, ActivityIndicator, ScrollView } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { SquaresFour, X, Trash, SignOut, DotsSixVertical, CaretDown, CaretRight, EnvelopeSimple, Check, CurrencyCircleDollar } from "phosphor-react-native";
@@ -835,39 +835,41 @@ export default function GroupsScreen() {
               </Pressable>
             </View>
 
-            <View className="gap-4">
-              <Input
-                label={t("group_name")}
-                value={newName}
-                onChangeText={(v) => { setNewName(v); setFormError(null); }}
-                placeholder={t("group_name")}
-              />
-              <Input
-                label={t("description")}
-                value={newDesc}
-                onChangeText={setNewDesc}
-                placeholder={t("description")}
-              />
-              <CurrencyPicker
-                label={t("default_currency")}
-                value={newCurrency}
-                onSelect={setNewCurrency}
-              />
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <View className="gap-4">
+                <Input
+                  label={t("group_name")}
+                  value={newName}
+                  onChangeText={(v) => { setNewName(v); setFormError(null); }}
+                  placeholder={t("group_name")}
+                />
+                <Input
+                  label={t("description")}
+                  value={newDesc}
+                  onChangeText={setNewDesc}
+                  placeholder={t("description")}
+                />
+                <CurrencyPicker
+                  label={t("default_currency")}
+                  value={newCurrency}
+                  onSelect={setNewCurrency}
+                />
 
-              {formError ? (
-                <Text className="text-destructive text-sm">{formError}</Text>
-              ) : null}
+                {formError ? (
+                  <Text className="text-destructive text-sm">{formError}</Text>
+                ) : null}
 
-              <Button
-                onPress={handleCreate}
-                loading={creating}
-                disabled={creating || !newName}
-                size="lg"
-                className="mt-1"
-              >
-                {t("save")}
-              </Button>
-            </View>
+                <Button
+                  onPress={handleCreate}
+                  loading={creating}
+                  disabled={creating || !newName}
+                  size="lg"
+                  className="mt-1"
+                >
+                  {t("save")}
+                </Button>
+              </View>
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
         </View>
