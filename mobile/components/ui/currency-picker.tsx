@@ -163,8 +163,9 @@ export function CurrencyPicker({
         </View>
       </View>
 
-      {/* List */}
+      {/* List — flex:1 確保不隨內容量縮小 */}
       <FlatList
+        style={{ flex: 1 }}
         data={filtered}
         keyExtractor={(item) => item.code}
         renderItem={renderItem}
@@ -201,14 +202,15 @@ export function CurrencyPicker({
           setSearch("");
         }}
       >
-        {/* web 上 KeyboardAvoidingView 會導致整個 Modal 隨鍵盤縮小，改用 Pressable 背景 + 固定佈局 */}
+        {/* web 上 KeyboardAvoidingView 會導致整個 Modal 隨鍵盤縮小，改用固定高度佈局 */}
         {Platform.OS === "web" ? (
           <View className="flex-1 bg-black/50">
             <Pressable
               className="flex-1"
               onPress={() => { setVisible(false); setSearch(""); }}
             />
-            <View className="bg-background rounded-t-xl border-t border-border" style={{ maxHeight: '70%' }}>
+            {/* 固定 height 70%，不隨 FlatList 內容量縮小 */}
+            <View className="bg-background rounded-t-xl border-t border-border" style={{ height: '70%' }}>
               {renderModalContent()}
             </View>
           </View>
@@ -217,7 +219,7 @@ export function CurrencyPicker({
             className="flex-1 justify-end bg-black/50"
             behavior={Platform.OS === "ios" ? "padding" : "height"}
           >
-            <View className="bg-background rounded-t-xl border-t border-border" style={{ maxHeight: '80%' }}>
+            <View className="bg-background rounded-t-xl border-t border-border" style={{ height: '70%' }}>
               {renderModalContent()}
             </View>
           </KeyboardAvoidingView>
