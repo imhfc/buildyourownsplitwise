@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { exchangeRatesAPI } from "../../services/api";
 import { cn } from "~/lib/utils";
 import { Text, Muted } from "./text";
+import { useThemeClassName } from "~/lib/theme";
 
 /** 模糊比對：query 的每個字元依序出現在 target 中即算匹配 */
 function fuzzyMatch(target: string, query: string): boolean {
@@ -48,6 +49,7 @@ export function CurrencyPicker({
   const [search, setSearch] = useState("");
   const searchRef = useRef<TextInput>(null);
   const isZh = i18n.language.startsWith("zh");
+  const themeClass = useThemeClassName();
 
   const fetchCurrencies = useCallback(async () => {
     try {
@@ -202,28 +204,30 @@ export function CurrencyPicker({
           setSearch("");
         }}
       >
-        {/* web 上 KeyboardAvoidingView 會導致整個 Modal 隨鍵盤縮小，改用固定高度佈局 */}
-        {Platform.OS === "web" ? (
-          <View className="flex-1 bg-black/50">
-            <Pressable
-              className="flex-1"
-              onPress={() => { setVisible(false); setSearch(""); }}
-            />
-            {/* 固定 height 70%，不隨 FlatList 內容量縮小 */}
-            <View className="bg-background rounded-t-xl border-t border-border" style={{ height: '70%' }}>
-              {renderModalContent()}
+        {/* themeClass 讓 Modal 內的 CSS 變數（dark mode / color scheme）生效 */}
+        <View className={`flex-1 ${themeClass}`}>
+          {/* web 上 KeyboardAvoidingView 會導致整個 Modal 隨鍵盤縮小，改用固定高度佈局 */}
+          {Platform.OS === "web" ? (
+            <View className="flex-1 bg-black/50">
+              <Pressable
+                className="flex-1"
+                onPress={() => { setVisible(false); setSearch(""); }}
+              />
+              <View className="bg-background rounded-t-xl border-t border-border" style={{ height: '70%' }}>
+                {renderModalContent()}
+              </View>
             </View>
-          </View>
-        ) : (
-          <KeyboardAvoidingView
-            className="flex-1 justify-end bg-black/50"
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-          >
-            <View className="bg-background rounded-t-xl border-t border-border" style={{ height: '70%' }}>
-              {renderModalContent()}
-            </View>
-          </KeyboardAvoidingView>
-        )}
+          ) : (
+            <KeyboardAvoidingView
+              className="flex-1 justify-end bg-black/50"
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+            >
+              <View className="bg-background rounded-t-xl border-t border-border" style={{ height: '70%' }}>
+                {renderModalContent()}
+              </View>
+            </KeyboardAvoidingView>
+          )}
+        </View>
       </Modal>
     </View>
   );
