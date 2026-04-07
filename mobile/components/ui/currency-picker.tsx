@@ -14,6 +14,15 @@ import { exchangeRatesAPI } from "../../services/api";
 import { cn } from "~/lib/utils";
 import { Text, Muted } from "./text";
 
+/** 模糊比對：query 的每個字元依序出現在 target 中即算匹配 */
+function fuzzyMatch(target: string, query: string): boolean {
+  let qi = 0;
+  for (let i = 0; i < target.length && qi < query.length; i++) {
+    if (target[i] === query[qi]) qi++;
+  }
+  return qi === query.length;
+}
+
 interface CurrencyInfo {
   code: string;
   name_zh: string;
@@ -76,7 +85,9 @@ export function CurrencyPicker({
       (c) =>
         c.code.toLowerCase().includes(q) ||
         c.name_zh.includes(q) ||
-        c.name_en.toLowerCase().includes(q)
+        c.name_en.toLowerCase().includes(q) ||
+        fuzzyMatch(c.code.toLowerCase(), q) ||
+        fuzzyMatch(c.name_en.toLowerCase(), q)
     );
   }, [currencies, search]);
 
@@ -102,14 +113,70 @@ export function CurrencyPicker({
         )}
         onPress={() => handleSelect(item.code)}
       >
-        <Text className="text-base font-semibold w-14">{item.code}</Text>
-        <Text className="flex-1 text-base text-muted-foreground">
+        <Text className="text-sm font-semibold w-14">{item.code}</Text>
+        <Text className="flex-1 text-sm text-muted-foreground">
           {isZh ? item.name_zh : item.name_en}
         </Text>
-        {isSelected && <Check size={20} color="hsl(142.1 76.2% 36.3%)" />}
+        {isSelected && <Check size={20} color="hsl(var(--primary))" />}
       </Pressable>
     );
   };
+
+  const renderModalContent = () => (
+    <>
+      {/* Header */}
+      <View className="px-5 pt-4 pb-2">
+        <View className="items-center mb-4">
+          <View className="h-1 w-8 rounded-full bg-muted-foreground/20" />
+        </View>
+        <View className="flex-row items-center justify-between mb-5">
+          <Text className="text-base font-semibold">{t("select_currency")}</Text>
+          <Pressable
+            onPress={() => {
+              setVisible(false);
+              setSearch("");
+            }}
+            hitSlop={8}
+          >
+            <X size={20} color="hsl(var(--muted-foreground))" />
+          </Pressable>
+        </View>
+
+        {/* Search — 受控 value 確保搜尋狀態同步 */}
+        <View className="flex-row items-center h-10 rounded-lg border border-input bg-background px-3 mb-2">
+          <MagnifyingGlass size={18} color="hsl(var(--muted-foreground))" weight="regular" />
+          <TextInput
+            ref={searchRef}
+            className="flex-1 ml-2 text-sm text-foreground"
+            placeholder={t("search_currency")}
+            placeholderTextColor="hsl(var(--muted-foreground))"
+            value={search}
+            onChangeText={setSearch}
+            autoFocus
+            style={Platform.OS === "web" ? { outlineStyle: "none" } as any : undefined}
+          />
+          {search ? (
+            <Pressable onPress={() => setSearch("")}>
+              <X size={16} color="hsl(var(--muted-foreground))" />
+            </Pressable>
+          ) : null}
+        </View>
+      </View>
+
+      {/* List */}
+      <FlatList
+        data={filtered}
+        keyExtractor={(item) => item.code}
+        renderItem={renderItem}
+        keyboardShouldPersistTaps="handled"
+        ListEmptyComponent={
+          <View className="items-center py-10">
+            <Muted>{t("no_results")}</Muted>
+          </View>
+        }
+      />
+    </>
+  );
 
   return (
     <View className={cn("gap-1.5", className)}>
@@ -122,7 +189,7 @@ export function CurrencyPicker({
         onPress={() => setVisible(true)}
       >
         <Text className="text-sm text-foreground">{selectedLabel}</Text>
-        <CaretDown size={18} color="hsl(240 3.8% 46.1%)" weight="regular" />
+        <CaretDown size={18} color="hsl(var(--muted-foreground))" weight="regular" />
       </Pressable>
 
       <Modal
@@ -134,66 +201,27 @@ export function CurrencyPicker({
           setSearch("");
         }}
       >
-        <KeyboardAvoidingView
-          className="flex-1 justify-end bg-black/50"
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-        >
-          <View className="bg-background rounded-t-xl border-t border-border" style={{ maxHeight: '80%' }}>
-            {/* Header */}
-            <View className="px-5 pt-4 pb-2">
-              <View className="items-center mb-4">
-                <View className="h-1 w-8 rounded-full bg-muted-foreground/20" />
-              </View>
-              <View className="flex-row items-center justify-between mb-5">
-                <Text className="text-base font-semibold">{t("select_currency")}</Text>
-                <Pressable
-                  onPress={() => {
-                    setVisible(false);
-                    setSearch("");
-                  }}
-                  hitSlop={8}
-                >
-                  <X size={20} color="hsl(240 3.8% 46.1%)" />
-                </Pressable>
-              </View>
-
-              {/* Search */}
-              <View className="flex-row items-center h-11 rounded-lg border border-input bg-background px-3 mb-2">
-                <MagnifyingGlass size={18} color="hsl(240 3.8% 46.1%)" weight="regular" />
-                <TextInput
-                  ref={searchRef}
-                  className="flex-1 ml-2 text-base text-foreground"
-                  placeholder={t("search_currency")}
-                  placeholderTextColor="hsl(240 3.8% 46.1%)"
-                  defaultValue={search}
-                  onChangeText={setSearch}
-                  autoFocus
-                />
-                {search ? (
-                  <Pressable onPress={() => {
-                    setSearch("");
-                    searchRef.current?.setNativeProps({ text: "" });
-                  }}>
-                    <X size={16} color="hsl(240 3.8% 46.1%)" />
-                  </Pressable>
-                ) : null}
-              </View>
-            </View>
-
-            {/* List */}
-            <FlatList
-              data={filtered}
-              keyExtractor={(item) => item.code}
-              renderItem={renderItem}
-              keyboardShouldPersistTaps="handled"
-              ListEmptyComponent={
-                <View className="items-center py-10">
-                  <Muted>{t("no_results")}</Muted>
-                </View>
-              }
+        {/* web 上 KeyboardAvoidingView 會導致整個 Modal 隨鍵盤縮小，改用 Pressable 背景 + 固定佈局 */}
+        {Platform.OS === "web" ? (
+          <View className="flex-1 bg-black/50">
+            <Pressable
+              className="flex-1"
+              onPress={() => { setVisible(false); setSearch(""); }}
             />
+            <View className="bg-background rounded-t-xl border-t border-border" style={{ maxHeight: '70%' }}>
+              {renderModalContent()}
+            </View>
           </View>
-        </KeyboardAvoidingView>
+        ) : (
+          <KeyboardAvoidingView
+            className="flex-1 justify-end bg-black/50"
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+          >
+            <View className="bg-background rounded-t-xl border-t border-border" style={{ maxHeight: '80%' }}>
+              {renderModalContent()}
+            </View>
+          </KeyboardAvoidingView>
+        )}
       </Modal>
     </View>
   );
