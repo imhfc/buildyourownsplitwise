@@ -1240,6 +1240,7 @@ export default function GroupDetailScreen() {
           userId={user?.id ?? ""}
           groupId={id!}
           groupCurrency={groupCurrency}
+          preferredCurrency={preferredCurrency}
           loading={sugLoading && suggestions.length === 0}
           refreshing={refreshing}
           onRefresh={onRefresh}
@@ -1384,7 +1385,7 @@ export default function GroupDetailScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <Pressable className="flex-1" onPress={handleCloseExpenseModal} />
-          <View className="bg-background border-t border-border rounded-t-xl px-5 pb-10 pt-4">
+          <View className="bg-background border-t border-border rounded-t-xl px-5 pb-10 pt-4" style={{ maxHeight: '85%' }}>
             <View className="items-center mb-4">
               <View className="h-1 w-8 rounded-full bg-muted-foreground/20" />
             </View>
@@ -1711,21 +1712,22 @@ export default function GroupDetailScreen() {
                     </View>
                   )}
 
-                  {addError ? (
-                    <Text className="text-sm text-destructive">{addError}</Text>
-                  ) : null}
-
-                  <Button
-                    onPress={handleSubmitExpense}
-                    loading={adding}
-                    disabled={adding || !canSubmitExpense}
-                    size="lg"
-                    className="mt-2"
-                  >
-                    {t("save")}
-                  </Button>
                 </View>
               </ScrollView>
+
+              {addError ? (
+                <Text className="text-sm text-destructive mt-2">{addError}</Text>
+              ) : null}
+
+              <Button
+                onPress={handleSubmitExpense}
+                loading={adding}
+                disabled={adding || !canSubmitExpense}
+                size="lg"
+                className="mt-3"
+              >
+                {t("save")}
+              </Button>
             </View>
         </KeyboardAvoidingView>
         </View>
@@ -2160,7 +2162,7 @@ export default function GroupDetailScreen() {
                       <Text className="text-xs text-muted-foreground mt-2 mb-3">
                         {t("unified_settle_round_hint")}
                         {unifiedSettleItems.some((i) => i.fetchedAt)
-                          ? ` · ${new Date(unifiedSettleItems.find((i) => i.fetchedAt)!.fetchedAt!).toLocaleString()}`
+                          ? ` · ${t("rate_fetched_at", { time: new Date(unifiedSettleItems.find((i) => i.fetchedAt)!.fetchedAt!).toLocaleString() })}`
                           : ""}
                       </Text>
                     </>

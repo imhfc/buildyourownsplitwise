@@ -357,7 +357,7 @@ export default function GroupsScreen() {
   const renderRightActions = (item: GroupItem, dragX: Animated.AnimatedInterpolation<number>) => {
     const isAdmin = item.my_role === "admin";
     const scale = dragX.interpolate({
-      inputRange: [isAdmin ? -160 : -100, 0],
+      inputRange: [isAdmin ? -200 : -130, 0],
       outputRange: [1, 0.8],
       extrapolate: "clamp",
     });

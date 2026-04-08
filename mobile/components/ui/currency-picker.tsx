@@ -65,11 +65,18 @@ export function CurrencyPicker({
         { code: "GBP", name_zh: "英鎊", name_en: "British Pound" },
         { code: "AUD", name_zh: "澳幣", name_en: "Australian Dollar" },
         { code: "CAD", name_zh: "加拿大幣", name_en: "Canadian Dollar" },
+        { code: "CHF", name_zh: "瑞士法郎", name_en: "Swiss Franc" },
         { code: "CNY", name_zh: "人民幣", name_en: "Chinese Yuan" },
         { code: "HKD", name_zh: "港幣", name_en: "Hong Kong Dollar" },
         { code: "KRW", name_zh: "韓元", name_en: "South Korean Won" },
         { code: "SGD", name_zh: "新加坡幣", name_en: "Singapore Dollar" },
         { code: "THB", name_zh: "泰銖", name_en: "Thai Baht" },
+        { code: "MXN", name_zh: "墨西哥披索", name_en: "Mexican Peso" },
+        { code: "BRL", name_zh: "巴西雷亞爾", name_en: "Brazilian Real" },
+        { code: "TRY", name_zh: "土耳其里拉", name_en: "Turkish Lira" },
+        { code: "AED", name_zh: "阿聯酋迪拉姆", name_en: "UAE Dirham" },
+        { code: "DKK", name_zh: "丹麥克朗", name_en: "Danish Krone" },
+        { code: "NOK", name_zh: "挪威克朗", name_en: "Norwegian Krone" },
       ]);
     }
   }, []);

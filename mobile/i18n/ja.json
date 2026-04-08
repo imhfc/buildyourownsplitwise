@@ -236,7 +236,7 @@
   "unified_settle_msg": "以下の債務を{{currency}}で{{name}}に一括精算：",
   "unified_settle_total": "合計",
   "unified_settle_round_hint": "金額は整数に四捨五入されます",
-  "rate_fetched_at": "為替レート取得時刻：{{time}}",
+  "rate_fetched_at": "為替レート時刻 {{time}}",
   "unified_settle_converting": "換算中...",
   "settlement_confirmed": "が精算を確認しました",
   "settlement_rejected": "が精算を拒否しました",

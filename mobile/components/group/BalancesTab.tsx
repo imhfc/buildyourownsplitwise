@@ -180,44 +180,6 @@ export function BalancesTab({
         </Card>
       )}
 
-      {/* Per-currency sections */}
-      <View className="gap-2">
-        {currencyBalances.map((cb) => (
-          <Card key={cb.currency}>
-            <CardContent className="p-3.5 gap-1.5">
-              <Text className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                {cb.currency}
-              </Text>
-              {cb.items.map((item, idx) => (
-                <View key={idx} className="flex-row items-center justify-between py-1">
-                  <Text className="text-sm flex-1">{item.label}</Text>
-                  <Text
-                    className={`text-sm font-semibold tabular-nums ${
-                      item.isOwedToMe ? "text-income" : "text-destructive"
-                    }`}
-                  >
-                    {item.isOwedToMe ? "+" : "-"}
-                    {cb.currency} {item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </Text>
-                </View>
-              ))}
-              {cb.items.length > 1 && (
-                <View className="flex-row items-center justify-between pt-1.5 mt-1 border-t border-border">
-                  <Text className="text-xs font-medium text-muted-foreground">{t("currency_subtotal")}</Text>
-                  <Text
-                    className={`text-sm font-semibold tabular-nums ${
-                      cb.subtotal >= 0 ? "text-income" : "text-destructive"
-                    }`}
-                  >
-                    {cb.subtotal >= 0 ? "+" : "-"}
-                    {cb.currency} {Math.abs(cb.subtotal).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </Text>
-                </View>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </View>
 
       {/* Pairwise debt details (expandable) */}
       {hasSuggestions && (

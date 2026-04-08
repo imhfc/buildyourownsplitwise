@@ -43,7 +43,7 @@ async def refresh_rates(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Manually trigger a rate refresh from 台銀 API."""
+    """Manually trigger a rate refresh from 台銀 + OXR."""
     try:
         rates = await exchange_rate_service.refresh_rates(db)
         return rates
@@ -65,7 +65,7 @@ async def get_rate(
             source_currency=source.upper(),
             target_currency=target.upper(),
             rate=rate,
-            source="taiwan_bank",
+            source="taiwan_bank+oxr",
             fetched_at=fetched_at,
         )
     except NotFoundError as e:

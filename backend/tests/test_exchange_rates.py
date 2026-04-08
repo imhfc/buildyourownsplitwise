@@ -157,7 +157,7 @@ class TestExchangeRateAPI:
     async def test_get_rate_not_found(self, client: AsyncClient, db, user_a: User):
         """When no rate exists and API fetch also fails, should return 404."""
         with patch.object(
-            exchange_rate_service, "fetch_rates_from_api",
+            exchange_rate_service, "fetch_twb_rates",
             new_callable=AsyncMock,
             side_effect=Exception("API down"),
         ):
@@ -252,12 +252,17 @@ class TestExchangeRateAPI:
         }
         with patch.object(
             exchange_rate_service,
-            "fetch_rates_from_api",
+            "fetch_twb_rates",
             new_callable=AsyncMock,
             return_value=(
                 {"USDTWD": Decimal("32.5")},
                 {"USDJPY": Decimal("150.2"), "USDEUR": Decimal("0.92")},
             ),
+        ), patch.object(
+            exchange_rate_service,
+            "fetch_oxr_rates",
+            new_callable=AsyncMock,
+            return_value={},
         ):
             resp = await client.post(
                 "/api/v1/exchange-rates/refresh",
@@ -276,9 +281,14 @@ class TestExchangeRateAPI:
         """台銀 API 掛掉時回傳 502。"""
         with patch.object(
             exchange_rate_service,
-            "fetch_rates_from_api",
+            "fetch_twb_rates",
             new_callable=AsyncMock,
             side_effect=Exception("API timeout"),
+        ), patch.object(
+            exchange_rate_service,
+            "fetch_oxr_rates",
+            new_callable=AsyncMock,
+            return_value={},
         ):
             resp = await client.post(
                 "/api/v1/exchange-rates/refresh",
@@ -287,8 +297,8 @@ class TestExchangeRateAPI:
         assert resp.status_code == 502
 
 
-class TestFetchRatesFromApi:
-    """測試 fetch_rates_from_api 解析邏輯（mock HTTP）。"""
+class TestFetchTwbRates:
+    """測試 fetch_twb_rates 解析邏輯（mock HTTP）。"""
 
     async def test_parse_api_response(self):
         """驗證正確解析台銀 API 回傳格式。"""
@@ -314,7 +324,7 @@ class TestFetchRatesFromApi:
             mock_client_instance.__aexit__ = AsyncMock(return_value=False)
             MockClient.return_value = mock_client_instance
 
-            twd_rates, usd_rates = await exchange_rate_service.fetch_rates_from_api()
+            twd_rates, usd_rates = await exchange_rate_service.fetch_twb_rates()
 
         # USDTWD 歸入 twd_rates
         assert "USDTWD" in twd_rates
@@ -333,19 +343,24 @@ class TestRefreshRatesService:
     """測試 refresh_rates service 層邏輯。"""
 
     async def test_refresh_stores_direct_and_cross_rates(self, db: AsyncSession):
-        """mock fetch_rates_from_api，驗證 refresh_rates 正確計算交叉匯率並存入 DB。"""
+        """mock fetch_twb_rates + fetch_oxr_rates，驗證 refresh_rates 正確計算交叉匯率並存入 DB。"""
         with patch.object(
             exchange_rate_service,
-            "fetch_rates_from_api",
+            "fetch_twb_rates",
             new_callable=AsyncMock,
             return_value=(
                 {"USDTWD": Decimal("32")},
                 {"USDJPY": Decimal("160"), "USDEUR": Decimal("0.8")},
             ),
+        ), patch.object(
+            exchange_rate_service,
+            "fetch_oxr_rates",
+            new_callable=AsyncMock,
+            return_value={},
         ):
             saved = await exchange_rate_service.refresh_rates(db)
 
-        # 應存入 3 筆：USDTWD + JPYTWD + EURTWD
+        # 應存入 3 筆：USDTWD + JPYTWD + EURTWD（OXR 回傳空所以不額外存）
         assert len(saved) == 3
         pairs = {(r.source_currency, r.target_currency) for r in saved}
         assert ("USD", "TWD") in pairs
@@ -363,12 +378,17 @@ class TestRefreshRatesService:
         """若台銀 API 沒回傳 USDTWD，不應計算交叉匯率。"""
         with patch.object(
             exchange_rate_service,
-            "fetch_rates_from_api",
+            "fetch_twb_rates",
             new_callable=AsyncMock,
             return_value=(
                 {},  # 無 twd_rates
                 {"USDJPY": Decimal("150")},
             ),
+        ), patch.object(
+            exchange_rate_service,
+            "fetch_oxr_rates",
+            new_callable=AsyncMock,
+            return_value={},
         ):
             saved = await exchange_rate_service.refresh_rates(db)
 

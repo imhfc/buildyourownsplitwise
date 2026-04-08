@@ -13,6 +13,7 @@ interface SettlementsTabProps {
   userId: string;
   groupId: string;
   groupCurrency: string;
+  preferredCurrency: string;
   loading: boolean;
   refreshing: boolean;
   onRefresh: () => void;
@@ -32,6 +33,7 @@ export function SettlementsTab({
   pendingSettlements,
   userId,
   groupCurrency,
+  preferredCurrency,
   loading,
   refreshing,
   onRefresh,
@@ -198,7 +200,7 @@ export function SettlementsTab({
                               size="sm"
                               variant="outline"
                               disabled={alreadyPending}
-                              onPress={() => onUnifiedSettle(personId, name, items, groupCurrency)}
+                              onPress={() => onUnifiedSettle(personId, name, items, preferredCurrency)}
                             >
                               {t("unified_settle")}
                             </Button>
