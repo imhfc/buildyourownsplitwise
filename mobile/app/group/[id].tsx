@@ -162,8 +162,7 @@ export default function GroupDetailScreen() {
   const [unifiedSettleError, setUnifiedSettleError] = useState("");
   const [unifiedConverting, setUnifiedConverting] = useState(false);
 
-  // Balance summary collapse
-  const [balanceSummaryExpanded, setBalanceSummaryExpanded] = useState(false);
+  // Balance summary collapse (removed — summary no longer expandable)
 
   // Add member modal
   const [showAddMember, setShowAddMember] = useState(false);
@@ -1016,7 +1015,7 @@ export default function GroupDetailScreen() {
         </View>
       ) : null}
 
-      {/* Balance summary above tabs — collapsible (Splitwise style) */}
+      {/* Balance summary above tabs — totals only, details in BalancesTab */}
       {(() => {
         const mySuggestions = suggestions.filter((s) => s.from_user_id === user?.id || s.to_user_id === user?.id);
         const owedToMe = mySuggestions.filter((s) => s.to_user_id === user?.id);
@@ -1030,48 +1029,27 @@ export default function GroupDetailScreen() {
         if (!hasOwed && !hasOwe) return null;
         return (
           <Pressable
-            onPress={() => setBalanceSummaryExpanded((v) => !v)}
+            onPress={() => setTab("balances")}
             className="mx-5 mt-3 mb-1"
           >
             {hasOwed && (
-              <View className={balanceSummaryExpanded ? "mb-2" : ""}>
-                <View className="flex-row items-center">
-                  <Text className="text-sm font-semibold text-income flex-1">
-                    {Object.entries(owedByCurrency).map(([cur, amt]) =>
-                      t("gets_back_total", { currency: cur, amount: amt.toLocaleString() })
-                    ).join(" + ")}
-                  </Text>
-                  {!hasOwe && (
-                    balanceSummaryExpanded
-                      ? <CaretDown size={16} color="hsl(240 3.8% 46.1%)" />
-                      : <CaretRight size={16} color="hsl(240 3.8% 46.1%)" />
-                  )}
-                </View>
-                {balanceSummaryExpanded && owedToMe.map((s) => (
-                  <Text key={`${s.from_user_id}-${s.to_user_id}`} className="text-xs text-muted-foreground ml-2 mt-0.5">
-                    {t("owes_you", { name: s.from_user_name })} {s.currency} {parseFloat(s.amount).toLocaleString()}
-                  </Text>
-                ))}
+              <View className="flex-row items-center">
+                <Text className="text-sm font-semibold text-income flex-1">
+                  {Object.entries(owedByCurrency).map(([cur, amt]) =>
+                    t("gets_back_total", { currency: cur, amount: amt.toLocaleString() })
+                  ).join(" + ")}
+                </Text>
+                <CaretRight size={16} color="hsl(240 3.8% 46.1%)" />
               </View>
             )}
             {hasOwe && (
-              <View className="mb-1">
-                <View className="flex-row items-center">
-                  <Text className="text-sm font-semibold text-destructive flex-1">
-                    {Object.entries(oweByCurrency).map(([cur, amt]) =>
-                      t("owes_total", { currency: cur, amount: amt.toLocaleString() })
-                    ).join(" + ")}
-                  </Text>
-                  {balanceSummaryExpanded
-                    ? <CaretDown size={16} color="hsl(240 3.8% 46.1%)" />
-                    : <CaretRight size={16} color="hsl(240 3.8% 46.1%)" />
-                  }
-                </View>
-                {balanceSummaryExpanded && iOwe.map((s) => (
-                  <Text key={`${s.from_user_id}-${s.to_user_id}`} className="text-xs text-muted-foreground ml-2 mt-0.5">
-                    {t("you_owe_person", { name: s.to_user_name })} {s.currency} {parseFloat(s.amount).toLocaleString()}
-                  </Text>
-                ))}
+              <View className="flex-row items-center mt-0.5">
+                <Text className="text-sm font-semibold text-destructive flex-1">
+                  {Object.entries(oweByCurrency).map(([cur, amt]) =>
+                    t("owes_total", { currency: cur, amount: amt.toLocaleString() })
+                  ).join(" + ")}
+                </Text>
+                {!hasOwed && <CaretRight size={16} color="hsl(240 3.8% 46.1%)" />}
               </View>
             )}
           </Pressable>

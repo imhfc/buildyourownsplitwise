@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, ScrollView, RefreshControl, ActivityIndicator, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
 import { CaretDown, CaretRight } from "phosphor-react-native";
@@ -80,14 +80,23 @@ export function BalancesTab({
     return { currency: group.currency, items, subtotal };
   }).filter((cb) => cb.items.length > 0);
 
+  // Stable key for useEffect dependency (avoid re-triggering on every render)
+  const balancesKey = useMemo(
+    () => JSON.stringify(currencyBalances.map((cb) => ({ c: cb.currency, s: cb.subtotal }))),
+    [suggestionsByCurrency, userId],
+  );
+
   // Convert subtotals to preferred currency for grand total
+  // Use a ref to track the latest request and avoid stale cancellation
+  const convertRequestId = useRef(0);
   useEffect(() => {
     if (currencyBalances.length === 0) {
       setConvertedTotals([]);
+      setConverting(false);
       return;
     }
 
-    let cancelled = false;
+    const requestId = ++convertRequestId.current;
     const doConvert = async () => {
       setConverting(true);
       try {
@@ -105,19 +114,17 @@ export function BalancesTab({
               const convertedAmount = cb.subtotal >= 0 ? res.data.converted_amount : -res.data.converted_amount;
               return { currency: cb.currency, original: cb.subtotal, converted: convertedAmount, rate: res.data.rate };
             } catch {
-              // If conversion fails, use original amount as fallback
               return { currency: cb.currency, original: cb.subtotal, converted: cb.subtotal, rate: null };
             }
           }),
         );
-        if (!cancelled) setConvertedTotals(results);
+        if (requestId === convertRequestId.current) setConvertedTotals(results);
       } finally {
-        if (!cancelled) setConverting(false);
+        if (requestId === convertRequestId.current) setConverting(false);
       }
     };
     doConvert();
-    return () => { cancelled = true; };
-  }, [JSON.stringify(currencyBalances.map((cb) => ({ c: cb.currency, s: cb.subtotal }))), preferredCurrency]);
+  }, [balancesKey, preferredCurrency]);
 
   const grandTotal = convertedTotals.reduce((sum, ct) => sum + ct.converted, 0);
   const hasMultipleCurrencies = currencyBalances.length > 1;
@@ -157,15 +164,52 @@ export function BalancesTab({
     >
       {listHeader}
 
-      {/* Grand Total Card */}
+      {/* Per-currency balance cards with individual items */}
+      {currencyBalances.map((cb) => (
+        <Card key={cb.currency} className="mb-2">
+          <CardContent className="p-3.5">
+            {hasMultipleCurrencies && (
+              <Text className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                {cb.currency}
+              </Text>
+            )}
+            {cb.items.map((item, i) => (
+              <View key={i} className="flex-row items-center justify-between py-1">
+                <Text className="text-sm font-medium text-foreground flex-1">{item.label}</Text>
+                <Text
+                  className={`text-sm font-semibold tabular-nums ${
+                    item.isOwedToMe ? "text-income" : "text-destructive"
+                  }`}
+                >
+                  {item.isOwedToMe ? "+" : "-"}{cb.currency} {item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </Text>
+              </View>
+            ))}
+            {cb.items.length > 1 && (
+              <View className="flex-row items-center justify-between pt-2 mt-1 border-t border-border">
+                <Text className="text-xs text-muted-foreground">{t("currency_subtotal")}</Text>
+                <Text
+                  className={`text-sm font-semibold tabular-nums ${
+                    cb.subtotal >= 0 ? "text-income" : "text-destructive"
+                  }`}
+                >
+                  {cb.subtotal >= 0 ? "+" : "-"}{cb.currency} {Math.abs(cb.subtotal).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </Text>
+              </View>
+            )}
+          </CardContent>
+        </Card>
+      ))}
+
+      {/* Grand Total Card — preferred currency conversion */}
       {(hasMultipleCurrencies || currencyBalances[0]?.currency !== preferredCurrency) && (
-        <Card className="mb-3">
+        <Card className="mb-2 border-primary/30">
           <CardContent className="p-3.5 items-center gap-1">
             <Text className="text-xs text-muted-foreground">
               {t("grand_total_note", { currency: preferredCurrency })}
             </Text>
             {converting ? (
-              <Text className="text-sm text-muted-foreground">{t("converting_total")}</Text>
+              <ActivityIndicator size="small" />
             ) : (
               <Text
                 className={`text-lg font-semibold tabular-nums ${
@@ -179,7 +223,6 @@ export function BalancesTab({
           </CardContent>
         </Card>
       )}
-
 
       {/* Pairwise debt details (expandable) */}
       {hasSuggestions && (
