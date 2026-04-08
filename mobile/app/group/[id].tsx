@@ -16,7 +16,6 @@ import {
   ShareNetwork,
   CaretDown,
   CaretRight,
-  Megaphone,
 } from "phosphor-react-native";
 import { CurrencyPicker } from "~/components/ui/currency-picker";
 import { expensesAPI, settlementsAPI, groupsAPI, authAPI, exchangeRatesAPI, friendsAPI, ExpenseSplitInput, ExpensePayerInput, ExpenseUpdatePayload } from "../../services/api";
@@ -35,8 +34,11 @@ import { SegmentedTabs } from "~/components/ui/tabs";
 import { useThemeClassName } from "~/lib/theme";
 import { InviteShareModal } from "~/components/InviteShareModal";
 import { CoverImagePicker } from "~/components/ui/cover-image-picker";
+import { BalancesTab } from "~/components/group/BalancesTab";
+import { SettlementsTab } from "~/components/group/SettlementsTab";
+import type { CurrencyGroupSuggestions } from "~/components/group/types";
 
-type Tab = "expenses" | "balances" | "members";
+type Tab = "expenses" | "balances" | "settlements" | "members";
 
 interface ExpenseSplitItem {
   user_id: string;
@@ -114,6 +116,7 @@ export default function GroupDetailScreen() {
   const [batchReminding, setBatchReminding] = useState(false);
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [suggestionsByCurrency, setSuggestionsByCurrency] = useState<CurrencyGroupSuggestions[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [groupName, setGroupName] = useState("");
   const [refreshing, setRefreshing] = useState(false);
@@ -197,11 +200,6 @@ export default function GroupDetailScreen() {
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
-
-  // Pairwise debt details
-  const [pairwiseDetails, setPairwiseDetails] = useState<Suggestion[]>([]);
-  const [showDetails, setShowDetails] = useState(false);
-  const [detailsLoading, setDetailsLoading] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [sugLoading, setSugLoading] = useState(false);
@@ -293,10 +291,13 @@ export default function GroupDetailScreen() {
       if (data.mode === "by_currency" && data.by_currency) {
         const flat = data.by_currency.flatMap((g: { suggestions: Suggestion[] }) => g.suggestions);
         setSuggestions(flat);
+        setSuggestionsByCurrency(data.by_currency);
       } else if (data.mode === "unified" && data.unified) {
         setSuggestions(data.unified.suggestions);
+        setSuggestionsByCurrency([{ currency: data.unified.target_currency, suggestions: data.unified.suggestions }]);
       } else {
         setSuggestions([]);
+        setSuggestionsByCurrency([]);
       }
       const pending = (settleRes.data as PendingSettlement[]).filter((s) => s.status === "pending");
       setPendingSettlements(pending);
@@ -1081,12 +1082,13 @@ export default function GroupDetailScreen() {
         tabs={[
           { value: "expenses", label: t("expenses") },
           { value: "balances", label: t("balances") },
+          { value: "settlements", label: t("settlements_tab") },
           { value: "members", label: t("members") },
         ]}
         value={tab}
         onValueChange={(v) => {
           setTab(v as Tab);
-          if (v === "balances") {
+          if (v === "balances" || v === "settlements") {
             refreshSettlements();
           }
         }}
@@ -1219,324 +1221,84 @@ export default function GroupDetailScreen() {
           );
         })()
       ) : tab === "balances" ? (
-        sugLoading && suggestions.length === 0 ? (
-          <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}>
-            {listHeader}
-            <View className="items-center justify-center py-20">
-              <ActivityIndicator size="large" />
-            </View>
-          </ScrollView>
-        ) : (
-          <ScrollView
-            contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        <BalancesTab
+          suggestionsByCurrency={suggestionsByCurrency}
+          suggestions={suggestions}
+          userId={user?.id ?? ""}
+          preferredCurrency={user?.preferred_currency ?? "TWD"}
+          groupId={id!}
+          groupCurrency={groupCurrency}
+          loading={sugLoading && suggestions.length === 0}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          listHeader={listHeader}
+        />
+      ) : tab === "settlements" ? (
+        <SettlementsTab
+          suggestions={suggestions}
+          pendingSettlements={pendingSettlements}
+          userId={user?.id ?? ""}
+          groupId={id!}
+          groupCurrency={groupCurrency}
+          loading={sugLoading && suggestions.length === 0}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          listHeader={listHeader}
+          settleSuccessMsg={settleSuccessMsg}
+          batchReminding={batchReminding}
+          onSettleUp={(item) => {
+            setSettleSuccessMsg("");
+            setSettleTarget(item);
+            setSettleCurrency(item.currency);
+            setSettleAmount(item.amount);
+            setSettleRate(null);
+            setSettleError("");
+          }}
+          onUnifiedSettle={(personId, name, items, currency) => {
+            setSettleSuccessMsg("");
+            handleOpenUnifiedSettle(personId, name, items, currency);
+          }}
+          onRemind={async (item) => {
+            try {
+              await settlementsAPI.sendReminder(id!, {
+                to_user: item.from_user_id,
+                amount: parseFloat(item.amount),
+                currency: item.currency,
+              });
+              setSettleSuccessMsg(t("reminder_sent"));
+            } catch (e: any) {
+              setAddError(e.response?.data?.detail || t("reminder_cooldown"));
             }
-          >
-            {listHeader}
-            {settleSuccessMsg ? (
-              <View className="bg-primary/10 rounded-lg px-4 py-3 mb-4">
-                <Text className="text-sm text-primary font-medium">{settleSuccessMsg}</Text>
-              </View>
-            ) : null}
-
-            {/* Pending settlements */}
-            {pendingSettlements.length > 0 && (
-              <Card className="mb-3">
-                <CardContent className="p-3.5 gap-2">
-                  <Text className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("pending_settlements")}</Text>
-                  {pendingSettlements.map((s) => (
-                    <View key={s.id} className="flex-row items-center justify-between py-1">
-                      <Text className="text-sm flex-1">
-                        {s.from_user_name} → {s.to_user_name}
-                      </Text>
-                      <Text className="text-sm font-medium text-warning">
-                        {s.currency} {s.amount.toLocaleString()}
-                      </Text>
-                    </View>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-
-            {(() => {
-              const mySuggestions = suggestions.filter((s) => s.from_user_id === user?.id || s.to_user_id === user?.id);
-              const owedToMe = mySuggestions.filter((s) => s.to_user_id === user?.id);
-              const iOwe = mySuggestions.filter((s) => s.from_user_id === user?.id);
-
-              if (mySuggestions.length === 0) {
-                return (
-                  <EmptyState
-                    icon={ArrowsLeftRight}
-                    title={t("balanced")}
-                    description={t("all_balanced_hint")}
-                  />
-                );
+          }}
+          onBatchRemind={async (items) => {
+            setBatchReminding(true);
+            try {
+              const res = await settlementsAPI.sendBatchReminders(id!, {
+                reminders: items.map((s) => ({
+                  to_user: s.from_user_id,
+                  amount: parseFloat(s.amount),
+                  currency: s.currency,
+                })),
+              });
+              const sentCount = res.data.sent?.length || 0;
+              const skippedCount = res.data.skipped?.length || 0;
+              let msg = t("batch_remind_sent", { count: sentCount });
+              if (skippedCount > 0) {
+                msg += "\n" + t("batch_remind_skipped", { count: skippedCount });
               }
-
-              return (
-                <View className="gap-4">
-                  {/* Section: Others owe me */}
-                  {owedToMe.length > 0 && (
-                    <Card>
-                      <CardContent className="p-3.5 gap-2.5">
-                        <View className="flex-row items-center justify-between">
-                          <Text className="text-xs font-medium text-income uppercase tracking-wider">{t("owed_to_you")}</Text>
-                          {owedToMe.length > 1 && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={batchReminding}
-                              onPress={async () => {
-                                setBatchReminding(true);
-                                try {
-                                  const res = await settlementsAPI.sendBatchReminders(id!, {
-                                    reminders: owedToMe.map((s) => ({
-                                      to_user: s.from_user_id,
-                                      amount: parseFloat(s.amount),
-                                      currency: s.currency,
-                                    })),
-                                  });
-                                  const sentCount = res.data.sent?.length || 0;
-                                  const skippedCount = res.data.skipped?.length || 0;
-                                  let msg = t("batch_remind_sent", { count: sentCount });
-                                  if (skippedCount > 0) {
-                                    msg += "\n" + t("batch_remind_skipped", { count: skippedCount });
-                                  }
-                                  setSettleSuccessMsg(msg);
-                                } catch (e: any) {
-                                  setAddError(e.response?.data?.detail || t("unknown_error"));
-                                } finally {
-                                  setBatchReminding(false);
-                                }
-                              }}
-                            >
-                              <View className="flex-row items-center gap-1">
-                                <Megaphone size={14} color="hsl(var(--primary))" />
-                                <Text className="text-xs">{t("batch_remind_all")}</Text>
-                              </View>
-                            </Button>
-                          )}
-                        </View>
-                        {owedToMe.map((item) => {
-                          const alreadyPending = hasPendingFor(item.from_user_id, item.to_user_id);
-                          return (
-                            <View key={`${item.from_user_id}-${item.to_user_id}`} className="gap-2">
-                              <View className="flex-row items-center justify-between">
-                                <Text className="text-sm flex-1">
-                                  {t("owes_you", { name: item.from_user_name })}
-                                </Text>
-                                <Text className="text-sm font-semibold tabular-nums text-income">
-                                  {item.currency} {parseFloat(item.amount).toLocaleString()}
-                                </Text>
-                              </View>
-                              {alreadyPending && (
-                                <Text className="text-xs text-warning">{t("settlement_pending_hint")}</Text>
-                              )}
-                              <View className="flex-row gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onPress={async () => {
-                                    try {
-                                      await settlementsAPI.sendReminder(id!, {
-                                        to_user: item.from_user_id,
-                                        amount: parseFloat(item.amount),
-                                        currency: item.currency,
-                                      });
-                                      setSettleSuccessMsg(t("reminder_sent"));
-                                    } catch (e: any) {
-                                      setAddError(e.response?.data?.detail || t("reminder_cooldown"));
-                                    }
-                                  }}
-                                  className="flex-1"
-                                >
-                                  {t("remind")}
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onPress={() => {
-                                    setForgiveTarget(item);
-                                    setForgiveError("");
-                                  }}
-                                  className="flex-1"
-                                >
-                                  {t("forgive_debt")}
-                                </Button>
-                              </View>
-                            </View>
-                          );
-                        })}
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* Section: I owe others (grouped by person) */}
-                  {iOwe.length > 0 && (() => {
-                    // Group iOwe by to_user_id
-                    const grouped = new Map<string, { name: string; items: Suggestion[] }>();
-                    for (const item of iOwe) {
-                      if (!grouped.has(item.to_user_id)) {
-                        grouped.set(item.to_user_id, { name: item.to_user_name, items: [] });
-                      }
-                      grouped.get(item.to_user_id)!.items.push(item);
-                    }
-                    return (
-                      <Card>
-                        <CardContent className="p-3.5 gap-2.5">
-                          <Text className="text-xs font-medium text-destructive uppercase tracking-wider">{t("you_owe")}</Text>
-                          {Array.from(grouped).map(([personId, { name, items }]) => {
-                            const alreadyPending = hasPendingFor(items[0].from_user_id, personId);
-                            const canSettle = items[0].from_user_id === user?.id;
-                            const hasMultipleCurrencies = items.length > 1;
-                            return (
-                              <View key={personId} className="gap-2">
-                                {/* Person header: name + unified settle button */}
-                                <View className="flex-row items-center justify-between">
-                                  <Text className="text-sm font-medium flex-1">
-                                    {t("you_owe_person", { name })}
-                                  </Text>
-                                  {canSettle && hasMultipleCurrencies && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      disabled={alreadyPending}
-                                      onPress={() => {
-                                        setSettleSuccessMsg("");
-                                        handleOpenUnifiedSettle(personId, name, items, groupCurrency);
-                                      }}
-                                    >
-                                      {t("unified_settle")}
-                                    </Button>
-                                  )}
-                                </View>
-                                {alreadyPending && (
-                                  <Text className="text-xs text-warning pl-3">{t("settlement_pending_hint")}</Text>
-                                )}
-                                {/* Per-currency rows */}
-                                {items.map((item) => (
-                                  <View key={`${item.from_user_id}-${item.to_user_id}-${item.currency}`} className="flex-row items-center justify-between pl-3">
-                                    <Text className="text-sm font-semibold tabular-nums text-destructive flex-1">
-                                      {item.currency} {parseFloat(item.amount).toLocaleString()}
-                                    </Text>
-                                    {canSettle && (
-                                      <Button
-                                        size="sm"
-                                        disabled={alreadyPending}
-                                        onPress={() => {
-                                          setSettleSuccessMsg("");
-                                          setSettleTarget(item);
-                                          setSettleCurrency(item.currency);
-                                          setSettleAmount(item.amount);
-                                          setSettleRate(null);
-                                          setSettleError("");
-                                        }}
-                                      >
-                                        {alreadyPending ? t("settlement_pending_hint") : t("settle_up")}
-                                      </Button>
-                                    )}
-                                  </View>
-                                ))}
-                              </View>
-                            );
-                          })}
-                        </CardContent>
-                      </Card>
-                    );
-                  })()}
-
-                  {/* Section: All members balances */}
-                  <Card>
-                    <CardContent className="p-3.5 gap-1.5">
-                      <Text className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("all_members_balances")}</Text>
-                      {members.map((m) => {
-                        // Calculate net balance for this member from all suggestions
-                        const owedSum = suggestions
-                          .filter((s) => s.to_user_id === m.user.id)
-                          .reduce((sum, s) => sum + parseFloat(s.amount), 0);
-                        const owesSum = suggestions
-                          .filter((s) => s.from_user_id === m.user.id)
-                          .reduce((sum, s) => sum + parseFloat(s.amount), 0);
-                        const net = owedSum - owesSum;
-                        const isSettled = Math.abs(net) < 0.01;
-                        return (
-                          <View key={m.user.id} className="flex-row items-center justify-between py-1.5">
-                            <Text className={`text-sm ${isSettled ? "text-muted-foreground" : ""}`}>
-                              {m.user.display_name}
-                              {m.user.id === user?.id ? ` (${t("me")})` : ""}
-                            </Text>
-                            {isSettled ? (
-                              <Text className="text-sm text-muted-foreground">{t("is_settled_up")}</Text>
-                            ) : net > 0 ? (
-                              <Text className="text-sm font-medium text-income">
-                                +{groupCurrency} {net.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </Text>
-                            ) : (
-                              <Text className="text-sm font-medium text-destructive">
-                                -{groupCurrency} {Math.abs(net).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </Text>
-                            )}
-                          </View>
-                        );
-                      })}
-                    </CardContent>
-                  </Card>
-
-                  {/* Pairwise debt details (expandable) */}
-                  {suggestions.length > 0 && (
-                    <View className="mt-1 mb-4">
-                      <Pressable
-                        className="flex-row items-center gap-2 py-3 px-1"
-                        onPress={async () => {
-                          if (showDetails) {
-                            setShowDetails(false);
-                            return;
-                          }
-                          if (pairwiseDetails.length === 0) {
-                            setDetailsLoading(true);
-                            try {
-                              const res = await settlementsAPI.pairwiseDetails(id!);
-                              setPairwiseDetails(res.data);
-                            } catch (e) {
-                              console.error("Failed to fetch pairwise details", e);
-                            } finally {
-                              setDetailsLoading(false);
-                            }
-                          }
-                          setShowDetails(true);
-                        }}
-                      >
-                        {showDetails
-                          ? <CaretDown size={18} color="hsl(240 3.8% 46.1%)" />
-                          : <CaretRight size={18} color="hsl(240 3.8% 46.1%)" />}
-                        <Text className="text-muted-foreground font-medium">
-                          {showDetails ? t("hide_details") : t("show_details")}
-                        </Text>
-                        {detailsLoading && <ActivityIndicator size="small" />}
-                      </Pressable>
-                      {showDetails && pairwiseDetails.length > 0 && (
-                        <View className="gap-2 mt-1">
-                          <Muted className="text-xs px-1">{t("debt_details")}</Muted>
-                          {pairwiseDetails.map((d, i) => (
-                            <View key={i} className="flex-row items-center justify-between px-3 py-2 bg-muted/50 rounded-lg">
-                              <Text className="text-sm flex-1">
-                                {d.from_user_name} → {d.to_user_name}
-                              </Text>
-                              <Text className="text-sm font-medium">
-                                {d.currency} {parseFloat(d.amount).toLocaleString()}
-                              </Text>
-                            </View>
-                          ))}
-                        </View>
-                      )}
-                    </View>
-                  )}
-                </View>
-              );
-            })()}
-          </ScrollView>
-        )
+              setSettleSuccessMsg(msg);
+            } catch (e: any) {
+              setAddError(e.response?.data?.detail || t("unknown_error"));
+            } finally {
+              setBatchReminding(false);
+            }
+          }}
+          onForgive={(item) => {
+            setForgiveTarget(item);
+            setForgiveError("");
+          }}
+          hasPendingFor={hasPendingFor}
+        />
       ) : (
         <FlatList
           data={members}

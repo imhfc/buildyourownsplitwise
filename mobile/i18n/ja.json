@@ -271,5 +271,10 @@
   "forgive_debt_confirm": "債務の精算確認",
   "forgive_debt_confirm_msg": "{{name}} の {{amount}} の債務を精算しますか？相手が支払い済みの場合、または免除する場合に使用します。",
   "settlement_forgiven_success": "債務を精算しました",
-  "settlement_forgiven": "が債務を直接精算しました"
+  "settlement_forgiven": "が債務を直接精算しました",
+  "settlements_tab": "精算",
+  "grand_total_note": "{{currency}} で合計",
+  "grand_total": "合計",
+  "currency_subtotal": "小計",
+  "converting_total": "換算中..."
 }

@@ -271,5 +271,10 @@
   "forgive_debt_confirm": "確認結清債務",
   "forgive_debt_confirm_msg": "確定要結清 {{name}} 的 {{amount}} 債務嗎？適用於對方已付款或你決定免除這筆欠款。",
   "settlement_forgiven_success": "債務已結清",
-  "settlement_forgiven": "直接結清了一筆債務"
+  "settlement_forgiven": "直接結清了一筆債務",
+  "settlements_tab": "結算",
+  "grand_total_note": "以偏好幣別 {{currency}} 加總",
+  "grand_total": "合計",
+  "currency_subtotal": "小計",
+  "converting_total": "換算中..."
 }

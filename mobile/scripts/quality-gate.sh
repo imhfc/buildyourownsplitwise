@@ -103,32 +103,28 @@ else
   red   "C-11 發現 router.back() 未搭配 canGoBack 檢查（Expo Web 無歷史時會拋 GO_BACK not handled）：$f"
 fi
 
-# ── C-14：group/[id].tsx 結清按鈕只能顯示給付款方 ──────────────────────────
-GROUP_FILE="$MOBILE_DIR/app/group/[id].tsx"
-if [ -f "$GROUP_FILE" ]; then
-  # 檢查策略：結清按鈕前必須有 from_user_id 守衛（inline 或透過中間變數如 canSettle）
-  # 且該守衛不能是 from_user_id || to_user_id 的 OR 條件
-  # 支援兩種寫法：
-  #   1. inline: from_user_id === user?.id && <Button>
-  #   2. 變數: const canSettle = ...from_user_id === user?.id; → {canSettle && (...)}
-  HAS_GUARD=false
-  if grep -q 'from_user_id === user.*&&' "$GROUP_FILE" 2>/dev/null; then
-    HAS_GUARD=true
-  elif grep -q 'canSettle.*from_user_id === user' "$GROUP_FILE" 2>/dev/null && \
-       grep -q '{canSettle &&' "$GROUP_FILE" 2>/dev/null; then
-    HAS_GUARD=true
+# ── C-14：結清按鈕只能顯示給付款方 ──────────────────────────
+# 掃描 group/[id].tsx 和 SettlementsTab.tsx（結清邏輯可能抽到獨立元件）
+C14_FILES=("$MOBILE_DIR/app/group/[id].tsx" "$MOBILE_DIR/components/group/SettlementsTab.tsx")
+HAS_GUARD=false
+NO_OR_LEAK=true
+for C14_FILE in "${C14_FILES[@]}"; do
+  if [ -f "$C14_FILE" ]; then
+    if grep -q 'from_user_id === user.*&&' "$C14_FILE" 2>/dev/null; then
+      HAS_GUARD=true
+    elif grep -q 'canSettle.*from_user_id === user' "$C14_FILE" 2>/dev/null && \
+         grep -q '{canSettle &&' "$C14_FILE" 2>/dev/null; then
+      HAS_GUARD=true
+    fi
+    if grep -B2 't("settle_up")' "$C14_FILE" 2>/dev/null | grep -q 'to_user_id === user.*&&'; then
+      NO_OR_LEAK=false
+    fi
   fi
-  NO_OR_LEAK=true
-  if grep -B2 't("settle_up")' "$GROUP_FILE" 2>/dev/null | grep -q 'to_user_id === user.*&&'; then
-    NO_OR_LEAK=false
-  fi
-  if $HAS_GUARD && $NO_OR_LEAK; then
-    green "C-14 group/[id].tsx 結清按鈕限定付款方（from_user_id === user）"
-  else
-    red   "C-14 group/[id].tsx 結清按鈕未限定付款方（必須用 from_user_id === user?.id 守衛，禁止讓收款方也能發起結清）"
-  fi
+done
+if $HAS_GUARD && $NO_OR_LEAK; then
+  green "C-14 結清按鈕限定付款方（from_user_id === user）"
 else
-  green "C-14 group/[id].tsx 不存在（跳過）"
+  red   "C-14 結清按鈕未限定付款方（必須用 from_user_id === user?.id 守衛，禁止讓收款方也能發起結清）"
 fi
 
 # ── C-15：settlement_service.py 必須驗證 from_user != to_user ────────────────
