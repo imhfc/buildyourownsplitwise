@@ -276,5 +276,13 @@
   "grand_total_note": "以偏好幣別 {{currency}} 加總",
   "grand_total": "合計",
   "currency_subtotal": "小計",
-  "converting_total": "換算中..."
+  "converting_total": "換算中...",
+  "add_to_home_screen": "加入桌面",
+  "ios_step_1": "點擊底部的「分享」按鈕",
+  "ios_step_2": "選擇「加入主畫面」",
+  "ios_step_3": "點擊右上角「新增」即完成",
+  "ios_chrome_step_1": "點擊右下角的「...」選單",
+  "ios_need_safari": "請先用瀏覽器開啟此頁面，才能加入主畫面。",
+  "ios_open_safari": "在瀏覽器中開啟此頁面",
+  "open_in_safari": "用瀏覽器開啟"
 }

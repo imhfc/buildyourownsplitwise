@@ -276,5 +276,13 @@
   "grand_total_note": "Total in {{currency}}",
   "grand_total": "Total",
   "currency_subtotal": "Subtotal",
-  "converting_total": "Converting..."
+  "converting_total": "Converting...",
+  "add_to_home_screen": "Add to Home Screen",
+  "ios_step_1": "Tap the Share button at the bottom",
+  "ios_step_2": "Select \"Add to Home Screen\"",
+  "ios_step_3": "Tap \"Add\" in the top right corner",
+  "ios_chrome_step_1": "Tap the \"...\" menu at the bottom right",
+  "ios_need_safari": "Please open this page in a browser to add to Home Screen.",
+  "ios_open_safari": "Open this page in a browser",
+  "open_in_safari": "Open in Browser"
 }
