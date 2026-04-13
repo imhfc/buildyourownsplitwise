@@ -13,7 +13,6 @@ import { useTheme } from "../../lib/theme";
 import { Logo } from "~/components/Logo";
 import { Text } from "~/components/ui/text";
 import { Button } from "~/components/ui/button";
-import { AddToHomeScreen } from "~/components/AddToHomeScreen";
 
 const USE_NATIVE = Platform.OS !== "web";
 
@@ -196,13 +195,6 @@ export default function LoginScreen() {
           <Button onPress={handleGoogleLogin} loading={loading}>
             {t("sign_in_with_google")}
           </Button>
-        </FadeUp>
-
-        {/* ── Add to Home Screen ── */}
-        <FadeUp delay={700}>
-          <View className="mt-4">
-            <AddToHomeScreen />
-          </View>
         </FadeUp>
 
         {/* ── Footer tagline ── */}

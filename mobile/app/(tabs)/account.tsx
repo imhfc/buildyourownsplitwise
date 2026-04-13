@@ -26,7 +26,6 @@ import { Avatar } from "~/components/ui/avatar";
 import { Card, CardContent } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { authAPI } from "../../services/api";
-import { AddToHomeScreen } from "~/components/AddToHomeScreen";
 
 const LANGUAGES = [
   { code: "zh-TW", label: "繁體中文" },
@@ -241,15 +240,13 @@ export default function AccountScreen() {
           </CardContent>
         </Card>
 
-        <View className="mt-6 gap-3 mb-4">
-          <AddToHomeScreen />
-          <Button
-            variant="outline"
-            onPress={handleLogout}
-          >
-            {t("logout")}
-          </Button>
-        </View>
+        <Button
+          variant="outline"
+          onPress={handleLogout}
+          className="mt-6 mb-4"
+        >
+          {t("logout")}
+        </Button>
 
         {/* Brand footer */}
         <View className="items-center pb-8 pt-2 opacity-30">

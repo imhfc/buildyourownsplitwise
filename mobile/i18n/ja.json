@@ -276,13 +276,5 @@
   "grand_total_note": "{{currency}} で合計",
   "grand_total": "合計",
   "currency_subtotal": "小計",
-  "converting_total": "換算中...",
-  "add_to_home_screen": "ホーム画面に追加",
-  "ios_step_1": "画面下部の「共有」ボタンをタップ",
-  "ios_step_2": "「ホーム画面に追加」を選択",
-  "ios_step_3": "右上の「追加」をタップして完了",
-  "ios_chrome_step_1": "右下の「...」メニューをタップ",
-  "ios_need_safari": "ホーム画面に追加するには、ブラウザでこのページを開いてください。",
-  "ios_open_safari": "ブラウザでこのページを開く",
-  "open_in_safari": "ブラウザで開く"
+  "converting_total": "換算中..."
 }
